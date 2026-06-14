@@ -9,30 +9,36 @@ use windows::{
     Win32::{
         Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM},
         System::{
-            LibraryLoader::GetModuleHandleW,
+            LibraryLoader::{GetModuleHandleW, GetProcAddress},
             WinRT::{RO_INIT_SINGLETHREADED, RoInitialize},
         },
         UI::WindowsAndMessaging::{
             CREATESTRUCTW, CW_USEDEFAULT, CreateWindowExW, DefWindowProcW, DispatchMessageW,
             GWLP_USERDATA, GetClientRect, GetMessageW, HMENU, IDC_ARROW, LoadCursorW, MSG,
-            PostQuitMessage, RegisterClassW, SW_SHOW, SWP_NOACTIVATE, SWP_NOZORDER, SWP_SHOWWINDOW,
-            SetWindowLongPtrW, SetWindowPos, ShowWindow, TranslateMessage, WINDOW_EX_STYLE,
-            WM_DESTROY, WM_NCCREATE, WM_SIZE, WNDCLASSW, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+            PostQuitMessage, RegisterClassW, SW_HIDE, SW_SHOW, SWP_NOACTIVATE, SWP_NOZORDER,
+            SWP_SHOWWINDOW, SendMessageW, SetWindowLongPtrW, SetWindowPos, ShowWindow,
+            TranslateMessage, WINDOW_EX_STYLE, WM_DESTROY, WM_NCCREATE, WM_SIZE, WNDCLASSW,
+            WS_OVERLAPPEDWINDOW, WS_VISIBLE,
         },
     },
-    core::{Error, HSTRING, Interface, PCWSTR, Result},
+    core::{BOOL, Error, HSTRING, Interface, PCSTR, PCWSTR, Result},
 };
 
-use xaml_bindings::Windows::{
-    UI::Xaml::{
-        Controls::TextBlock,
-        Hosting::{DesktopWindowXamlSource, WindowsXamlManager},
-        UIElement,
+use xaml_bindings::{
+    Windows::{
+        UI::Xaml::{
+            Controls::TextBlock,
+            HorizontalAlignment,
+            Hosting::{DesktopWindowXamlSource, WindowsXamlManager},
+            TextAlignment, UIElement,
+        },
+        Win32::System::WinRT::Xaml::IDesktopWindowXamlSourceNative,
     },
-    Win32::System::WinRT::Xaml::IDesktopWindowXamlSourceNative,
+    interop::{Application, CoreWindow, ICoreWindowInterop, IFrameworkApplicationPrivate},
 };
 
 static XAML_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
+static CORE_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 
 fn main() -> Result<()> {
     unsafe {
@@ -40,6 +46,8 @@ fn main() -> Result<()> {
     }
 
     let _xaml_manager = WindowsXamlManager::InitializeForCurrentThread()?;
+    initialize_core_window_handle();
+
     let hwnd = create_main_window()?;
 
     let xaml_source = DesktopWindowXamlSource::new()?;
@@ -51,10 +59,13 @@ fn main() -> Result<()> {
 
     let xaml_hwnd = unsafe { native_source.WindowHandle()? };
     XAML_HWND.store(xaml_hwnd.0, Ordering::Relaxed);
+    enable_resize_layout_synchronization(hwnd, true);
 
     let text = TextBlock::new()?;
     text.SetText(&HSTRING::from("Hello from Rust + windows-rs XAML Islands"))?;
     text.SetFontSize(28.0)?;
+    text.SetTextAlignment(TextAlignment::Right)?;
+    text.SetHorizontalAlignment(HorizontalAlignment::Right)?;
 
     let content: UIElement = text.cast()?;
     xaml_source.SetContent(&content)?;
@@ -137,6 +148,8 @@ unsafe extern "system" fn wnd_proc(
         },
         WM_SIZE => {
             resize_xaml_island(hwnd);
+            send_size_to_core_window(wparam, lparam);
+            set_synchronization_window(hwnd);
             LRESULT(0)
         }
         WM_DESTROY => {
@@ -172,6 +185,71 @@ fn resize_xaml_island(parent: HWND) {
                 SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW,
             );
         }
+    }
+}
+
+fn initialize_core_window_handle() {
+    let Ok(core_window) = CoreWindow::GetForCurrentThread() else {
+        return;
+    };
+
+    let Ok(core_window_interop) = core_window.cast::<ICoreWindowInterop>() else {
+        return;
+    };
+
+    let Ok(core_hwnd) = (unsafe { core_window_interop.GetWindowHandle() }) else {
+        return;
+    };
+
+    CORE_HWND.store(core_hwnd.0, Ordering::Relaxed);
+
+    unsafe {
+        let _ = ShowWindow(core_hwnd, SW_HIDE);
+    }
+}
+
+fn enable_resize_layout_synchronization(hwnd: HWND, enabled: bool) {
+    type EnableResizeLayoutSynchronization = unsafe extern "system" fn(HWND, BOOL);
+
+    unsafe {
+        let user32 = wide_null("user32.dll");
+        let Ok(user32) = GetModuleHandleW(PCWSTR(user32.as_ptr())) else {
+            return;
+        };
+
+        let Some(proc) = GetProcAddress(user32, PCSTR(2615usize as *const u8)) else {
+            return;
+        };
+
+        let enable_resize_layout_synchronization: EnableResizeLayoutSynchronization =
+            std::mem::transmute(proc);
+        enable_resize_layout_synchronization(hwnd, BOOL::from(enabled));
+    }
+}
+
+fn send_size_to_core_window(wparam: WPARAM, lparam: LPARAM) {
+    let raw_core_hwnd = CORE_HWND.load(Ordering::Relaxed);
+
+    if raw_core_hwnd.is_null() {
+        return;
+    }
+
+    unsafe {
+        let _ = SendMessageW(HWND(raw_core_hwnd), WM_SIZE, Some(wparam), Some(lparam));
+    }
+}
+
+fn set_synchronization_window(hwnd: HWND) {
+    let Ok(application) = Application::Current() else {
+        return;
+    };
+
+    let Ok(framework_app_private) = application.cast::<IFrameworkApplicationPrivate>() else {
+        return;
+    };
+
+    unsafe {
+        let _ = framework_app_private.SetSynchronizationWindow(hwnd);
     }
 }
 
