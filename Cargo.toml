@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace]
-members = ["crates/xaml-bindings"]
+members = ["crates/island-reactor-setup", "crates/xaml-bindings"]
 resolver = "3"
 
 [dependencies]
@@ -17,3 +17,6 @@ windows = { version = "0.62.2", features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 xaml-bindings = { path = "crates/xaml-bindings" }
+
+[build-dependencies]
+island-reactor-setup = { path = "crates/island-reactor-setup" }

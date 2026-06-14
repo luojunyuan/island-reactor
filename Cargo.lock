@@ -6,9 +6,14 @@ version = 4
 name = "island-reactor"
 version = "0.1.0"
 dependencies = [
+ "island-reactor-setup",
  "windows",
  "xaml-bindings",
 ]
+
+[[package]]
+name = "island-reactor-setup"
+version = "0.1.0"
 
 [[package]]
 name = "itoa"
