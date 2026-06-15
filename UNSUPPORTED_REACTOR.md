@@ -2,7 +2,7 @@
 
 This crate targets `Windows.UI.Xaml` XAML Islands plus the WinUI 2 (`Microsoft.UI.Xaml`) AppX metadata/runtime from `microsoft.ui.xaml` 2.8.7.
 
-The public surface should be the `island-reactor` wrapper API. The checked-in `xaml-bindings` and `muxc-bindings` crates are internal implementation details and are marked `publish = false`.
+The public surface should be the `island-reactor` wrapper API. The checked-in XAML and MUXC bindings are private modules inside `crates/island-reactor/src` and are not exposed as standalone crates.
 
 ## Filled With WinUI 2 MUXC
 
@@ -46,3 +46,5 @@ cargo run -p island-reactor-codegen -- generate-bindings
 ```
 
 The codegen tool currently extracts `Microsoft.UI.Xaml.winmd` from the x64 WinUI 2 AppX and treats that file as the authoritative MUXC metadata source. It also copies the matching x64/arm64 AppX runtime payloads. It should not switch to the .NET projection metadata until that path can be generated reproducibly.
+
+The workspace root is only a workspace. The main library lives in `crates/island-reactor`; applications use `island-reactor-setup` from `[build-dependencies]` so their build scripts can embed the manifest, stage the WinUI 2 DLL, and produce the app `resources.pri`.

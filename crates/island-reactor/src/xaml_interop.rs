@@ -5,15 +5,6 @@
     dead_code,
     clippy::all
 )]
-mod bindings;
-
-#[allow(
-    non_snake_case,
-    non_upper_case_globals,
-    non_camel_case_types,
-    dead_code,
-    clippy::all
-)]
 pub mod interop {
     use std::ffi::c_void;
 
@@ -251,5 +242,3 @@ pub mod interop {
             unsafe extern "system" fn(*mut c_void, HWND) -> windows_core::HRESULT,
     }
 }
-
-pub use bindings::*;

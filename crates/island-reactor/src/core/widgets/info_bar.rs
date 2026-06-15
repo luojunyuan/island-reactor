@@ -1,6 +1,6 @@
 use super::*;
 
-pub use muxc_bindings::InfoBarSeverity;
+pub use crate::bindings_muxc::InfoBarSeverity;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct InfoBar {

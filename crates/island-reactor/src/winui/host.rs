@@ -28,8 +28,8 @@ use windows::{
 use windows_core::Interface;
 
 use crate::bindings::*;
+use crate::bindings_muxc as Muxc;
 use crate::core::*;
-use muxc_bindings as Muxc;
 
 use super::app_shim::create_island_application;
 use super::{WinUIBackend, WinUIDispatcher};
@@ -489,10 +489,11 @@ fn resize_xaml_island(parent: HWND) {
 }
 
 fn initialize_core_window_handle() {
-    let Ok(core_window) = xaml_bindings::interop::CoreWindow::GetForCurrentThread() else {
+    let Ok(core_window) = crate::xaml_interop::interop::CoreWindow::GetForCurrentThread() else {
         return;
     };
-    let Ok(core_window_interop) = core_window.cast::<xaml_bindings::interop::ICoreWindowInterop>()
+    let Ok(core_window_interop) =
+        core_window.cast::<crate::xaml_interop::interop::ICoreWindowInterop>()
     else {
         return;
     };
@@ -532,11 +533,11 @@ fn send_size_to_core_window(wparam: WPARAM, lparam: LPARAM) {
 }
 
 fn set_synchronization_window(hwnd: HWND) {
-    let Ok(application) = xaml_bindings::interop::Application::Current() else {
+    let Ok(application) = crate::xaml_interop::interop::Application::Current() else {
         return;
     };
     let Ok(framework_app_private) =
-        application.cast::<xaml_bindings::interop::IFrameworkApplicationPrivate>()
+        application.cast::<crate::xaml_interop::interop::IFrameworkApplicationPrivate>()
     else {
         return;
     };

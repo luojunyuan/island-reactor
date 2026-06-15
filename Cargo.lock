@@ -7,16 +7,15 @@ name = "island-reactor"
 version = "0.1.0"
 dependencies = [
  "island-reactor-setup",
- "muxc-bindings",
  "rustc-hash",
  "windows",
  "windows-collections",
  "windows-core",
  "windows-future",
  "windows-numerics",
+ "windows-reference",
  "windows-threading",
  "windows-time",
- "xaml-bindings",
 ]
 
 [[package]]
@@ -30,9 +29,6 @@ dependencies = [
 [[package]]
 name = "island-reactor-setup"
 version = "0.1.0"
-dependencies = [
- "muxc-bindings",
-]
 
 [[package]]
 name = "itoa"
@@ -45,20 +41,6 @@ name = "memchr"
 version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88904434abc2901f197fe8cc55f0445e7ded921dba5911dad2e2b39b48e663c4"
-
-[[package]]
-name = "muxc-bindings"
-version = "0.1.0"
-dependencies = [
- "windows",
- "windows-collections",
- "windows-core",
- "windows-future",
- "windows-numerics",
- "windows-reference",
- "windows-time",
- "xaml-bindings",
-]
 
 [[package]]
 name = "proc-macro2"
@@ -278,19 +260,6 @@ source = "git+https://github.com/microsoft/windows-rs?rev=62af965b827a68079605ee
 dependencies = [
  "windows-core",
  "windows-link",
-]
-
-[[package]]
-name = "xaml-bindings"
-version = "0.1.0"
-dependencies = [
- "windows",
- "windows-collections",
- "windows-core",
- "windows-future",
- "windows-numerics",
- "windows-reference",
- "windows-time",
 ]
 
 [[package]]

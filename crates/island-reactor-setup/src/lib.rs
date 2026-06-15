@@ -4,6 +4,9 @@ use std::{
     process::Command,
 };
 
+#[allow(dead_code)]
+mod muxc_runtime;
+
 const APP_MANIFEST: &str = include_str!("../assets/app.manifest");
 
 pub fn embed_manifest() {
@@ -100,7 +103,7 @@ fn mux_file_entry(mux: &MuxRegistration) -> String {
 
 struct MuxRegistration {
     path: &'static str,
-    classes: &'static [muxc_bindings::ActivatableClass],
+    classes: &'static [muxc_runtime::ActivatableClass],
 }
 
 fn stage_mux_runtime() -> Option<MuxRegistration> {
@@ -111,12 +114,12 @@ fn stage_mux_runtime() -> Option<MuxRegistration> {
         println!("cargo:warning=WinUI 2 runtime staging skipped: unsupported target architecture");
         return None;
     };
-    let Some(asset_dir) = muxc_bindings::runtime_asset_dir(arch) else {
+    let Some(asset_dir) = muxc_runtime::runtime_asset_dir(arch) else {
         println!("cargo:warning=WinUI 2 runtime staging skipped: unsupported target architecture");
         return None;
     };
-    let dll = asset_dir.join(muxc_bindings::RUNTIME_DLL);
-    let pri = asset_dir.join(muxc_bindings::RUNTIME_PRI);
+    let dll = asset_dir.join(muxc_runtime::RUNTIME_DLL);
+    let pri = asset_dir.join(muxc_runtime::RUNTIME_PRI);
     println!("cargo:rerun-if-changed={}", dll.display());
     println!("cargo:rerun-if-changed={}", pri.display());
     if !dll.exists() || !pri.exists() {
@@ -141,8 +144,8 @@ fn stage_mux_runtime() -> Option<MuxRegistration> {
     }
 
     Some(MuxRegistration {
-        path: muxc_bindings::RUNTIME_DLL,
-        classes: muxc_bindings::ACTIVATABLE_CLASSES,
+        path: muxc_runtime::RUNTIME_DLL,
+        classes: muxc_runtime::ACTIVATABLE_CLASSES,
     })
 }
 
@@ -156,10 +159,10 @@ fn target_arch_folder() -> Option<&'static str> {
 
 fn copy_runtime_payload(asset_dir: &Path, target_dir: &Path) -> std::io::Result<()> {
     fs::create_dir_all(target_dir)?;
-    let dll = asset_dir.join(muxc_bindings::RUNTIME_DLL);
-    let pri = asset_dir.join(muxc_bindings::RUNTIME_PRI);
-    copy_file(&dll, target_dir.join(muxc_bindings::RUNTIME_DLL))?;
-    let stale_pri = target_dir.join(muxc_bindings::RUNTIME_PRI);
+    let dll = asset_dir.join(muxc_runtime::RUNTIME_DLL);
+    let pri = asset_dir.join(muxc_runtime::RUNTIME_PRI);
+    copy_file(&dll, target_dir.join(muxc_runtime::RUNTIME_DLL))?;
+    let stale_pri = target_dir.join(muxc_runtime::RUNTIME_PRI);
     if stale_pri.exists() {
         fs::remove_file(stale_pri)?;
     }
@@ -178,7 +181,7 @@ fn ensure_app_resources_pri(target_dir: &Path, mux_pri: &Path) -> std::io::Resul
     let input = work.join("input");
     recreate_dir(&work)?;
     fs::create_dir_all(&input)?;
-    copy_file(mux_pri, input.join(muxc_bindings::RUNTIME_PRI))?;
+    copy_file(mux_pri, input.join(muxc_runtime::RUNTIME_PRI))?;
 
     let config = work.join("priconfig.xml");
     fs::write(&config, APP_PRI_CONFIG)?;

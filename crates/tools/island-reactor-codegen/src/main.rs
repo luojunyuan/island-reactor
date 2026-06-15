@@ -278,17 +278,17 @@ fn generate_bindings() -> Result<(), String> {
     let winmd = extract_muxc_metadata_winmd(&root, &package)?;
 
     generate_xaml_bindings(&root)?;
-    generate_muxc_bindings(&root, &winmd)?;
+    generate_muxc_module(&root, &winmd)?;
     vendor_muxc_runtime(&root, &package)?;
     Ok(())
 }
 
 fn generate_xaml_bindings(root: &Path) -> Result<(), String> {
-    let out = root.join("crates/xaml-bindings/src/bindings.rs");
+    let out = root.join("crates/island-reactor/src/bindings.rs");
     let temp = root
         .join("target")
         .join("island-reactor-codegen")
-        .join("xaml-bindings.rs");
+        .join("bindings.rs");
     let temp_arg = path_arg(&temp);
     let mut args = vec![
         "--in",
@@ -330,12 +330,12 @@ fn generate_xaml_bindings(root: &Path) -> Result<(), String> {
     copy_if_changed(&temp, &out)
 }
 
-fn generate_muxc_bindings(root: &Path, winmd: &Path) -> Result<(), String> {
-    let out = root.join("crates/muxc-bindings/src/bindings.rs");
+fn generate_muxc_module(root: &Path, winmd: &Path) -> Result<(), String> {
+    let out = root.join("crates/island-reactor/src/bindings_muxc.rs");
     let temp = root
         .join("target")
         .join("island-reactor-codegen")
-        .join("muxc-bindings.rs");
+        .join("bindings_muxc.rs");
     let temp_arg = path_arg(&temp);
     let winmd = path_arg(winmd);
     let mut args = vec![
@@ -351,13 +351,13 @@ fn generate_muxc_bindings(root: &Path, winmd: &Path) -> Result<(), String> {
     args.extend(MUXC_MINIMAL_FILTERS);
     args.extend([
         "--reference",
-        "xaml_bindings,flat,Windows.UI",
+        "crate::bindings,flat,Windows.UI",
         "--reference",
-        "xaml_bindings,flat,Windows.UI.Xaml",
+        "crate::bindings,flat,Windows.UI.Xaml",
         "--reference",
-        "xaml_bindings,flat,Windows.UI.Input",
+        "crate::bindings,flat,Windows.UI.Input",
         "--reference",
-        "xaml_bindings,flat,Windows.UI.Text",
+        "crate::bindings,flat,Windows.UI.Text",
         "--reference",
         "windows,skip-root,Windows.ApplicationModel.Resources.Core",
         "--reference",
@@ -370,6 +370,7 @@ fn generate_muxc_bindings(root: &Path, winmd: &Path) -> Result<(), String> {
         "windows,skip-root,Windows.Foundation",
     ]);
     run_bindgen(args)?;
+    patch_muxc_module(&temp)?;
     copy_if_changed(&temp, &out)
 }
 
@@ -391,7 +392,7 @@ fn vendor_muxc_runtime(root: &Path, package: &Path) -> Result<(), String> {
         recreate_dir(&work)?;
         expand_appx(&appx, &work)?;
 
-        let runtime = root.join("crates/muxc-bindings/runtime").join(arch);
+        let runtime = root.join("crates/island-reactor-setup/runtime").join(arch);
         fs::create_dir_all(&runtime).map_err(|err| {
             format!(
                 "failed to create runtime asset dir {}: {err}",
@@ -413,7 +414,7 @@ fn vendor_muxc_runtime(root: &Path, package: &Path) -> Result<(), String> {
     }
 
     write_runtime_rs(
-        &root.join("crates/muxc-bindings/src/runtime.rs"),
+        &root.join("crates/island-reactor-setup/src/muxc_runtime.rs"),
         &registration.unwrap_or_default(),
     )
 }
@@ -783,6 +784,13 @@ fn patch_xaml_bindings(path: &Path) -> Result<(), String> {
     let mut code = fs::read_to_string(path)
         .map_err(|err| format!("failed to read {}: {err}", path.display()))?;
     insert_selection_changed_event_handler_ctor(&mut code)?;
+    fs::write(path, code).map_err(|err| format!("failed to write {}: {err}", path.display()))
+}
+
+fn patch_muxc_module(path: &Path) -> Result<(), String> {
+    let mut code = fs::read_to_string(path)
+        .map_err(|err| format!("failed to read {}: {err}", path.display()))?;
+    code = code.replace("xaml_bindings::", "crate::bindings::");
     fs::write(path, code).map_err(|err| format!("failed to write {}: {err}", path.display()))
 }
 

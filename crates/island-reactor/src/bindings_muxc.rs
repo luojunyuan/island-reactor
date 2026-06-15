@@ -1107,7 +1107,7 @@ impl windows_core::RuntimeType for INavigationViewItem {
 impl INavigationViewItem {
     pub fn put_Icon<P0>(&self, value: P0) -> windows_core::Result<()>
     where
-        P0: windows_core::Param<xaml_bindings::IconElement>,
+        P0: windows_core::Param<crate::bindings::IconElement>,
     {
         unsafe {
             (windows_core::Interface::vtable(self).put_Icon)(
@@ -1452,11 +1452,11 @@ impl IRadioButtons {
     where
         F: Fn(
                 windows_core::Ref<windows_core::IInspectable>,
-                windows_core::Ref<xaml_bindings::SelectionChangedEventArgs>,
+                windows_core::Ref<crate::bindings::SelectionChangedEventArgs>,
             ) + Send
             + 'static,
     {
-        let handler = <xaml_bindings::SelectionChangedEventHandler>::new(move |a0, a1| {
+        let handler = <crate::bindings::SelectionChangedEventHandler>::new(move |a0, a1| {
             handler(a0, a1);
             Ok(())
         });
@@ -1680,11 +1680,11 @@ impl ITabView {
     where
         F: Fn(
                 windows_core::Ref<windows_core::IInspectable>,
-                windows_core::Ref<xaml_bindings::SelectionChangedEventArgs>,
+                windows_core::Ref<crate::bindings::SelectionChangedEventArgs>,
             ) + Send
             + 'static,
     {
-        let handler = <xaml_bindings::SelectionChangedEventHandler>::new(move |a0, a1| {
+        let handler = <crate::bindings::SelectionChangedEventHandler>::new(move |a0, a1| {
             handler(a0, a1);
             Ok(())
         });
@@ -3168,7 +3168,7 @@ windows_core::imp::interface_hierarchy!(
     XamlControlsXamlMetaDataProvider,
     windows_core::IUnknown,
     windows_core::IInspectable,
-    xaml_bindings::IXamlMetadataProvider
+    crate::bindings::IXamlMetadataProvider
 );
 impl XamlControlsXamlMetaDataProvider {
     pub fn new() -> windows_core::Result<Self> {
@@ -3189,15 +3189,15 @@ impl XamlControlsXamlMetaDataProvider {
 }
 impl windows_core::RuntimeType for XamlControlsXamlMetaDataProvider {
     const SIGNATURE: windows_core::imp::ConstBuffer =
-        windows_core::imp::ConstBuffer::for_class::<Self, xaml_bindings::IXamlMetadataProvider>();
+        windows_core::imp::ConstBuffer::for_class::<Self, crate::bindings::IXamlMetadataProvider>();
 }
 unsafe impl windows_core::Interface for XamlControlsXamlMetaDataProvider {
-    type Vtable = <xaml_bindings::IXamlMetadataProvider as windows_core::Interface>::Vtable;
+    type Vtable = <crate::bindings::IXamlMetadataProvider as windows_core::Interface>::Vtable;
     const IID: windows_core::GUID =
-        <xaml_bindings::IXamlMetadataProvider as windows_core::Interface>::IID;
+        <crate::bindings::IXamlMetadataProvider as windows_core::Interface>::IID;
 }
 impl core::ops::Deref for XamlControlsXamlMetaDataProvider {
-    type Target = xaml_bindings::IXamlMetadataProvider;
+    type Target = crate::bindings::IXamlMetadataProvider;
     fn deref(&self) -> &Self::Target {
         unsafe { core::mem::transmute(self) }
     }

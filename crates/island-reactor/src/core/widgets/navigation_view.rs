@@ -30,7 +30,7 @@ impl NavViewItem {
         self
     }
 }
-pub use muxc_bindings::NavigationViewPaneDisplayMode;
+pub use crate::bindings_muxc::NavigationViewPaneDisplayMode;
 #[derive(Clone, Debug, PartialEq)]
 pub struct NavigationView {
     pub key: Option<String>,

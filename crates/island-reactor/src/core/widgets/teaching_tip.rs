@@ -1,6 +1,6 @@
 use super::*;
 
-pub use muxc_bindings::TeachingTipPlacementMode;
+pub use crate::bindings_muxc::TeachingTipPlacementMode;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TeachingTip {

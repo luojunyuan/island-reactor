@@ -5,9 +5,9 @@ use rustc_hash::FxHashMap;
 use windows_core::{IInspectable, Interface, Result};
 
 use crate::bindings as Xaml;
+use crate::bindings_muxc as Muxc;
 use crate::core::backend::*;
 use crate::core::*;
-use muxc_bindings as Muxc;
 
 /// Backend that creates native `Windows.UI.Xaml` controls for XAML Islands.
 pub struct WinUIBackend {

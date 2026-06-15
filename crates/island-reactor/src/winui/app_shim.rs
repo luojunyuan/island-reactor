@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use windows_core::{Interface, Result, implement};
 
 use crate::bindings::*;
-use muxc_bindings as Muxc;
+use crate::bindings_muxc as Muxc;
 
 #[implement(IXamlMetadataProvider)]
 struct IslandApplicationOverrides {
