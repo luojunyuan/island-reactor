@@ -18,12 +18,14 @@ These upstream Reactor controls are now represented by wrappers backed by `Micro
 | `RadioButtons` | RadioButton page sample | Uses MUXC grouped `RadioButtons`; included as a sample on the RadioButton page. |
 | `TabView` | `tab-view` | Uses MUXC `TabView`/`TabViewItem`; supports selection, add-tab button, and close metadata. |
 | `TeachingTip` | `teaching-tip` | Uses MUXC `TeachingTip`; supports title, subtitle, open state, close/action buttons, and events. |
+| `App::backdrop`, `set_backdrop`, `Backdrop::Mica`, `Backdrop::MicaAlt`, `Backdrop::Acrylic` | `materials` | Uses the Xaml-Islands-Cpp-style Win32/DWM backdrop path on Windows 11 22H2 or newer. |
 
 ## Adapted Surface
 
 | Upstream control/API | Gallery tag/page | Local behavior | Reason |
 | --- | --- | --- | --- |
 | `ScrollView` | `scroll-view` | Gallery page is backed by `Windows.UI.Xaml.Controls.ScrollViewer`. | The WinUI 2 AppX winmd used for checked-in bindings does not expose `Microsoft.UI.Xaml.Controls.ScrollView`. The runtime DLL and .NET projection contain ScrollView symbols, but `windows-bindgen` currently fails on the projection metadata, so the binding source stays AppX-winmd-only. |
+| Reactor `Backdrop` implementation | `materials` | All host windows use `WS_EX_NOREDIRECTIONBITMAP`; backdrop windows also use `DWMWA_SYSTEMBACKDROP_TYPE`, matching the `Xaml-Islands-Cpp` DWM path instead of upstream Reactor's WinAppSDK `SystemBackdrop` objects. | This project hosts `Windows.UI.Xaml` Islands with WinUI 2 runtime assets, not WinUI 3/Windows App SDK `Window`. Use `App::backdrop(...)` for windows that need Mica/Acrylic root material from startup; `set_backdrop` switches the installed DWM backdrop at runtime. |
 
 ## Still Unsupported Or Intentionally Different
 
@@ -31,7 +33,6 @@ These upstream Reactor controls are now represented by wrappers backed by `Micro
 | --- | --- | --- | --- |
 | `SelectorBar` | `selector-bar` | Not exposed by the WinUI 2 AppX winmd used by this project. | Keep omitted or compose from `Pivot`, `RadioButtons`, or `ListView`. |
 | `TitleBar` | `title-bar`; gallery shell startup | Custom title bar APIs are outside the current XAML Islands wrapper surface. | Implement separate Win32 non-client/titlebar integration. |
-| `App::backdrop`, `set_backdrop`, `Backdrop::Mica`, `Backdrop::MicaAlt`, `Backdrop::Acrylic` | `materials` | Window backdrop materials are outside the `Windows.UI.Xaml` Islands control surface. | Implement a separate Win32/DWM backdrop helper if needed. |
 | `SurfaceImageSource` | None | Direct2D surface interop interfaces are not generated for this crate. | Add hand-written COM bindings and lifetime management for the required native surface interfaces. |
 | `SwapChainPanel` native interop helpers | None; upstream swap-chain sample omitted | Swap-chain native interop interfaces and composition scale events are not exposed by the checked-in bindings. | Add hand-written COM bindings for swap-chain interop and a focused DirectX sample. |
 | `NavViewItem::child` / nested navigation menu items | Gallery shell nested navigation omitted | `NavigationViewItem.MenuItems` is not currently wrapped. | Add a typed wrapper over MUXC nested menu APIs or keep the gallery navigation flat. |

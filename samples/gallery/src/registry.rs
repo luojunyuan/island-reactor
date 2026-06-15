@@ -244,6 +244,13 @@ pub const ALL_CONTROLS: &[ControlInfo] = &[
         tag: "theme",
         image: "ThemeTransition.png",
     },
+    ControlInfo {
+        title: "Materials",
+        description: "Mica, Mica Alt, Acrylic, and solid window backdrops.",
+        category: "Design Guidance",
+        tag: "materials",
+        image: "",
+    },
     // ── Dialogs and Flyouts ─────────────────────────────────────────
     ControlInfo {
         title: "CommandBarFlyout",

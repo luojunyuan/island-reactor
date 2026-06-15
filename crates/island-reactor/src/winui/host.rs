@@ -2,13 +2,21 @@ use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::{
+    OnceLock,
+    atomic::{AtomicPtr, Ordering},
+};
 
 use windows::{
     Win32::{
         Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM},
-        Graphics::Gdi::{
-            GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow,
+        Graphics::{
+            Dwm::{
+                DWM_SYSTEMBACKDROP_TYPE, DWMSBT_AUTO, DWMSBT_MAINWINDOW, DWMSBT_TABBEDWINDOW,
+                DWMSBT_TRANSIENTWINDOW, DWMWA_SYSTEMBACKDROP_TYPE, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                DwmSetWindowAttribute,
+            },
+            Gdi::{GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow},
         },
         System::LibraryLoader::{GetModuleHandleW, GetProcAddress},
         UI::{
@@ -19,7 +27,7 @@ use windows::{
                 PostQuitMessage, RegisterClassW, SW_HIDE, SW_SHOW, SWP_NOACTIVATE, SWP_NOZORDER,
                 SWP_SHOWWINDOW, SendMessageW, SetWindowLongPtrW, SetWindowPos, ShowWindow,
                 TranslateMessage, WINDOW_EX_STYLE, WM_DESTROY, WM_NCCREATE, WM_SIZE, WNDCLASSW,
-                WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+                WS_EX_NOREDIRECTIONBITMAP, WS_OVERLAPPEDWINDOW,
             },
         },
     },
@@ -36,10 +44,13 @@ use super::{WinUIBackend, WinUIDispatcher};
 
 static XAML_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 static CORE_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
+static ACTIVE_HOST_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 
 thread_local! {
     static ROOT_FRAMEWORK_ELEMENT: RefCell<Option<FrameworkElement>> = const { RefCell::new(None) };
+    static ROOT_BACKDROP_CONTROL: RefCell<Option<Control>> = const { RefCell::new(None) };
     static PENDING_THEME: Cell<Option<ElementTheme>> = const { Cell::new(None) };
+    static PENDING_BACKDROP: Cell<Option<Backdrop>> = const { Cell::new(None) };
     static WINUI2_RESOURCES_INSTALLED: Cell<bool> = const { Cell::new(false) };
     static UNHANDLED_EXCEPTION_HANDLER: RefCell<Option<windows_core::EventRevoker>> =
         const { RefCell::new(None) };
@@ -60,6 +71,23 @@ pub enum PresenterKind {
     CompactOverlay,
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Backdrop {
+    Mica,
+    MicaAlt,
+    Acrylic,
+}
+
+impl Backdrop {
+    fn system_backdrop_type(self) -> DWM_SYSTEMBACKDROP_TYPE {
+        match self {
+            Self::Mica => DWMSBT_MAINWINDOW,
+            Self::MicaAlt => DWMSBT_TABBEDWINDOW,
+            Self::Acrylic => DWMSBT_TRANSIENTWINDOW,
+        }
+    }
+}
+
 pub fn set_requested_theme(theme: RequestedTheme) {
     let element_theme = match theme {
         RequestedTheme::Light => ElementTheme::Light,
@@ -78,7 +106,19 @@ pub fn set_requested_theme(theme: RequestedTheme) {
     });
 }
 
-pub fn set_backdrop(_backdrop: Option<()>) {}
+pub fn set_backdrop(backdrop: Option<Backdrop>) {
+    let raw_hwnd = ACTIVE_HOST_HWND.load(Ordering::Relaxed);
+    if raw_hwnd.is_null() {
+        PENDING_BACKDROP.with(|pending| pending.set(backdrop));
+        return;
+    }
+
+    apply_backdrop(HWND(raw_hwnd), backdrop);
+}
+
+fn pending_backdrop() -> Option<Backdrop> {
+    PENDING_BACKDROP.with(|pending| pending.take())
+}
 
 pub fn install_winui2_resources() -> windows_core::Result<()> {
     if WINUI2_RESOURCES_INSTALLED.with(Cell::get) {
@@ -233,6 +273,7 @@ pub struct ReactorHost {
     _xaml_source: DesktopWindowXamlSource,
     _xaml_manager: WindowsXamlManager,
     presenter: Cell<PresenterKind>,
+    backdrop: Cell<Option<Backdrop>>,
 }
 
 impl ReactorHost {
@@ -261,26 +302,51 @@ impl ReactorHost {
     where
         F: FnOnce(&mut crate::core::reconciler::Reconciler<WinUIBackend>),
     {
+        Self::new_with_window_options_and_backdrop(title, size, _constraints, root, None, configure)
+    }
+
+    pub(crate) fn new_with_window_options_and_backdrop<F>(
+        title: impl AsRef<str>,
+        size: Option<crate::core::Size>,
+        _constraints: InnerConstraints,
+        root: Box<dyn Component>,
+        backdrop: Option<Backdrop>,
+        configure: F,
+    ) -> windows_core::Result<Self>
+    where
+        F: FnOnce(&mut crate::core::reconciler::Reconciler<WinUIBackend>),
+    {
+        let backdrop = backdrop.or_else(pending_backdrop);
         let application = match Application::get_Current() {
             Ok(application) => application,
             Err(_) => create_island_application()?,
         };
         let xaml_manager = WindowsXamlManager::InitializeForCurrentThread()?;
-        enable_xaml_background_transparency();
         install_xaml_exception_logging();
         try_install_winui2_resources();
         initialize_core_window_handle();
 
-        let hwnd = create_main_window(title.as_ref(), size)?;
+        let hwnd = create_main_window(title.as_ref(), size, backdrop)?;
+        ACTIVE_HOST_HWND.store(hwnd.0, Ordering::Relaxed);
+        apply_backdrop(hwnd, backdrop);
         let xaml_source = DesktopWindowXamlSource::new()?;
         let native_source: IDesktopWindowXamlSourceNative = xaml_source.cast()?;
         unsafe {
             native_source.AttachToWindow(hwnd.0 as _)?;
         }
+        if backdrop.is_some() && supports_system_backdrop() {
+            set_xaml_background_transparency(true);
+        }
         let xaml_hwnd = unsafe { native_source.get_WindowHandle()? };
         XAML_HWND.store(xaml_hwnd, Ordering::Relaxed);
         enable_resize_layout_synchronization(hwnd, true);
         resize_xaml_island(hwnd);
+
+        let backdrop_content_host = create_backdrop_content_host(backdrop)?;
+        if let Some(content_host) = backdrop_content_host.as_ref() {
+            let content_host_ui: UIElement = content_host.cast()?;
+            xaml_source.put_Content(&content_host_ui)?;
+        }
 
         let dispatcher = WinUIDispatcher::for_current_thread()?;
         let render_host = RenderHost::new(WinUIBackend::new(), root, dispatcher);
@@ -289,6 +355,7 @@ impl ReactorHost {
         render_host.with_reconciler_mut(configure);
 
         let source_for_post_render = xaml_source.clone();
+        let content_host_for_post_render = backdrop_content_host.clone();
         let render_for_post_render = render_host.clone_inner();
         let last_attached: Rc<Cell<Option<ControlId>>> = Rc::new(Cell::new(None));
         let last_for_hook = Rc::clone(&last_attached);
@@ -300,9 +367,21 @@ impl ReactorHost {
                 if let Some(ui) = render_for_post_render.with_backend(|b| b.get_ui_element(rid))
                     && let Ok(ui_element) = ui.cast::<UIElement>()
                 {
-                    let _ = source_for_post_render.put_Content(&ui_element);
+                    if let Some(content_host) = content_host_for_post_render.as_ref() {
+                        let _ = content_host.put_Content(&ui_element);
+                    } else {
+                        let _ = source_for_post_render.put_Content(&ui_element);
+                    }
                     last_for_hook.set(Some(rid));
                     if let Ok(fe) = ui_element.cast::<FrameworkElement>() {
+                        if backdrop.is_some()
+                            && supports_system_backdrop()
+                            && let Ok(control) = ui_element.cast::<Control>()
+                        {
+                            let _ = Muxc::BackdropMaterial::SetApplyToRootOrPageBackground(
+                                &control, true,
+                            );
+                        }
                         ROOT_FRAMEWORK_ELEMENT.with(|cell| {
                             *cell.borrow_mut() = Some(fe.clone());
                         });
@@ -328,11 +407,17 @@ impl ReactorHost {
             _xaml_manager: xaml_manager,
             _xaml_source: xaml_source,
             presenter: Cell::new(PresenterKind::Default),
+            backdrop: Cell::new(backdrop),
         })
     }
 
     pub fn set_presenter(&self, kind: PresenterKind) {
         self.presenter.set(kind);
+    }
+
+    pub fn set_backdrop(&self, backdrop: Backdrop) {
+        self.backdrop.set(Some(backdrop));
+        apply_backdrop(self.hwnd, Some(backdrop));
     }
 
     pub fn activate(&self) -> windows_core::Result<()> {
@@ -366,12 +451,16 @@ impl Drop for ReactorHost {
         ROOT_FRAMEWORK_ELEMENT.with(|cell| {
             *cell.borrow_mut() = None;
         });
+        ROOT_BACKDROP_CONTROL.with(|cell| {
+            *cell.borrow_mut() = None;
+        });
         self.render_host.with_backend(|backend| backend.shutdown());
         UNHANDLED_EXCEPTION_HANDLER.with(|slot| {
             *slot.borrow_mut() = None;
         });
         XAML_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
         CORE_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
+        ACTIVE_HOST_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
     }
 }
 
@@ -395,6 +484,7 @@ pub(crate) fn message_loop() -> windows_core::Result<()> {
 fn create_main_window(
     title: &str,
     inner_size: Option<crate::core::Size>,
+    backdrop: Option<Backdrop>,
 ) -> windows_core::Result<HWND> {
     unsafe {
         let instance: HINSTANCE = GetModuleHandleW(PCWSTR::null())?.into();
@@ -420,10 +510,10 @@ fn create_main_window(
             });
 
         CreateWindowExW(
-            WINDOW_EX_STYLE::default(),
+            window_ex_style(backdrop),
             class_name,
             PCWSTR(title_buf.as_ptr()),
-            WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+            WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
             width,
@@ -459,6 +549,9 @@ unsafe extern "system" fn wnd_proc(
             LRESULT(0)
         }
         WM_DESTROY => {
+            if ACTIVE_HOST_HWND.load(Ordering::Relaxed) == hwnd.0 {
+                ACTIVE_HOST_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
+            }
             unsafe {
                 PostQuitMessage(0);
             }
@@ -466,6 +559,85 @@ unsafe extern "system" fn wnd_proc(
         }
         _ => unsafe { DefWindowProcW(hwnd, message, wparam, lparam) },
     }
+}
+
+fn window_ex_style(_backdrop: Option<Backdrop>) -> WINDOW_EX_STYLE {
+    WS_EX_NOREDIRECTIONBITMAP
+}
+
+fn apply_backdrop(hwnd: HWND, backdrop: Option<Backdrop>) {
+    if backdrop.is_some() && !supports_system_backdrop() {
+        crate::diagnostics::emit(
+            "island_reactor: system backdrop requires Windows 11 22H2 or newer\n",
+        );
+        return;
+    }
+
+    set_xaml_background_transparency(backdrop.is_some());
+    set_root_backdrop_material(backdrop.is_some());
+
+    let value = backdrop.map_or(DWMSBT_AUTO, Backdrop::system_backdrop_type);
+    if let Err(err) = unsafe {
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_SYSTEMBACKDROP_TYPE,
+            (&raw const value).cast(),
+            std::mem::size_of_val(&value) as u32,
+        )
+    } {
+        crate::diagnostics::emit(&format!(
+            "island_reactor: DWM system backdrop setup failed: {err:?}\n"
+        ));
+    }
+}
+
+fn set_window_dark_mode(hwnd: HWND, enabled: bool) {
+    let value = BOOL::from(enabled);
+    let _ = unsafe {
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_USE_IMMERSIVE_DARK_MODE,
+            (&raw const value).cast(),
+            std::mem::size_of_val(&value) as u32,
+        )
+    };
+}
+
+fn create_backdrop_content_host(
+    backdrop: Option<Backdrop>,
+) -> windows_core::Result<Option<ContentControl>> {
+    if backdrop.is_none() || !supports_system_backdrop() {
+        return Ok(None);
+    }
+
+    let content_host: ContentControl = XamlReader::Load(
+        r#"<ContentControl
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    HorizontalContentAlignment="Stretch"
+    VerticalContentAlignment="Stretch"
+    Background="Transparent" />"#,
+    )?
+    .cast()?;
+    let control: Control = content_host.cast()?;
+    ROOT_BACKDROP_CONTROL.with(|cell| {
+        *cell.borrow_mut() = Some(control.clone());
+    });
+    set_root_backdrop_material(true);
+    Ok(Some(content_host))
+}
+
+fn set_root_backdrop_material(enabled: bool) {
+    ROOT_BACKDROP_CONTROL.with(|cell| {
+        if let Some(control) = cell.borrow().as_ref() {
+            if let Err(err) =
+                Muxc::BackdropMaterial::SetApplyToRootOrPageBackground(control, enabled)
+            {
+                crate::diagnostics::emit(&format!(
+                    "island_reactor: BackdropMaterial setup failed: {err:?}\n"
+                ));
+            }
+        }
+    });
 }
 
 fn resize_xaml_island(parent: HWND) {
@@ -507,14 +679,61 @@ fn initialize_core_window_handle() {
     }
 }
 
-fn enable_xaml_background_transparency() {
+fn set_xaml_background_transparency(enabled: bool) {
     let result = crate::xaml_interop::interop::Window::Current()
         .and_then(|window| window.cast::<crate::xaml_interop::interop::IXamlSourceTransparency>())
-        .and_then(|transparency| unsafe { transparency.SetIsBackgroundTransparent(true) });
+        .and_then(|transparency| unsafe { transparency.SetIsBackgroundTransparent(enabled) });
     if let Err(err) = result {
         crate::diagnostics::emit(&format!(
             "island_reactor: XAML background transparency setup failed: {err:?}\n"
         ));
+    }
+}
+
+fn supports_system_backdrop() -> bool {
+    windows_build_number() >= 22621
+}
+
+fn windows_build_number() -> u32 {
+    static BUILD: OnceLock<u32> = OnceLock::new();
+    *BUILD.get_or_init(query_windows_build_number)
+}
+
+fn query_windows_build_number() -> u32 {
+    #[repr(C)]
+    struct RtlOsVersionInfoW {
+        dw_os_version_info_size: u32,
+        dw_major_version: u32,
+        dw_minor_version: u32,
+        dw_build_number: u32,
+        dw_platform_id: u32,
+        sz_csd_version: [u16; 128],
+    }
+
+    type RtlGetVersion = unsafe extern "system" fn(*mut RtlOsVersionInfoW) -> i32;
+
+    unsafe {
+        let ntdll = wide_null("ntdll.dll");
+        let Ok(module) = GetModuleHandleW(PCWSTR(ntdll.as_ptr())) else {
+            return 0;
+        };
+        let Some(proc) = GetProcAddress(module, PCSTR(b"RtlGetVersion\0".as_ptr())) else {
+            return 0;
+        };
+        let rtl_get_version: RtlGetVersion = std::mem::transmute(proc);
+        let mut info = RtlOsVersionInfoW {
+            dw_os_version_info_size: std::mem::size_of::<RtlOsVersionInfoW>() as u32,
+            dw_major_version: 0,
+            dw_minor_version: 0,
+            dw_build_number: 0,
+            dw_platform_id: 0,
+            sz_csd_version: [0; 128],
+        };
+        if rtl_get_version(&mut info) >= 0 {
+            info.dw_build_number
+        } else {
+            0
+        }
     }
 }
 
@@ -610,6 +829,11 @@ fn update_color_scheme_from(fe: &FrameworkElement) {
             _ => crate::core::theme::ColorScheme::Light,
         };
         crate::core::theme::set_current_color_scheme(scheme);
+
+        let raw_hwnd = ACTIVE_HOST_HWND.load(Ordering::Relaxed);
+        if !raw_hwnd.is_null() {
+            set_window_dark_mode(HWND(raw_hwnd), matches!(theme, ElementTheme::Dark));
+        }
     }
 }
 

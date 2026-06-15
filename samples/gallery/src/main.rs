@@ -12,6 +12,7 @@ fn main() {
     let _ = App::new()
         .title("Island Reactor Gallery")
         .inner_size(1400.0, 900.0)
+        .backdrop(Backdrop::Mica)
         .eager_templated_realization(true)
         .render(shell::gallery_shell);
 }

@@ -3,7 +3,10 @@
 use island_reactor::*;
 
 fn main() -> Result<()> {
-    App::new().title("Rust Island Reactor Hello").render(app)
+    App::new()
+        .title("Rust Island Reactor Hello")
+        .backdrop(Backdrop::Mica)
+        .render(app)
 }
 
 fn app(_cx: &mut RenderCx) -> Element {
@@ -28,5 +31,13 @@ fn app(_cx: &mut RenderCx) -> Element {
             .grid_row(2)
             .into(),
     ];
-    border(layout).padding(16.0).into()
+    border(layout)
+        .padding(16.0)
+        .background(Color {
+            a: 0,
+            r: 0,
+            g: 0,
+            b: 0,
+        })
+        .into()
 }

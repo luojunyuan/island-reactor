@@ -91,6 +91,7 @@ pub fn route(tag: &str) -> Element {
         "iconography" => component(design::iconography_page, ()),
         "geometry" => component(design::geometry_page, ()),
         "theme" => component(design::theme_page, ()),
+        "materials" => component(design::materials_page, ()),
 
         _ => text_block(format!("Page not found: {tag}"))
             .opacity(0.6)

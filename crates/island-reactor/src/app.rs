@@ -36,6 +36,7 @@ pub struct App {
     inner_constraints: InnerConstraints,
     eager_templated_realization: bool,
     presenter: PresenterKind,
+    backdrop: Option<Backdrop>,
 }
 
 impl Default for App {
@@ -52,6 +53,7 @@ impl App {
             inner_constraints: InnerConstraints::default(),
             eager_templated_realization: false,
             presenter: PresenterKind::Default,
+            backdrop: None,
         }
     }
 
@@ -88,6 +90,11 @@ impl App {
         })
     }
 
+    pub fn backdrop(mut self, backdrop: Backdrop) -> Self {
+        self.backdrop = Some(backdrop);
+        self
+    }
+
     pub fn run<F, C>(self, root_factory: F) -> Result<()>
     where
         F: FnOnce() -> C + Send + 'static,
@@ -99,13 +106,20 @@ impl App {
         let size = self.inner_size;
         let constraints = self.inner_constraints;
         let presenter = self.presenter;
+        let backdrop = self.backdrop;
 
         let result = run_callback("OnLaunched", move || {
             let root: Box<dyn Component> = Box::new(root_factory());
-            let host =
-                ReactorHost::new_with_window_options(&title, size, constraints, root, |recon| {
+            let host = ReactorHost::new_with_window_options_and_backdrop(
+                &title,
+                size,
+                constraints,
+                root,
+                backdrop,
+                |recon| {
                     recon.eager_templated_realization = eager;
-                })?;
+                },
+            )?;
             host.set_presenter(presenter);
             host.activate()?;
             HOST_SLOT.with(|slot| {
