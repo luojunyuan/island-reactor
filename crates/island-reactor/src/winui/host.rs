@@ -48,7 +48,6 @@ static ACTIVE_HOST_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut()
 
 thread_local! {
     static ROOT_FRAMEWORK_ELEMENT: RefCell<Option<FrameworkElement>> = const { RefCell::new(None) };
-    static ROOT_BACKDROP_CONTROL: RefCell<Option<Control>> = const { RefCell::new(None) };
     static PENDING_THEME: Cell<Option<ElementTheme>> = const { Cell::new(None) };
     static PENDING_BACKDROP: Cell<Option<Backdrop>> = const { Cell::new(None) };
     static WINUI2_RESOURCES_INSTALLED: Cell<bool> = const { Cell::new(false) };
@@ -374,14 +373,6 @@ impl ReactorHost {
                     }
                     last_for_hook.set(Some(rid));
                     if let Ok(fe) = ui_element.cast::<FrameworkElement>() {
-                        if backdrop.is_some()
-                            && supports_system_backdrop()
-                            && let Ok(control) = ui_element.cast::<Control>()
-                        {
-                            let _ = Muxc::BackdropMaterial::SetApplyToRootOrPageBackground(
-                                &control, true,
-                            );
-                        }
                         ROOT_FRAMEWORK_ELEMENT.with(|cell| {
                             *cell.borrow_mut() = Some(fe.clone());
                         });
@@ -449,9 +440,6 @@ impl Drop for ReactorHost {
         self.render_host.clear_callbacks();
         let _ = self._xaml_source.put_Content(None);
         ROOT_FRAMEWORK_ELEMENT.with(|cell| {
-            *cell.borrow_mut() = None;
-        });
-        ROOT_BACKDROP_CONTROL.with(|cell| {
             *cell.borrow_mut() = None;
         });
         self.render_host.with_backend(|backend| backend.shutdown());
@@ -574,8 +562,6 @@ fn apply_backdrop(hwnd: HWND, backdrop: Option<Backdrop>) {
     }
 
     set_xaml_background_transparency(backdrop.is_some());
-    set_root_backdrop_material(backdrop.is_some());
-
     let value = backdrop.map_or(DWMSBT_AUTO, Backdrop::system_backdrop_type);
     if let Err(err) = unsafe {
         DwmSetWindowAttribute(
@@ -618,26 +604,7 @@ fn create_backdrop_content_host(
     Background="Transparent" />"#,
     )?
     .cast()?;
-    let control: Control = content_host.cast()?;
-    ROOT_BACKDROP_CONTROL.with(|cell| {
-        *cell.borrow_mut() = Some(control.clone());
-    });
-    set_root_backdrop_material(true);
     Ok(Some(content_host))
-}
-
-fn set_root_backdrop_material(enabled: bool) {
-    ROOT_BACKDROP_CONTROL.with(|cell| {
-        if let Some(control) = cell.borrow().as_ref() {
-            if let Err(err) =
-                Muxc::BackdropMaterial::SetApplyToRootOrPageBackground(control, enabled)
-            {
-                crate::diagnostics::emit(&format!(
-                    "island_reactor: BackdropMaterial setup failed: {err:?}\n"
-                ));
-            }
-        }
-    });
 }
 
 fn resize_xaml_island(parent: HWND) {

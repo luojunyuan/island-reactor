@@ -1,57 +1,5 @@
 #[repr(transparent)]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BackdropMaterial(windows_core::IUnknown);
-windows_core::imp::interface_hierarchy!(
-    BackdropMaterial,
-    windows_core::IUnknown,
-    windows_core::IInspectable
-);
-impl BackdropMaterial {
-    pub fn SetApplyToRootOrPageBackground<P0>(element: P0, value: bool) -> windows_core::Result<()>
-    where
-        P0: windows_core::Param<crate::bindings::Control>,
-    {
-        Self::IBackdropMaterialStatics(|this| unsafe {
-            (windows_core::Interface::vtable(this).SetApplyToRootOrPageBackground)(
-                windows_core::Interface::as_raw(this),
-                element.param().abi(),
-                value,
-            )
-            .ok()
-        })
-    }
-    fn IBackdropMaterialStatics<
-        R,
-        F: FnOnce(&IBackdropMaterialStatics) -> windows_core::Result<R>,
-    >(
-        callback: F,
-    ) -> windows_core::Result<R> {
-        static SHARED: windows_core::imp::FactoryCache<BackdropMaterial, IBackdropMaterialStatics> =
-            windows_core::imp::FactoryCache::new();
-        SHARED.call(callback)
-    }
-}
-impl windows_core::RuntimeType for BackdropMaterial {
-    const SIGNATURE: windows_core::imp::ConstBuffer =
-        windows_core::imp::ConstBuffer::for_class::<Self, IBackdropMaterial>();
-}
-unsafe impl windows_core::Interface for BackdropMaterial {
-    type Vtable = <IBackdropMaterial as windows_core::Interface>::Vtable;
-    const IID: windows_core::GUID = <IBackdropMaterial as windows_core::Interface>::IID;
-}
-impl core::ops::Deref for BackdropMaterial {
-    type Target = IBackdropMaterial;
-    fn deref(&self) -> &Self::Target {
-        unsafe { core::mem::transmute(self) }
-    }
-}
-impl windows_core::RuntimeName for BackdropMaterial {
-    const NAME: &'static str = "Microsoft.UI.Xaml.Controls.BackdropMaterial";
-}
-unsafe impl Send for BackdropMaterial {}
-unsafe impl Sync for BackdropMaterial {}
-#[repr(transparent)]
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BreadcrumbBar(windows_core::IUnknown);
 windows_core::imp::interface_hierarchy!(
     BreadcrumbBar,
@@ -291,39 +239,6 @@ impl windows_core::RuntimeName for ExpanderExpandingEventArgs {
 }
 unsafe impl Send for ExpanderExpandingEventArgs {}
 unsafe impl Sync for ExpanderExpandingEventArgs {}
-windows_core::imp::define_interface!(
-    IBackdropMaterial,
-    IBackdropMaterial_Vtbl,
-    0x00d918aa_9b55_5841_9af5_637de7982ea7
-);
-impl windows_core::RuntimeType for IBackdropMaterial {
-    const SIGNATURE: windows_core::imp::ConstBuffer =
-        windows_core::imp::ConstBuffer::for_interface::<Self>();
-}
-#[repr(C)]
-pub struct IBackdropMaterial_Vtbl {
-    pub base__: windows_core::IInspectable_Vtbl,
-}
-windows_core::imp::define_interface!(
-    IBackdropMaterialStatics,
-    IBackdropMaterialStatics_Vtbl,
-    0x707f26f5_042d_5ba6_a1c8_cbc66246f7a1
-);
-impl windows_core::RuntimeType for IBackdropMaterialStatics {
-    const SIGNATURE: windows_core::imp::ConstBuffer =
-        windows_core::imp::ConstBuffer::for_interface::<Self>();
-}
-#[repr(C)]
-pub struct IBackdropMaterialStatics_Vtbl {
-    pub base__: windows_core::IInspectable_Vtbl,
-    get_ApplyToRootOrPageBackgroundProperty: usize,
-    pub SetApplyToRootOrPageBackground: unsafe extern "system" fn(
-        *mut core::ffi::c_void,
-        *mut core::ffi::c_void,
-        bool,
-    ) -> windows_core::HRESULT,
-    GetApplyToRootOrPageBackground: usize,
-}
 windows_core::imp::define_interface!(
     IBreadcrumbBar,
     IBreadcrumbBar_Vtbl,
