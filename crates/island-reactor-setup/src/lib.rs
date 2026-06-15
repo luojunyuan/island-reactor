@@ -159,9 +159,11 @@ fn copy_runtime_payload(asset_dir: &Path, target_dir: &Path) -> std::io::Result<
     let dll = asset_dir.join(muxc_bindings::RUNTIME_DLL);
     let pri = asset_dir.join(muxc_bindings::RUNTIME_PRI);
     copy_file(&dll, target_dir.join(muxc_bindings::RUNTIME_DLL))?;
-    let staged_pri = target_dir.join(muxc_bindings::RUNTIME_PRI);
-    copy_file(&pri, &staged_pri)?;
-    ensure_app_resources_pri(target_dir, &staged_pri)
+    let stale_pri = target_dir.join(muxc_bindings::RUNTIME_PRI);
+    if stale_pri.exists() {
+        fs::remove_file(stale_pri)?;
+    }
+    ensure_app_resources_pri(target_dir, &pri)
 }
 
 fn ensure_app_resources_pri(target_dir: &Path, mux_pri: &Path) -> std::io::Result<()> {

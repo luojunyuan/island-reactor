@@ -43,10 +43,11 @@ pub use core::element::*;
 pub use core::element::{
     AccessibilityModifiers, AttachedProps, Brush, Color, CommandBarDefaultLabelPosition,
     FlyoutPlacementMode, GridLength, GridPlacement, HeadingLevel, HorizontalAlignment,
-    KeyModifiers, KeyboardAccelerator, KeyboardKey, LiveSetting, Modifiers,
+    InfoBarSeverity, KeyModifiers, KeyboardAccelerator, KeyboardKey, LiveSetting, Modifiers,
     NavigationViewPaneDisplayMode, Orientation, PasswordRevealMode, PointerEventInfo,
-    PointerHandlers, ScrollBarVisibility, Stretch, Symbol, TextWrapping, Thickness, Tooltip,
-    TooltipContent, TooltipPlacement, TreeViewSelectionMode, VerticalAlignment,
+    PointerHandlers, ScrollBarVisibility, Stretch, Symbol, TabItem, TeachingTipPlacementMode,
+    TextWrapping, Thickness, Tooltip, TooltipContent, TooltipPlacement, TreeViewSelectionMode,
+    VerticalAlignment,
 };
 pub use core::error_boundary::*;
 pub use core::into_elements::IntoElements;

@@ -1,22 +1,48 @@
-# Unsupported Reactor Surface
+# Reactor Surface Status
 
-This crate targets `Windows.UI.Xaml` XAML Islands. The upstream Reactor APIs below are omitted because they have no direct native equivalent in that runtime or require native interop that is not yet implemented here.
+This crate targets `Windows.UI.Xaml` XAML Islands plus the WinUI 2 (`Microsoft.UI.Xaml`) AppX metadata/runtime from `microsoft.ui.xaml` 2.8.7.
+
+The public surface should be the `island-reactor` wrapper API. The checked-in `xaml-bindings` and `muxc-bindings` crates are internal implementation details and are marked `publish = false`.
+
+## Filled With WinUI 2 MUXC
+
+These upstream Reactor controls are now represented by wrappers backed by `Microsoft.UI.Xaml.Controls` from the WinUI 2 AppX winmd:
+
+| Control/API | Gallery tag/page | Notes |
+| --- | --- | --- |
+| `BreadcrumbBar` | `breadcrumb-bar` | Uses MUXC `BreadcrumbBar` and string `ItemsSource`. |
+| `Expander` | `expander` | Uses MUXC `Expander`; supports string or element header and content. |
+| `InfoBadge` | `info-badge` | Uses MUXC `InfoBadge`; supports dot and numeric badges. |
+| `InfoBar` | `info-bar` | Uses MUXC `InfoBar`; supports severity, open state, closable state, and close event. |
+| `NumberBox` | `number-box` | Uses MUXC `NumberBox`; supports value, range, header, enabled state, and value-changed event. |
+| `RadioButtons` | RadioButton page sample | Uses MUXC grouped `RadioButtons`; included as a sample on the RadioButton page. |
+| `TabView` | `tab-view` | Uses MUXC `TabView`/`TabViewItem`; supports selection, add-tab button, and close metadata. |
+| `TeachingTip` | `teaching-tip` | Uses MUXC `TeachingTip`; supports title, subtitle, open state, close/action buttons, and events. |
+
+## Adapted Surface
+
+| Upstream control/API | Gallery tag/page | Local behavior | Reason |
+| --- | --- | --- | --- |
+| `ScrollView` | `scroll-view` | Gallery page is backed by `Windows.UI.Xaml.Controls.ScrollViewer`. | The WinUI 2 AppX winmd used for checked-in bindings does not expose `Microsoft.UI.Xaml.Controls.ScrollView`. The runtime DLL and .NET projection contain ScrollView symbols, but `windows-bindgen` currently fails on the projection metadata, so the binding source stays AppX-winmd-only. |
+
+## Still Unsupported Or Intentionally Different
 
 | Upstream control/API | Omitted gallery page/tag | Reason | Possible future path |
 | --- | --- | --- | --- |
-| `BreadcrumbBar` | `breadcrumb-bar` | No native `Windows.UI.Xaml.Controls.BreadcrumbBar` control. | Compose a custom breadcrumb from `ItemsControl`-style primitives or add a custom widget. |
-| `Expander` | `expander` | No native `Windows.UI.Xaml.Controls.Expander` control. | Compose a `ToggleButton` plus collapsible content. |
-| `InfoBadge` | `info-badge` | No native `Windows.UI.Xaml.Controls.InfoBadge` control. | Compose a small badge from `Border` and `TextBlock`. |
-| `InfoBar` | `info-bar` | No native `Windows.UI.Xaml.Controls.InfoBar` control. | Compose a dismissible banner from supported controls. |
-| `NumberBox` | `number-box` | No native `Windows.UI.Xaml.Controls.NumberBox` control. | Compose `TextBox` with numeric parsing, validation, and optional step buttons. |
-| `RadioButtons` | RadioButton page adapted | No native grouped `RadioButtons` control. | Use grouped `RadioButton` controls. |
-| `ScrollView` | `scroll-view` | No native `Windows.UI.Xaml.Controls.ScrollView` control. | Use `ScrollViewer`, which is supported. |
-| `SelectorBar` | `selector-bar` | No native `Windows.UI.Xaml.Controls.SelectorBar` control. | Compose a selector from `Pivot`, `RadioButton`, or `ListView`. |
-| `TabView` | `tab-view` | No native `Windows.UI.Xaml.Controls.TabView` control. | Compose tabs from `Pivot` or custom headers and content. |
-| `TeachingTip` | `teaching-tip` | No native `Windows.UI.Xaml.Controls.TeachingTip` control. | Compose a custom tip with `Flyout`/popup-style primitives when available. |
-| `TitleBar` | `title-bar`; gallery shell startup | Custom title bar APIs are not provided by `Windows.UI.Xaml` Islands. | Use ordinary in-client controls or implement Win32 non-client customization separately. |
+| `SelectorBar` | `selector-bar` | Not exposed by the WinUI 2 AppX winmd used by this project. | Keep omitted or compose from `Pivot`, `RadioButtons`, or `ListView`. |
+| `TitleBar` | `title-bar`; gallery shell startup | Custom title bar APIs are outside the current XAML Islands wrapper surface. | Implement separate Win32 non-client/titlebar integration. |
+| `App::backdrop`, `set_backdrop`, `Backdrop::Mica`, `Backdrop::MicaAlt`, `Backdrop::Acrylic` | `materials` | Window backdrop materials are outside the `Windows.UI.Xaml` Islands control surface. | Implement a separate Win32/DWM backdrop helper if needed. |
 | `SurfaceImageSource` | None | Direct2D surface interop interfaces are not generated for this crate. | Add hand-written COM bindings and lifetime management for the required native surface interfaces. |
-| `SwapChainPanel` native interop helpers | None; upstream swap-chain sample omitted | Swap-chain native interop interfaces and composition scale events are not exposed by the generated `Windows.UI.Xaml` bindings. | Add hand-written COM bindings for swap-chain interop and a focused DirectX sample. |
-| `App::backdrop`, `set_backdrop`, `Backdrop::Mica`, `Backdrop::MicaAlt`, `Backdrop::Acrylic` | `materials` | Window backdrop materials are outside the `Windows.UI.Xaml` Islands surface. | Implement a separate Win32/DWM backdrop helper if needed. |
-| `NavViewItem::child` / nested navigation menu items | Gallery shell nested navigation omitted | `NavigationViewItem.MenuItems` is not available in `Windows.UI.Xaml`. | Flatten navigation items or build a custom nested navigation surface. |
-| `ProgressRing` determinate value/range APIs | ProgressRing page adapted | `Windows.UI.Xaml.Controls.ProgressRing` exposes active indeterminate display, not determinate value/range properties. | Compose a custom determinate circular progress visual if required. |
+| `SwapChainPanel` native interop helpers | None; upstream swap-chain sample omitted | Swap-chain native interop interfaces and composition scale events are not exposed by the checked-in bindings. | Add hand-written COM bindings for swap-chain interop and a focused DirectX sample. |
+| `NavViewItem::child` / nested navigation menu items | Gallery shell nested navigation omitted | `NavigationViewItem.MenuItems` is not currently wrapped. | Add a typed wrapper over MUXC nested menu APIs or keep the gallery navigation flat. |
+| `ProgressRing` determinate value/range APIs | ProgressRing page adapted | `Windows.UI.Xaml.Controls.ProgressRing` exposes active indeterminate display, not determinate value/range properties. | Use MUXC `ProgressRing` range members if needed, or compose a custom determinate circular progress visual. |
+
+## Binding Policy
+
+Normal `cargo build` does not run `windows-bindgen` or contact NuGet. Regeneration is explicit:
+
+```powershell
+cargo run -p island-reactor-codegen -- generate-bindings
+```
+
+The codegen tool currently extracts `Microsoft.UI.Xaml.winmd` from the x64 WinUI 2 AppX and treats that file as the authoritative MUXC metadata source. It also copies the matching x64/arm64 AppX runtime payloads. It should not switch to the .NET projection metadata until that path can be generated reproducibly.

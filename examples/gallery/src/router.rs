@@ -15,6 +15,7 @@ pub fn route(tag: &str) -> Element {
         "combo-box" => component(basic_input::combo_box_page, ()),
         "drop-down-button" => component(basic_input::drop_down_button_page, ()),
         "hyperlink-button" => component(basic_input::hyperlink_button_page, ()),
+        "number-box" => component(basic_input::number_box_page, ()),
         "password-box" => component(basic_input::password_box_page, ()),
         "radio-button" => component(basic_input::radio_button_page, ()),
         "rating-control" => component(basic_input::rating_control_page, ()),
@@ -43,12 +44,15 @@ pub fn route(tag: &str) -> Element {
         "content-dialog" => component(dialogs::content_dialog_page, ()),
         "flyout" => component(dialogs::flyout_page, ()),
         "menu-flyout" => component(dialogs::menu_flyout_page, ()),
+        "teaching-tip" => component(dialogs::teaching_tip_page, ()),
 
         // Layout
         "border" => component(layout::border_page, ()),
         "canvas" => component(layout::canvas_page, ()),
+        "expander" => component(layout::expander_page, ()),
         "grid" => component(layout::grid_page, ()),
         "relative-panel" => component(layout::relative_panel_page, ()),
+        "scroll-view" => component(layout::scroll_view_page, ()),
         "split-view" => component(layout::split_view_page, ()),
         "stack-panel" => component(layout::stack_panel_page, ()),
         "viewbox" => component(layout::viewbox_page, ()),
@@ -62,10 +66,14 @@ pub fn route(tag: &str) -> Element {
         "menu-bar" => component(menus::menu_bar_page, ()),
 
         // Navigation
+        "breadcrumb-bar" => component(navigation::breadcrumb_bar_page, ()),
         "navigation-view" => component(navigation::navigation_view_page, ()),
         "pivot" => component(navigation::pivot_page, ()),
+        "tab-view" => component(navigation::tab_view_page, ()),
 
         // Status and Info
+        "info-badge" => component(status::info_badge_page, ()),
+        "info-bar" => component(status::info_bar_page, ()),
         "progress-bar" => component(status::progress_bar_page, ()),
         "progress-ring" => component(status::progress_ring_page, ()),
         "tool-tip" => component(status::tool_tip_page, ()),

@@ -5,6 +5,7 @@ pub(crate) enum Children<'a> {
     None,
     PositionalSingle(&'a Element),
     Keyed(&'a [Element]),
+    Tabs(&'a [TabItem]),
     PivotItems(&'a [PivotItem]),
 }
 

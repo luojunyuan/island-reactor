@@ -55,6 +55,11 @@ impl<B: Backend + 'static> Reconciler<B> {
                     }
                 }
             }
+            Children::Tabs(tabs) => {
+                for tab in tabs {
+                    self.mount_tab_item(id, tab);
+                }
+            }
             Children::PivotItems(items) => {
                 for item in items {
                     self.mount_pivot_item(id, item);
@@ -73,6 +78,9 @@ impl<B: Backend + 'static> Reconciler<B> {
             }
             (Children::Keyed(o), Children::Keyed(n)) => {
                 self.reconcile_children(id, o, n);
+            }
+            (Children::Tabs(o), Children::Tabs(n)) => {
+                self.reconcile_tabs(id, o, n);
             }
             (Children::PivotItems(o), Children::PivotItems(n)) => {
                 self.reconcile_pivot_items(id, o, n);
@@ -191,6 +199,68 @@ impl<B: Backend + 'static> Reconciler<B> {
             self.append_child_tracked(item_id, content_id);
         }
         self.append_child_tracked(parent, item_id);
+    }
+
+    fn mount_tab_item(&mut self, parent: ControlId, tab: &TabItem) {
+        let tab_id = self.acquire_control(crate::core::backend::ControlKind::TabViewItem);
+        self.backend
+            .set_prop(tab_id, Prop::Header, &PropValue::Str(tab.header.clone()));
+        if let Some(key) = &tab.key {
+            self.backend
+                .set_prop(tab_id, Prop::ItemKey, &PropValue::Str(key.clone()));
+        }
+        if let Some(closable) = tab.is_closable {
+            self.backend
+                .set_prop(tab_id, Prop::IsClosable, &PropValue::Bool(closable));
+        }
+        if let Some(content_id) = self.mount(&tab.content) {
+            self.append_child_tracked(tab_id, content_id);
+        }
+        self.append_child_tracked(parent, tab_id);
+    }
+
+    fn reconcile_tabs(&mut self, parent: ControlId, old: &[TabItem], new: &[TabItem]) {
+        let common = old.len().min(new.len());
+
+        for i in 0..common {
+            let Some(tab_id) = self.child_at(parent, i) else {
+                continue;
+            };
+            let o = &old[i];
+            let n = &new[i];
+            if o.header != n.header {
+                self.backend
+                    .set_prop(tab_id, Prop::Header, &PropValue::Str(n.header.clone()));
+            }
+            if o.key != n.key
+                && let Some(key) = &n.key
+            {
+                self.backend
+                    .set_prop(tab_id, Prop::ItemKey, &PropValue::Str(key.clone()));
+            }
+            if o.is_closable != n.is_closable {
+                self.backend.set_prop(
+                    tab_id,
+                    Prop::IsClosable,
+                    &PropValue::Bool(n.is_closable.unwrap_or(true)),
+                );
+            }
+            let oc = std::slice::from_ref(&o.content);
+            let nc = std::slice::from_ref(&n.content);
+            self.reconcile_children_positional(tab_id, oc, nc);
+        }
+
+        if new.len() > old.len() {
+            for n in &new[old.len()..] {
+                self.mount_tab_item(parent, n);
+            }
+        }
+
+        while self.child_at(parent, new.len()).is_some() {
+            let extra_id = self.child_at(parent, new.len()).unwrap();
+            self.remove_child_tracked(parent, new.len());
+            self.unmount(extra_id);
+        }
     }
 
     fn reconcile_pivot_items(&mut self, parent: ControlId, old: &[PivotItem], new: &[PivotItem]) {

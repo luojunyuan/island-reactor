@@ -3,9 +3,15 @@ use island_reactor::*;
 
 pub fn radio_button_page(_: &(), cx: &mut RenderCx) -> Element {
     let (selected, set_selected) = cx.use_state(0_i32);
+    let (buttons_selected, set_buttons_selected) = cx.use_state(0_i32);
 
     let options = ["Option A", "Option B", "Option C"];
     let label = options.get(selected as usize).copied().unwrap_or("?");
+    let delivery = ["Email", "SMS", "None"];
+    let delivery_label = delivery
+        .get(buttons_selected as usize)
+        .copied()
+        .unwrap_or("(none)");
 
     page_content(
         "RadioButton",
@@ -40,6 +46,19 @@ pub fn radio_button_page(_: &(), cx: &mut RenderCx) -> Element {
                 ))
                 .spacing(8.0),
                 r#"RadioButton::new("Option A").group("group").checked(selected == 0)"#,
+            ),
+            sample_card(
+                "RadioButtons",
+                vstack((
+                    RadioButtons::new(delivery)
+                        .header("Notifications")
+                        .selected_index(buttons_selected)
+                        .max_columns(3)
+                        .on_selection_changed(move |i| set_buttons_selected.call(i)),
+                    text_block(format!("Selected: {delivery_label}")).opacity(0.6),
+                ))
+                .spacing(8.0),
+                r#"RadioButtons::new(["Email", "SMS", "None"]).selected_index(index)"#,
             ),
             sample_card(
                 "Disabled RadioButton",

@@ -121,6 +121,14 @@ impl WinUIBackend {
                     asb.SetHeader(&content)?;
                 } else if let Ok(reb) = h.cast_inner::<Xaml::RichEditBox>() {
                     reb.SetHeader(&content)?;
+                } else if let Ok(expander) = h.cast_inner::<Muxc::Expander>() {
+                    expander.SetHeader(&content)?;
+                } else if let Ok(number) = h.cast_inner::<Muxc::NumberBox>() {
+                    number.SetHeader(&content)?;
+                } else if let Ok(radio) = h.cast_inner::<Muxc::RadioButtons>() {
+                    radio.SetHeader(&content)?;
+                } else if let Ok(tab) = h.cast_inner::<Muxc::TabViewItem>() {
+                    tab.SetHeader(&content)?;
                 }
             }
             (Prop::Content, PropValue::Str(s), h) => {
@@ -354,6 +362,8 @@ impl WinUIBackend {
                     range.SetValue2(*v)?;
                 } else if let Ok(rating) = h.cast_inner::<Xaml::RatingControl>() {
                     rating.SetValue2(*v)?;
+                } else if let Ok(number) = h.cast_inner::<Muxc::NumberBox>() {
+                    number.SetValue2(*v)?;
                 } else if let Ok(cp) = h.cast_inner::<Xaml::ColorPicker>() {
                     let _ = cp.SetColor(Xaml::Color {
                         A: 255,
@@ -363,14 +373,21 @@ impl WinUIBackend {
                     });
                 }
             }
+            (Prop::Value, PropValue::I32(v), Handle::InfoBadge(badge)) => {
+                badge.SetValue2(*v)?;
+            }
             (Prop::Minimum, PropValue::F64(v), h) => {
                 if let Ok(range) = h.cast_inner::<Xaml::RangeBase>() {
                     range.SetMinimum(*v)?;
+                } else if let Ok(number) = h.cast_inner::<Muxc::NumberBox>() {
+                    number.SetMinimum(*v)?;
                 }
             }
             (Prop::Maximum, PropValue::F64(v), h) => {
                 if let Ok(range) = h.cast_inner::<Xaml::RangeBase>() {
                     range.SetMaximum(*v)?;
+                } else if let Ok(number) = h.cast_inner::<Muxc::NumberBox>() {
+                    number.SetMaximum(*v)?;
                 }
             }
             (Prop::Step, PropValue::F64(v), Handle::Slider(slider)) => {
@@ -378,6 +395,9 @@ impl WinUIBackend {
             }
             (Prop::IsActive, PropValue::Bool(v), Handle::ProgressRing(ring)) => {
                 ring.SetIsActive(*v)?;
+            }
+            (Prop::IsExpanded, PropValue::Bool(v), Handle::Expander(expander)) => {
+                expander.SetIsExpanded(*v)?;
             }
             (Prop::IsIndeterminate, PropValue::Bool(v), h) => {
                 if let Ok(bar) = h.cast_inner::<Xaml::ProgressBar>() {
@@ -389,6 +409,10 @@ impl WinUIBackend {
                     selector.SetSelectedIndex(*v)?;
                 } else if let Ok(pivot) = h.cast_inner::<Xaml::Pivot>() {
                     pivot.SetSelectedIndex(*v)?;
+                } else if let Ok(radio) = h.cast_inner::<Muxc::RadioButtons>() {
+                    radio.SetSelectedIndex(*v)?;
+                } else if let Ok(tab) = h.cast_inner::<Muxc::TabView>() {
+                    tab.SetSelectedIndex(*v)?;
                 }
             }
             (Prop::SelectionMode, PropValue::I32(v), h) => {
@@ -401,7 +425,13 @@ impl WinUIBackend {
                 }
             }
             (Prop::Items, PropValue::StrList(items), h) => {
-                set_string_items(h, items)?;
+                if let Ok(radio) = h.cast_inner::<Muxc::RadioButtons>() {
+                    set_radio_buttons_items(&radio, items)?;
+                } else if let Ok(breadcrumb) = h.cast_inner::<Muxc::BreadcrumbBar>() {
+                    set_breadcrumb_items(&breadcrumb, items)?;
+                } else {
+                    set_string_items(h, items)?;
+                }
             }
             (Prop::AutoSuggestItems, PropValue::StrList(items), Handle::AutoSuggestBox(asb)) => {
                 set_string_items_for_items_control(asb, items)?;
@@ -443,6 +473,58 @@ impl WinUIBackend {
             }
             (Prop::PaneTitle, PropValue::Str(s), Handle::NavigationView(nav)) => {
                 nav.SetPaneTitle(&hstring(s))?;
+            }
+            (Prop::Title, PropValue::Str(s), Handle::InfoBar(info)) => {
+                info.SetTitle(&hstring(s))?;
+            }
+            (Prop::Message, PropValue::Str(s), Handle::InfoBar(info)) => {
+                info.SetMessage(&hstring(s))?;
+            }
+            (Prop::Severity, PropValue::I32(v), Handle::InfoBar(info)) => {
+                info.SetSeverity(Muxc::InfoBarSeverity(*v))?;
+            }
+            (Prop::IsOpen, PropValue::Bool(v), Handle::InfoBar(info)) => {
+                info.SetIsOpen(*v)?;
+            }
+            (Prop::IsClosable, PropValue::Bool(v), Handle::InfoBar(info)) => {
+                info.SetIsClosable(*v)?;
+            }
+            (Prop::Title, PropValue::Str(s), Handle::TeachingTip(tip)) => {
+                tip.SetTitle(&hstring(s))?;
+            }
+            (Prop::Subtitle, PropValue::Str(s), Handle::TeachingTip(tip)) => {
+                tip.SetSubtitle(&hstring(s))?;
+            }
+            (Prop::IsOpen, PropValue::Bool(v), Handle::TeachingTip(tip)) => {
+                tip.SetIsOpen(*v)?;
+            }
+            (Prop::IsLightDismissEnabled, PropValue::Bool(v), Handle::TeachingTip(tip)) => {
+                tip.SetIsLightDismissEnabled(*v)?;
+            }
+            (Prop::PreferredPlacement, PropValue::I32(v), Handle::TeachingTip(tip)) => {
+                tip.SetPreferredPlacement(Muxc::TeachingTipPlacementMode(*v))?;
+            }
+            (Prop::ActionButtonText, PropValue::Str(s), Handle::TeachingTip(tip)) => {
+                tip.SetActionButtonContent(&string_reference(s))?;
+            }
+            (Prop::CloseButtonText, PropValue::Str(s), Handle::TeachingTip(tip)) => {
+                tip.SetCloseButtonContent(&string_reference(s))?;
+            }
+            (Prop::MaxColumns, PropValue::I32(v), Handle::RadioButtons(radio)) => {
+                radio.SetMaxColumns(*v)?;
+            }
+            (Prop::CanReorderTabs, PropValue::Bool(v), Handle::TabView(tab)) => {
+                tab.SetCanReorderTabs(*v)?;
+            }
+            (Prop::IsAddTabButtonVisible, PropValue::Bool(v), Handle::TabView(tab)) => {
+                tab.SetIsAddTabButtonVisible(*v)?;
+            }
+            (Prop::ItemKey, PropValue::Str(s), Handle::TabViewItem(tab)) => {
+                tab.cast::<Xaml::FrameworkElement>()?
+                    .SetTag(&string_reference(s))?;
+            }
+            (Prop::IsClosable, PropValue::Bool(v), Handle::TabViewItem(tab)) => {
+                tab.SetIsClosable(*v)?;
             }
             (Prop::Fill, PropValue::Brush(b), h) => {
                 if let Ok(shape) = h.cast_inner::<Xaml::Shape>() {
@@ -578,7 +660,12 @@ impl WinUIBackend {
             Handle::Viewbox(v) => {
                 let _ = v.SetChild(&child_ui);
             }
-            Handle::ScrollViewer(_) | Handle::NavigationView(_) | Handle::PivotItem(_) => {
+            Handle::ScrollViewer(_)
+            | Handle::NavigationView(_)
+            | Handle::PivotItem(_)
+            | Handle::Expander(_)
+            | Handle::TabViewItem(_)
+            | Handle::TeachingTip(_) => {
                 if let Some(cc) = content_control_for(parent_h) {
                     let _ = cc.SetContent(&child_ui);
                 }
@@ -591,6 +678,19 @@ impl WinUIBackend {
                     .Items()
                     .and_then(|i| i.cast::<windows_collections::IVector<IInspectable>>())
                 {
+                    let Ok(insp) = child_ui.cast::<IInspectable>() else {
+                        return;
+                    };
+                    let size = items.Size().unwrap_or(0);
+                    if index as u32 >= size {
+                        let _ = items.Append(&insp);
+                    } else {
+                        let _ = items.InsertAt(index as u32, &insp);
+                    }
+                }
+            }
+            Handle::TabView(tab) => {
+                if let Ok(items) = tab.TabItems() {
                     let Ok(insp) = child_ui.cast::<IInspectable>() else {
                         return;
                     };
@@ -641,7 +741,12 @@ impl WinUIBackend {
             Handle::Viewbox(v) => {
                 let _ = v.SetChild(None);
             }
-            Handle::ScrollViewer(_) | Handle::NavigationView(_) | Handle::PivotItem(_) => {
+            Handle::ScrollViewer(_)
+            | Handle::NavigationView(_)
+            | Handle::PivotItem(_)
+            | Handle::Expander(_)
+            | Handle::TabViewItem(_)
+            | Handle::TeachingTip(_) => {
                 if let Some(cc) = content_control_for(parent_h) {
                     let _ = cc.SetContent(None);
                 }
@@ -651,6 +756,13 @@ impl WinUIBackend {
             }
             Handle::Pivot(_) | Handle::ListView(_) | Handle::GridView(_) | Handle::FlipView(_) => {
                 if let Some(items) = items_vector(parent_h)
+                    && (index as u32) < items.Size().unwrap_or(0)
+                {
+                    let _ = items.RemoveAt(index as u32);
+                }
+            }
+            Handle::TabView(tab) => {
+                if let Ok(items) = tab.TabItems()
                     && (index as u32) < items.Size().unwrap_or(0)
                 {
                     let _ = items.RemoveAt(index as u32);
@@ -756,6 +868,21 @@ impl Backend for WinUIBackend {
         };
 
         match (event, handle) {
+            (Event::ItemClicked, Handle::BreadcrumbBar(breadcrumb)) => {
+                let event_handler = windows::Foundation::TypedEventHandler::<
+                    Muxc::BreadcrumbBar,
+                    Muxc::BreadcrumbBarItemClickedEventArgs,
+                >::new(move |_, args| {
+                    let index = args.as_ref().and_then(|a| a.Index().ok()).unwrap_or(-1);
+                    handler.invoke_i32(index);
+                    Ok(())
+                });
+                let token = breadcrumb.ItemClicked(&event_handler).unwrap();
+                revokers.push(EventSubscription::BreadcrumbBarItemClicked(
+                    breadcrumb.clone(),
+                    token,
+                ));
+            }
             (Event::Click, h) => {
                 if let Ok(button) = h.cast_inner::<Xaml::ButtonBase>() {
                     let event_handler = Xaml::RoutedEventHandler::new(move |_, _| {
@@ -795,6 +922,33 @@ impl Backend for WinUIBackend {
                 });
                 let token = ts.Toggled(&handler).unwrap();
                 revokers.push(EventSubscription::ToggleSwitchToggled(ts, token));
+            }
+            (Event::Expanding, Handle::Expander(expander)) => {
+                let h1 = handler.clone();
+                let expanding_handler = windows::Foundation::TypedEventHandler::<
+                    Muxc::Expander,
+                    Muxc::ExpanderExpandingEventArgs,
+                >::new(move |_, _| {
+                    h1.invoke_bool(true);
+                    Ok(())
+                });
+                let collapsed_handler = windows::Foundation::TypedEventHandler::<
+                    Muxc::Expander,
+                    Muxc::ExpanderCollapsedEventArgs,
+                >::new(move |_, _| {
+                    handler.invoke_bool(false);
+                    Ok(())
+                });
+                let expanding = expander.Expanding(&expanding_handler).unwrap();
+                let collapsed = expander.Collapsed(&collapsed_handler).unwrap();
+                revokers.push(EventSubscription::ExpanderExpanding(
+                    expander.clone(),
+                    expanding,
+                ));
+                revokers.push(EventSubscription::ExpanderCollapsed(
+                    expander.clone(),
+                    collapsed,
+                ));
             }
             (Event::TextChanged, Handle::TextBox(tb)) => {
                 let handler = Xaml::TextChangedEventHandler::new(move |sender, _| {
@@ -876,6 +1030,24 @@ impl Backend for WinUIBackend {
                     });
                     let token = selector.SelectionChanged(&handler).unwrap();
                     revokers.push(EventSubscription::SelectorSelectionChanged(selector, token));
+                } else if let Ok(radio) = h.cast_inner::<Muxc::RadioButtons>() {
+                    let radio_for_cb = radio.clone();
+                    let handler = Xaml::SelectionChangedEventHandler::new(move |_, _| {
+                        handler.invoke_i32(radio_for_cb.SelectedIndex().unwrap_or(-1));
+                        Ok(())
+                    });
+                    let token = radio.SelectionChanged(&handler).unwrap();
+                    revokers.push(EventSubscription::RadioButtonsSelectionChanged(
+                        radio, token,
+                    ));
+                } else if let Ok(tab) = h.cast_inner::<Muxc::TabView>() {
+                    let tab_for_cb = tab.clone();
+                    let handler = Xaml::SelectionChangedEventHandler::new(move |_, _| {
+                        handler.invoke_i32(tab_for_cb.SelectedIndex().unwrap_or(-1));
+                        Ok(())
+                    });
+                    let token = tab.SelectionChanged(&handler).unwrap();
+                    revokers.push(EventSubscription::TabViewSelectionChanged(tab, token));
                 } else if let Ok(nav) = h.cast_inner::<Muxc::NavigationView>() {
                     let handler = windows::Foundation::TypedEventHandler::<
                         Muxc::NavigationView,
@@ -923,7 +1095,89 @@ impl Backend for WinUIBackend {
                     });
                     let token = rating.ValueChanged(&handler).unwrap();
                     revokers.push(EventSubscription::RatingControlValueChanged(rating, token));
+                } else if let Ok(number) = h.cast_inner::<Muxc::NumberBox>() {
+                    let handler = windows::Foundation::TypedEventHandler::<
+                        Muxc::NumberBox,
+                        Muxc::NumberBoxValueChangedEventArgs,
+                    >::new(move |_, args| {
+                        let value = args
+                            .as_ref()
+                            .and_then(|a| a.NewValue().ok())
+                            .unwrap_or_default();
+                        handler.invoke_f64(value);
+                        Ok(())
+                    });
+                    let token = number.ValueChanged(&handler).unwrap();
+                    revokers.push(EventSubscription::NumberBoxValueChanged(number, token));
                 }
+            }
+            (Event::CloseRequested, Handle::TabView(tab)) => {
+                let event_handler = windows::Foundation::TypedEventHandler::<
+                    Muxc::TabView,
+                    Muxc::TabViewTabCloseRequestedEventArgs,
+                >::new(move |_, args| {
+                    let key = args
+                        .as_ref()
+                        .and_then(|a| a.Tab().ok())
+                        .and_then(|tab| tab.cast::<Xaml::FrameworkElement>().ok())
+                        .and_then(|fe| fe.Tag().ok())
+                        .and_then(inspectable_to_string)
+                        .unwrap_or_default();
+                    handler.invoke_string(key);
+                    Ok(())
+                });
+                let token = tab.TabCloseRequested(&event_handler).unwrap();
+                revokers.push(EventSubscription::TabViewCloseRequested(tab.clone(), token));
+            }
+            (Event::AddTabButtonClick, Handle::TabView(tab)) => {
+                let event_handler = windows::Foundation::TypedEventHandler::<
+                    Muxc::TabView,
+                    IInspectable,
+                >::new(move |_, _| {
+                    handler.invoke();
+                    Ok(())
+                });
+                let token = tab.AddTabButtonClick(&event_handler).unwrap();
+                revokers.push(EventSubscription::TabViewAddTabButtonClick(
+                    tab.clone(),
+                    token,
+                ));
+            }
+            (Event::Closed, Handle::InfoBar(info)) => {
+                let event_handler = windows::Foundation::TypedEventHandler::<
+                    Muxc::InfoBar,
+                    Muxc::InfoBarClosedEventArgs,
+                >::new(move |_, _| {
+                    handler.invoke();
+                    Ok(())
+                });
+                let token = info.Closed(&event_handler).unwrap();
+                revokers.push(EventSubscription::InfoBarClosed(info.clone(), token));
+            }
+            (Event::Closed, Handle::TeachingTip(tip)) => {
+                let event_handler = windows::Foundation::TypedEventHandler::<
+                    Muxc::TeachingTip,
+                    Muxc::TeachingTipClosedEventArgs,
+                >::new(move |_, _| {
+                    handler.invoke();
+                    Ok(())
+                });
+                let token = tip.Closed(&event_handler).unwrap();
+                revokers.push(EventSubscription::TeachingTipClosed(tip.clone(), token));
+            }
+            (Event::ActionButtonClick, Handle::TeachingTip(tip)) => {
+                let event_handler = windows::Foundation::TypedEventHandler::<
+                    Muxc::TeachingTip,
+                    IInspectable,
+                >::new(move |_, _| {
+                    handler.invoke();
+                    Ok(())
+                });
+                let token = tip.ActionButtonClick(&event_handler).unwrap();
+                revokers.push(EventSubscription::TeachingTipActionButtonClick(
+                    tip.clone(),
+                    token,
+                ));
             }
             (Event::BackRequested, Handle::NavigationView(nav)) => {
                 let event_handler = windows::Foundation::TypedEventHandler::<
@@ -1050,6 +1304,25 @@ impl Backend for WinUIBackend {
         self.templated_realizers.borrow_mut().insert(id, realize);
     }
 
+    fn set_header_element(&mut self, id: ControlId, header_id: Option<ControlId>) {
+        let map = self.controls.borrow();
+        let Some(Handle::Expander(expander)) = map.get(&id) else {
+            return;
+        };
+        match header_id
+            .and_then(|hid| map.get(&hid))
+            .and_then(|h| h.as_ui_element().ok())
+            .and_then(|ui| ui.cast::<IInspectable>().ok())
+        {
+            Some(header) => {
+                let _ = expander.SetHeader(&header);
+            }
+            None => {
+                let _ = expander.SetHeader(None);
+            }
+        }
+    }
+
     fn set_pane_element(&mut self, id: ControlId, pane_id: Option<ControlId>) {
         let map = self.controls.borrow();
         let Some(Handle::SplitView(split)) = map.get(&id) else {
@@ -1151,6 +1424,7 @@ impl Backend for WinUIBackend {
 enum Handle {
     AutoSuggestBox(Xaml::AutoSuggestBox),
     Border(Xaml::Border),
+    BreadcrumbBar(Muxc::BreadcrumbBar),
     Button(Xaml::Button),
     CalendarDatePicker(Xaml::CalendarDatePicker),
     CalendarView(Xaml::CalendarView),
@@ -1162,12 +1436,16 @@ enum Handle {
     ContentDialog(Xaml::ContentDialog),
     DatePicker(Xaml::DatePicker),
     DropDownButton(Xaml::DropDownButton),
+    Expander(Muxc::Expander),
     Grid(Xaml::Grid),
     HyperlinkButton(Xaml::HyperlinkButton),
     Image(Xaml::Image),
+    InfoBadge(Muxc::InfoBadge),
+    InfoBar(Muxc::InfoBar),
     ListBox(Xaml::ListBox),
     MenuBar(Xaml::MenuBar),
     NavigationView(Muxc::NavigationView),
+    NumberBox(Muxc::NumberBox),
     PasswordBox(Xaml::PasswordBox),
     PersonPicture(Xaml::PersonPicture),
     Pivot(Xaml::Pivot),
@@ -1175,6 +1453,7 @@ enum Handle {
     ProgressBar(Xaml::ProgressBar),
     ProgressRing(Xaml::ProgressRing),
     RadioButton(Xaml::RadioButton),
+    RadioButtons(Muxc::RadioButtons),
     RatingControl(Xaml::RatingControl),
     Rectangle(Xaml::Rectangle),
     RelativePanel(Xaml::RelativePanel),
@@ -1186,6 +1465,9 @@ enum Handle {
     SplitButton(Xaml::SplitButton),
     SplitView(Xaml::SplitView),
     StackPanel(Xaml::StackPanel),
+    TabView(Muxc::TabView),
+    TabViewItem(Muxc::TabViewItem),
+    TeachingTip(Muxc::TeachingTip),
     TextBlock(Xaml::TextBlock),
     TextBox(Xaml::TextBox),
     TimePicker(Xaml::TimePicker),
@@ -1205,6 +1487,7 @@ impl Handle {
         Ok(match kind {
             ControlKind::AutoSuggestBox => Self::AutoSuggestBox(Xaml::AutoSuggestBox::new()?),
             ControlKind::Border => Self::Border(Xaml::Border::new()?),
+            ControlKind::BreadcrumbBar => Self::BreadcrumbBar(Muxc::BreadcrumbBar::new()?),
             ControlKind::Button => Self::Button(Xaml::Button::new()?),
             ControlKind::CalendarDatePicker => {
                 Self::CalendarDatePicker(Xaml::CalendarDatePicker::new()?)
@@ -1218,12 +1501,16 @@ impl Handle {
             ControlKind::ContentDialog => Self::ContentDialog(Xaml::ContentDialog::new()?),
             ControlKind::DatePicker => Self::DatePicker(Xaml::DatePicker::new()?),
             ControlKind::DropDownButton => Self::DropDownButton(Xaml::DropDownButton::new()?),
+            ControlKind::Expander => Self::Expander(Muxc::Expander::new()?),
             ControlKind::Grid => Self::Grid(Xaml::Grid::new()?),
             ControlKind::HyperlinkButton => Self::HyperlinkButton(Xaml::HyperlinkButton::new()?),
             ControlKind::Image => Self::Image(Xaml::Image::new()?),
+            ControlKind::InfoBadge => Self::InfoBadge(Muxc::InfoBadge::new()?),
+            ControlKind::InfoBar => Self::InfoBar(Muxc::InfoBar::new()?),
             ControlKind::ListBox => Self::ListBox(Xaml::ListBox::new()?),
             ControlKind::MenuBar => Self::MenuBar(Xaml::MenuBar::new()?),
             ControlKind::NavigationView => Self::NavigationView(Muxc::NavigationView::new()?),
+            ControlKind::NumberBox => Self::NumberBox(Muxc::NumberBox::new()?),
             ControlKind::PasswordBox => Self::PasswordBox(Xaml::PasswordBox::new()?),
             ControlKind::PersonPicture => Self::PersonPicture(Xaml::PersonPicture::new()?),
             ControlKind::Pivot => Self::Pivot(Xaml::Pivot::new()?),
@@ -1231,6 +1518,7 @@ impl Handle {
             ControlKind::ProgressBar => Self::ProgressBar(Xaml::ProgressBar::new()?),
             ControlKind::ProgressRing => Self::ProgressRing(Xaml::ProgressRing::new()?),
             ControlKind::RadioButton => Self::RadioButton(Xaml::RadioButton::new()?),
+            ControlKind::RadioButtons => Self::RadioButtons(Muxc::RadioButtons::new()?),
             ControlKind::RatingControl => Self::RatingControl(Xaml::RatingControl::new()?),
             ControlKind::Rectangle => Self::Rectangle(Xaml::Rectangle::new()?),
             ControlKind::RelativePanel => Self::RelativePanel(Xaml::RelativePanel::new()?),
@@ -1242,6 +1530,9 @@ impl Handle {
             ControlKind::SplitButton => Self::SplitButton(Xaml::SplitButton::new()?),
             ControlKind::SplitView => Self::SplitView(Xaml::SplitView::new()?),
             ControlKind::StackPanel => Self::StackPanel(Xaml::StackPanel::new()?),
+            ControlKind::TabView => Self::TabView(Muxc::TabView::new()?),
+            ControlKind::TabViewItem => Self::TabViewItem(Muxc::TabViewItem::new()?),
+            ControlKind::TeachingTip => Self::TeachingTip(Muxc::TeachingTip::new()?),
             ControlKind::TextBlock => Self::TextBlock(Xaml::TextBlock::new()?),
             ControlKind::TextBox => Self::TextBox(Xaml::TextBox::new()?),
             ControlKind::TimePicker => Self::TimePicker(Xaml::TimePicker::new()?),
@@ -1261,6 +1552,7 @@ impl Handle {
         match self {
             Self::AutoSuggestBox(v) => v.cast(),
             Self::Border(v) => v.cast(),
+            Self::BreadcrumbBar(v) => v.cast(),
             Self::Button(v) => v.cast(),
             Self::CalendarDatePicker(v) => v.cast(),
             Self::CalendarView(v) => v.cast(),
@@ -1272,12 +1564,16 @@ impl Handle {
             Self::ContentDialog(v) => v.cast(),
             Self::DatePicker(v) => v.cast(),
             Self::DropDownButton(v) => v.cast(),
+            Self::Expander(v) => v.cast(),
             Self::Grid(v) => v.cast(),
             Self::HyperlinkButton(v) => v.cast(),
             Self::Image(v) => v.cast(),
+            Self::InfoBadge(v) => v.cast(),
+            Self::InfoBar(v) => v.cast(),
             Self::ListBox(v) => v.cast(),
             Self::MenuBar(v) => v.cast(),
             Self::NavigationView(v) => v.cast(),
+            Self::NumberBox(v) => v.cast(),
             Self::PasswordBox(v) => v.cast(),
             Self::PersonPicture(v) => v.cast(),
             Self::Pivot(v) => v.cast(),
@@ -1285,6 +1581,7 @@ impl Handle {
             Self::ProgressBar(v) => v.cast(),
             Self::ProgressRing(v) => v.cast(),
             Self::RadioButton(v) => v.cast(),
+            Self::RadioButtons(v) => v.cast(),
             Self::RatingControl(v) => v.cast(),
             Self::Rectangle(v) => v.cast(),
             Self::RelativePanel(v) => v.cast(),
@@ -1296,6 +1593,9 @@ impl Handle {
             Self::SplitButton(v) => v.cast(),
             Self::SplitView(v) => v.cast(),
             Self::StackPanel(v) => v.cast(),
+            Self::TabView(v) => v.cast(),
+            Self::TabViewItem(v) => v.cast(),
+            Self::TeachingTip(v) => v.cast(),
             Self::TextBlock(v) => v.cast(),
             Self::TextBox(v) => v.cast(),
             Self::TimePicker(v) => v.cast(),
@@ -1321,10 +1621,16 @@ impl Handle {
 }
 
 enum EventSubscription {
+    BreadcrumbBarItemClicked(Muxc::BreadcrumbBar, i64),
     ButtonClick(Xaml::ButtonBase, i64),
+    ExpanderCollapsed(Muxc::Expander, i64),
+    ExpanderExpanding(Muxc::Expander, i64),
+    InfoBarClosed(Muxc::InfoBar, i64),
     ToggleButtonChecked(Xaml::ToggleButton, i64),
     ToggleButtonUnchecked(Xaml::ToggleButton, i64),
     ToggleSwitchToggled(Xaml::ToggleSwitch, i64),
+    NumberBoxValueChanged(Muxc::NumberBox, i64),
+    RadioButtonsSelectionChanged(Muxc::RadioButtons, i64),
     TextBoxTextChanged(Xaml::TextBox, i64),
     AutoSuggestBoxTextChanged(Xaml::AutoSuggestBox, i64),
     AutoSuggestBoxQuerySubmitted(Xaml::AutoSuggestBox, i64),
@@ -1332,6 +1638,11 @@ enum EventSubscription {
     SelectorSelectionChanged(Xaml::Selector, i64),
     NavigationViewSelectionChanged(Muxc::NavigationView, i64),
     NavigationViewBackRequested(Muxc::NavigationView, i64),
+    TabViewAddTabButtonClick(Muxc::TabView, i64),
+    TabViewCloseRequested(Muxc::TabView, i64),
+    TabViewSelectionChanged(Muxc::TabView, i64),
+    TeachingTipActionButtonClick(Muxc::TeachingTip, i64),
+    TeachingTipClosed(Muxc::TeachingTip, i64),
     RangeBaseValueChanged(Xaml::RangeBase, i64),
     RatingControlValueChanged(Xaml::RatingControl, i64),
     PasswordBoxPasswordChanged(Xaml::PasswordBox, i64),
@@ -1340,8 +1651,20 @@ enum EventSubscription {
 impl Drop for EventSubscription {
     fn drop(&mut self) {
         match self {
+            Self::BreadcrumbBarItemClicked(target, token) => {
+                let _ = target.RemoveItemClicked(*token);
+            }
             Self::ButtonClick(target, token) => {
                 let _ = target.RemoveClick(*token);
+            }
+            Self::ExpanderCollapsed(target, token) => {
+                let _ = target.RemoveCollapsed(*token);
+            }
+            Self::ExpanderExpanding(target, token) => {
+                let _ = target.RemoveExpanding(*token);
+            }
+            Self::InfoBarClosed(target, token) => {
+                let _ = target.RemoveClosed(*token);
             }
             Self::ToggleButtonChecked(target, token) => {
                 let _ = target.RemoveChecked(*token);
@@ -1351,6 +1674,12 @@ impl Drop for EventSubscription {
             }
             Self::ToggleSwitchToggled(target, token) => {
                 let _ = target.RemoveToggled(*token);
+            }
+            Self::NumberBoxValueChanged(target, token) => {
+                let _ = target.RemoveValueChanged(*token);
+            }
+            Self::RadioButtonsSelectionChanged(target, token) => {
+                let _ = target.RemoveSelectionChanged(*token);
             }
             Self::TextBoxTextChanged(target, token) => {
                 let _ = target.RemoveTextChanged(*token);
@@ -1372,6 +1701,21 @@ impl Drop for EventSubscription {
             }
             Self::NavigationViewBackRequested(target, token) => {
                 let _ = target.RemoveBackRequested(*token);
+            }
+            Self::TabViewAddTabButtonClick(target, token) => {
+                let _ = target.RemoveAddTabButtonClick(*token);
+            }
+            Self::TabViewCloseRequested(target, token) => {
+                let _ = target.RemoveTabCloseRequested(*token);
+            }
+            Self::TabViewSelectionChanged(target, token) => {
+                let _ = target.RemoveSelectionChanged(*token);
+            }
+            Self::TeachingTipActionButtonClick(target, token) => {
+                let _ = target.RemoveActionButtonClick(*token);
+            }
+            Self::TeachingTipClosed(target, token) => {
+                let _ = target.RemoveClosed(*token);
             }
             Self::RangeBaseValueChanged(target, token) => {
                 let _ = target.RemoveValueChanged(*token);
@@ -1526,6 +1870,24 @@ fn set_string_items(handle: &Handle, items: &[String]) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn set_radio_buttons_items(radio: &Muxc::RadioButtons, items: &[String]) -> Result<()> {
+    let vec = radio.Items()?;
+    vec.Clear()?;
+    for item in items {
+        vec.Append(&string_reference(item))?;
+    }
+    Ok(())
+}
+
+fn set_breadcrumb_items(breadcrumb: &Muxc::BreadcrumbBar, items: &[String]) -> Result<()> {
+    let vec: Vec<Option<IInspectable>> = items
+        .iter()
+        .map(|item| Some(string_reference(item)))
+        .collect();
+    let vec: windows_collections::IVector<IInspectable> = vec.into();
+    breadcrumb.SetItemsSource(&vec)
 }
 
 fn set_string_items_for_items_control<T: Interface>(control: &T, items: &[String]) -> Result<()> {

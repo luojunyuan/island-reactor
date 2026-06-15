@@ -28,11 +28,7 @@ fn main() {
 fn generate_bindings() -> Result<(), String> {
     let root = workspace_root()?;
     let package = winui2_package_dir()?;
-    let winmd = package
-        .join("lib")
-        .join("uap10.0")
-        .join("Microsoft.UI.Xaml.winmd");
-    require_file(&winmd, "WinUI 2 winmd")?;
+    let winmd = extract_muxc_metadata_winmd(&root, &package)?;
 
     generate_xaml_bindings(&root)?;
     generate_muxc_bindings(&root, &winmd)?;
@@ -42,12 +38,16 @@ fn generate_bindings() -> Result<(), String> {
 
 fn generate_xaml_bindings(root: &Path) -> Result<(), String> {
     let out = root.join("crates/xaml-bindings/src/bindings.rs");
-    let out = path_arg(&out);
+    let temp = root
+        .join("target")
+        .join("island-reactor-codegen")
+        .join("xaml-bindings.rs");
+    let temp_arg = path_arg(&temp);
     let args = vec![
         "--in",
         "default",
         "--out",
-        &out,
+        &temp_arg,
         "--flat",
         "--filter",
         "Windows.ApplicationModel.Resources.Core.ResourceManager",
@@ -82,29 +82,115 @@ fn generate_xaml_bindings(root: &Path) -> Result<(), String> {
         "--reference",
         "windows,skip-root,Windows.Win32.UI.WindowsAndMessaging",
     ];
-    run_bindgen(args)
+    run_bindgen(args)?;
+    copy_if_changed(&temp, &out)
 }
 
 fn generate_muxc_bindings(root: &Path, winmd: &Path) -> Result<(), String> {
     let out = root.join("crates/muxc-bindings/src/bindings.rs");
-    let out = path_arg(&out);
+    let temp = root
+        .join("target")
+        .join("island-reactor-codegen")
+        .join("muxc-bindings.rs");
+    let temp_arg = path_arg(&temp);
     let winmd = path_arg(winmd);
     let args = vec![
         "--in",
         "default",
         &winmd,
         "--out",
-        &out,
+        &temp_arg,
         "--flat",
         "--filter",
+        "Microsoft.UI.Xaml.Controls.BreadcrumbBar",
+        "Microsoft.UI.Xaml.Controls.BreadcrumbBarItem",
+        "Microsoft.UI.Xaml.Controls.BreadcrumbBarItemClickedEventArgs",
+        "Microsoft.UI.Xaml.Controls.ColorChangedEventArgs",
+        "Microsoft.UI.Xaml.Controls.ColorPicker",
+        "Microsoft.UI.Xaml.Controls.ColorPickerHsvChannel",
+        "Microsoft.UI.Xaml.Controls.ColorSpectrumComponents",
+        "Microsoft.UI.Xaml.Controls.ColorSpectrumShape",
+        "Microsoft.UI.Xaml.Controls.CommandBarFlyout",
+        "Microsoft.UI.Xaml.Controls.DropDownButton",
+        "Microsoft.UI.Xaml.Controls.ExpandDirection",
+        "Microsoft.UI.Xaml.Controls.Expander",
+        "Microsoft.UI.Xaml.Controls.ExpanderCollapsedEventArgs",
+        "Microsoft.UI.Xaml.Controls.ExpanderExpandingEventArgs",
+        "Microsoft.UI.Xaml.Controls.ExpanderTemplateSettings",
+        "Microsoft.UI.Xaml.Controls.InfoBadge",
+        "Microsoft.UI.Xaml.Controls.InfoBadgeTemplateSettings",
+        "Microsoft.UI.Xaml.Controls.InfoBar",
+        "Microsoft.UI.Xaml.Controls.InfoBarClosedEventArgs",
+        "Microsoft.UI.Xaml.Controls.InfoBarCloseReason",
+        "Microsoft.UI.Xaml.Controls.InfoBarClosingEventArgs",
+        "Microsoft.UI.Xaml.Controls.InfoBarSeverity",
+        "Microsoft.UI.Xaml.Controls.InfoBarTemplateSettings",
+        "Microsoft.UI.Xaml.Controls.MenuBar",
+        "Microsoft.UI.Xaml.Controls.MenuBarItem",
+        "Microsoft.UI.Xaml.Controls.MenuBarItemFlyout",
         "Microsoft.UI.Xaml.Controls.NavigationView",
         "Microsoft.UI.Xaml.Controls.NavigationViewBackButtonVisible",
         "Microsoft.UI.Xaml.Controls.NavigationViewBackRequestedEventArgs",
+        "Microsoft.UI.Xaml.Controls.NavigationViewDisplayMode",
+        "Microsoft.UI.Xaml.Controls.NavigationViewDisplayModeChangedEventArgs",
         "Microsoft.UI.Xaml.Controls.NavigationViewItem",
         "Microsoft.UI.Xaml.Controls.NavigationViewItemBase",
+        "Microsoft.UI.Xaml.Controls.NavigationViewItemCollapsedEventArgs",
+        "Microsoft.UI.Xaml.Controls.NavigationViewItemExpandingEventArgs",
         "Microsoft.UI.Xaml.Controls.NavigationViewItemHeader",
+        "Microsoft.UI.Xaml.Controls.NavigationViewItemInvokedEventArgs",
+        "Microsoft.UI.Xaml.Controls.NavigationViewItemSeparator",
+        "Microsoft.UI.Xaml.Controls.NavigationViewOverflowLabelMode",
+        "Microsoft.UI.Xaml.Controls.NavigationViewPaneClosingEventArgs",
         "Microsoft.UI.Xaml.Controls.NavigationViewPaneDisplayMode",
         "Microsoft.UI.Xaml.Controls.NavigationViewSelectionChangedEventArgs",
+        "Microsoft.UI.Xaml.Controls.NavigationViewSelectionFollowsFocus",
+        "Microsoft.UI.Xaml.Controls.NavigationViewShoulderNavigationEnabled",
+        "Microsoft.UI.Xaml.Controls.NavigationViewTemplateSettings",
+        "Microsoft.UI.Xaml.Controls.NumberBox",
+        "Microsoft.UI.Xaml.Controls.NumberBoxSpinButtonPlacementMode",
+        "Microsoft.UI.Xaml.Controls.NumberBoxValidationMode",
+        "Microsoft.UI.Xaml.Controls.NumberBoxValueChangedEventArgs",
+        "Microsoft.UI.Xaml.Controls.PersonPicture",
+        "Microsoft.UI.Xaml.Controls.PersonPictureTemplateSettings",
+        "Microsoft.UI.Xaml.Controls.ProgressBar",
+        "Microsoft.UI.Xaml.Controls.ProgressBarTemplateSettings",
+        "Microsoft.UI.Xaml.Controls.ProgressRing",
+        "Microsoft.UI.Xaml.Controls.ProgressRingTemplateSettings",
+        "Microsoft.UI.Xaml.Controls.RadioButtons",
+        "Microsoft.UI.Xaml.Controls.RatingControl",
+        "Microsoft.UI.Xaml.Controls.RatingItemFontInfo",
+        "Microsoft.UI.Xaml.Controls.RatingItemImageInfo",
+        "Microsoft.UI.Xaml.Controls.RatingItemInfo",
+        "Microsoft.UI.Xaml.Controls.RefreshContainer",
+        "Microsoft.UI.Xaml.Controls.RefreshVisualizer",
+        "Microsoft.UI.Xaml.Controls.SplitButton",
+        "Microsoft.UI.Xaml.Controls.SplitButtonClickEventArgs",
+        "Microsoft.UI.Xaml.Controls.TabView",
+        "Microsoft.UI.Xaml.Controls.TabViewCloseButtonOverlayMode",
+        "Microsoft.UI.Xaml.Controls.TabViewItem",
+        "Microsoft.UI.Xaml.Controls.TabViewItemTemplateSettings",
+        "Microsoft.UI.Xaml.Controls.TabViewTabCloseRequestedEventArgs",
+        "Microsoft.UI.Xaml.Controls.TabViewWidthMode",
+        "Microsoft.UI.Xaml.Controls.TeachingTip",
+        "Microsoft.UI.Xaml.Controls.TeachingTipClosedEventArgs",
+        "Microsoft.UI.Xaml.Controls.TeachingTipCloseReason",
+        "Microsoft.UI.Xaml.Controls.TeachingTipClosingEventArgs",
+        "Microsoft.UI.Xaml.Controls.TeachingTipHeroContentPlacementMode",
+        "Microsoft.UI.Xaml.Controls.TeachingTipPlacementMode",
+        "Microsoft.UI.Xaml.Controls.TeachingTipTailVisibility",
+        "Microsoft.UI.Xaml.Controls.TeachingTipTemplateSettings",
+        "Microsoft.UI.Xaml.Controls.ToggleSplitButton",
+        "Microsoft.UI.Xaml.Controls.ToggleSplitButtonIsCheckedChangedEventArgs",
+        "Microsoft.UI.Xaml.Controls.TreeView",
+        "Microsoft.UI.Xaml.Controls.TreeViewCollapsedEventArgs",
+        "Microsoft.UI.Xaml.Controls.TreeViewExpandingEventArgs",
+        "Microsoft.UI.Xaml.Controls.TreeViewItem",
+        "Microsoft.UI.Xaml.Controls.TreeViewItemInvokedEventArgs",
+        "Microsoft.UI.Xaml.Controls.TreeViewItemTemplateSettings",
+        "Microsoft.UI.Xaml.Controls.TreeViewList",
+        "Microsoft.UI.Xaml.Controls.TreeViewNode",
+        "Microsoft.UI.Xaml.Controls.TreeViewSelectionMode",
         "Microsoft.UI.Xaml.Controls.XamlControlsResources",
         "Microsoft.UI.Xaml.XamlTypeInfo.XamlControlsXamlMetaDataProvider",
         "--reference",
@@ -126,7 +212,8 @@ fn generate_muxc_bindings(root: &Path, winmd: &Path) -> Result<(), String> {
         "--reference",
         "windows,skip-root,Windows.Foundation",
     ];
-    run_bindgen(args)
+    run_bindgen(args)?;
+    copy_if_changed(&temp, &out)
 }
 
 fn run_bindgen(args: Vec<&str>) -> Result<(), String> {
@@ -137,12 +224,7 @@ fn run_bindgen(args: Vec<&str>) -> Result<(), String> {
 fn vendor_muxc_runtime(root: &Path, package: &Path) -> Result<(), String> {
     let mut registration = None;
     for arch in ["x64", "arm64"] {
-        let appx = package
-            .join("tools")
-            .join("AppX")
-            .join(arch)
-            .join("Release")
-            .join("Microsoft.UI.Xaml.2.8.appx");
+        let appx = muxc_appx(package, arch);
         require_file(&appx, &format!("WinUI 2 {arch} AppX"))?;
 
         let work = root
@@ -466,6 +548,31 @@ fn winui2_package_dir() -> Result<PathBuf, String> {
     }
 }
 
+fn extract_muxc_metadata_winmd(root: &Path, package: &Path) -> Result<PathBuf, String> {
+    let appx = muxc_appx(package, "x64");
+    require_file(&appx, "WinUI 2 x64 AppX")?;
+
+    let work = root
+        .join("target")
+        .join("island-reactor-codegen")
+        .join("muxc-metadata-x64");
+    recreate_dir(&work)?;
+    expand_appx(&appx, &work)?;
+
+    let winmd = work.join("Microsoft.UI.Xaml.winmd");
+    require_file(&winmd, "WinUI 2 AppX winmd")?;
+    Ok(winmd)
+}
+
+fn muxc_appx(package: &Path, arch: &str) -> PathBuf {
+    package
+        .join("tools")
+        .join("AppX")
+        .join(arch)
+        .join("Release")
+        .join("Microsoft.UI.Xaml.2.8.appx")
+}
+
 fn expand_appx(appx: &Path, stage: &Path) -> Result<(), String> {
     run_command(
         Command::new("powershell")
@@ -503,6 +610,16 @@ fn copy_file(src: &Path, dst: &Path) -> Result<(), String> {
             dst.display()
         )
     })
+}
+
+fn copy_if_changed(src: &Path, dst: &Path) -> Result<(), String> {
+    require_file(src, "generated bindings")?;
+    if let (Ok(existing), Ok(generated)) = (fs::read(dst), fs::read(src))
+        && existing == generated
+    {
+        return Ok(());
+    }
+    copy_file(src, dst)
 }
 
 fn require_file(path: &Path, label: &str) -> Result<(), String> {
