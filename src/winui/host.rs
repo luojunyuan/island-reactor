@@ -274,6 +274,7 @@ unsafe extern "system" fn wnd_proc(
         WM_SIZE => {
             resize_xaml_island(hwnd);
             send_size_to_core_window(wparam, lparam);
+            set_synchronization_window(hwnd);
             LRESULT(0)
         }
         WM_DESTROY => {
@@ -347,6 +348,20 @@ fn send_size_to_core_window(wparam: WPARAM, lparam: LPARAM) {
     }
     unsafe {
         let _ = SendMessageW(HWND(raw_core_hwnd), WM_SIZE, Some(wparam), Some(lparam));
+    }
+}
+
+fn set_synchronization_window(hwnd: HWND) {
+    let Ok(application) = xaml_bindings::interop::Application::Current() else {
+        return;
+    };
+    let Ok(framework_app_private) =
+        application.cast::<xaml_bindings::interop::IFrameworkApplicationPrivate>()
+    else {
+        return;
+    };
+    unsafe {
+        let _ = framework_app_private.SetSynchronizationWindow(hwnd);
     }
 }
 
