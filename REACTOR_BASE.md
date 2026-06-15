@@ -14,4 +14,4 @@ This crate is being built against the public API shape of the upstream
 
 Current scope is the hello-compatible reactor API surface on top of
 `Windows.UI.Xaml` XAML Islands. It intentionally does not copy the upstream
-`Microsoft.UI.Xaml` / Windows App SDK backend.
+Windows.UI.Xaml Islands backend.

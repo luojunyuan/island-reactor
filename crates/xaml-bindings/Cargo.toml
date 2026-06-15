@@ -4,14 +4,20 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-windows = { version = "0.62.2", features = [
+windows = { workspace = true, features = [
+    "ApplicationModel_Core",
     "Foundation",
+    "Foundation_Collections",
+    "Foundation_Numerics",
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging",
 ] }
-windows-core = "0.62.2"
-windows-collections = "0.3.2"
-windows-numerics = "0.3.1"
+windows-core = { workspace = true }
+windows-collections = { workspace = true }
+windows-future = { workspace = true }
+windows-numerics = { workspace = true }
+windows-reference = { workspace = true, features = ["std"] }
+windows-time = { workspace = true, features = ["std"] }
 
 [build-dependencies]
-windows-bindgen = "0.66.0"
+windows-bindgen = { workspace = true }

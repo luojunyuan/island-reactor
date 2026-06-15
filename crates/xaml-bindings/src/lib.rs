@@ -254,4 +254,4 @@ pub mod interop {
     }
 }
 
-pub use generated::Windows;
+pub use generated::*;
