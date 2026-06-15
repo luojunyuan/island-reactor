@@ -26,7 +26,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "island-reactor-samples"
+name = "island-reactor-gallery"
+version = "0.1.0"
+dependencies = [
+ "island-reactor",
+ "island-reactor-setup",
+]
+
+[[package]]
+name = "island-reactor-hello"
 version = "0.1.0"
 dependencies = [
  "island-reactor",

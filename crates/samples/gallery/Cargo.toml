@@ -1,0 +1,15 @@
+[package]
+name = "island-reactor-gallery"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+island-reactor = { path = "../../island-reactor" }
+
+[build-dependencies]
+island-reactor-setup = { path = "../../island-reactor-setup" }
+
+[[bin]]
+name = "gallery"
+path = "src/main.rs"

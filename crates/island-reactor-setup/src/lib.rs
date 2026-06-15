@@ -1,7 +1,9 @@
 use std::{
-    env, fs,
+    env, fs, io,
     path::{Path, PathBuf},
-    process::Command,
+    process::{self, Command},
+    thread,
+    time::{Duration, Instant},
 };
 
 #[allow(dead_code)]
@@ -14,18 +16,10 @@ pub fn embed_manifest() {
         return;
     }
     let mux = stage_mux_runtime();
-    embed_manifest_for("bins", mux.as_ref());
+    embed_manifest_for_bins(mux.as_ref());
 }
 
-pub fn embed_example_manifest() {
-    if env::var_os("CARGO_CFG_WINDOWS").is_none() {
-        return;
-    }
-    let mux = stage_mux_runtime();
-    embed_manifest_for("examples", mux.as_ref());
-}
-
-fn embed_manifest_for(target_kind: &str, mux: Option<&MuxRegistration>) {
+fn embed_manifest_for_bins(mux: Option<&MuxRegistration>) {
     let manifest_asset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
         .join("app.manifest");
@@ -53,16 +47,16 @@ fn embed_manifest_for(target_kind: &str, mux: Option<&MuxRegistration>) {
 
     match (target_env.as_str(), target_abi.as_str()) {
         ("msvc", _) => {
-            println!("cargo:rustc-link-arg-{target_kind}=/MANIFEST:EMBED");
+            println!("cargo:rustc-link-arg-bins=/MANIFEST:EMBED");
             println!(
-                "cargo:rustc-link-arg-{target_kind}=/MANIFESTINPUT:{}",
+                "cargo:rustc-link-arg-bins=/MANIFESTINPUT:{}",
                 manifest_path.display()
             );
         }
         ("gnu", "llvm") => {
-            println!("cargo:rustc-link-arg-{target_kind}=-Wl,/MANIFEST:EMBED");
+            println!("cargo:rustc-link-arg-bins=-Wl,/MANIFEST:EMBED");
             println!(
-                "cargo:rustc-link-arg-{target_kind}=-Wl,/MANIFESTINPUT:{}",
+                "cargo:rustc-link-arg-bins=-Wl,/MANIFESTINPUT:{}",
                 manifest_path.display()
             );
         }
@@ -130,14 +124,12 @@ fn stage_mux_runtime() -> Option<MuxRegistration> {
         return None;
     }
 
-    if let Some(target_dirs) = target_output_dirs(&out_dir) {
-        for target_dir in target_dirs {
-            if let Err(err) = copy_runtime_payload(&asset_dir, &target_dir) {
-                println!(
-                    "cargo:warning=WinUI 2 runtime payload copy failed for {}: {err}",
-                    target_dir.display()
-                );
-            }
+    if let Some(target_dir) = target_output_dir(&out_dir) {
+        if let Err(err) = copy_runtime_payload(&asset_dir, &target_dir) {
+            println!(
+                "cargo:warning=WinUI 2 runtime payload copy failed for {}: {err}",
+                target_dir.display()
+            );
         }
     } else {
         println!("cargo:warning=WinUI 2 runtime staging skipped: could not resolve target dir");
@@ -159,9 +151,10 @@ fn target_arch_folder() -> Option<&'static str> {
 
 fn copy_runtime_payload(asset_dir: &Path, target_dir: &Path) -> std::io::Result<()> {
     fs::create_dir_all(target_dir)?;
+    let _stage_lock = RuntimeStageLock::acquire(target_dir)?;
     let dll = asset_dir.join(muxc_runtime::RUNTIME_DLL);
     let pri = asset_dir.join(muxc_runtime::RUNTIME_PRI);
-    copy_file(&dll, target_dir.join(muxc_runtime::RUNTIME_DLL))?;
+    copy_file_if_missing_or_stale(&dll, target_dir.join(muxc_runtime::RUNTIME_DLL))?;
     let stale_pri = target_dir.join(muxc_runtime::RUNTIME_PRI);
     if stale_pri.exists() {
         fs::remove_file(stale_pri)?;
@@ -171,6 +164,9 @@ fn copy_runtime_payload(asset_dir: &Path, target_dir: &Path) -> std::io::Result<
 
 fn ensure_app_resources_pri(target_dir: &Path, mux_pri: &Path) -> std::io::Result<()> {
     let resources_pri = target_dir.join("resources.pri");
+    if app_resources_pri_is_current(&resources_pri, mux_pri)? {
+        return Ok(());
+    }
 
     let Some(makepri) = find_makepri() else {
         println!("cargo:warning=WinUI 2 app PRI generation skipped: could not find makepri.exe");
@@ -209,6 +205,74 @@ fn ensure_app_resources_pri(target_dir: &Path, mux_pri: &Path) -> std::io::Resul
     copy_file(output, resources_pri)?;
     let _ = fs::remove_dir_all(&work);
     Ok(())
+}
+
+struct RuntimeStageLock {
+    path: PathBuf,
+}
+
+impl RuntimeStageLock {
+    fn acquire(target_dir: &Path) -> io::Result<Self> {
+        let path = target_dir.join(".island-reactor-runtime.lock");
+        let started = Instant::now();
+        loop {
+            match fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)
+            {
+                Ok(mut file) => {
+                    use io::Write as _;
+                    let _ = writeln!(file, "{}", process::id());
+                    return Ok(Self { path });
+                }
+                Err(err) if err.kind() == io::ErrorKind::AlreadyExists => {
+                    if started.elapsed() > Duration::from_secs(120) {
+                        return Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            format!("timed out waiting for {}", path.display()),
+                        ));
+                    }
+                    thread::sleep(Duration::from_millis(50));
+                }
+                Err(err) => return Err(err),
+            }
+        }
+    }
+}
+
+impl Drop for RuntimeStageLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
+fn app_resources_pri_is_current(resources_pri: &Path, mux_pri: &Path) -> io::Result<bool> {
+    let resources = match fs::metadata(resources_pri) {
+        Ok(metadata) => metadata,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(false),
+        Err(err) => return Err(err),
+    };
+    if resources.len() == 0 {
+        return Ok(false);
+    }
+
+    let Ok(resources_modified) = resources.modified() else {
+        return Ok(false);
+    };
+    let setup_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
+    for input in [mux_pri, setup_src.as_path()] {
+        let Ok(input_modified) = fs::metadata(input).and_then(|metadata| metadata.modified())
+        else {
+            return Ok(false);
+        };
+        if resources_modified < input_modified {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 const APP_PRI_CONFIG: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -313,12 +377,30 @@ fn copy_file(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()
     Ok(())
 }
 
-fn target_output_dirs(out_dir: &Path) -> Option<Vec<PathBuf>> {
+fn copy_file_if_missing_or_stale(
+    src: impl AsRef<Path>,
+    dst: impl AsRef<Path>,
+) -> std::io::Result<()> {
+    let src = src.as_ref();
+    let dst = dst.as_ref();
+    if let (Ok(src_metadata), Ok(dst_metadata)) = (fs::metadata(src), fs::metadata(dst)) {
+        let same_len = src_metadata.len() == dst_metadata.len();
+        let dst_is_fresh = match (src_metadata.modified(), dst_metadata.modified()) {
+            (Ok(src_modified), Ok(dst_modified)) => dst_modified >= src_modified,
+            _ => false,
+        };
+        if same_len && dst_is_fresh {
+            return Ok(());
+        }
+    }
+    copy_file(src, dst)
+}
+
+fn target_output_dir(out_dir: &Path) -> Option<PathBuf> {
     let mut path = out_dir;
     while let Some(parent) = path.parent() {
         if path.file_name().and_then(|v| v.to_str()) == Some("build") {
-            let profile_dir = parent.to_path_buf();
-            return Some(vec![profile_dir.clone(), profile_dir.join("examples")]);
+            return Some(parent.to_path_buf());
         }
         path = parent;
     }

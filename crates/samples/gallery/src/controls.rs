@@ -76,9 +76,7 @@ pub fn card_grid(items: &[CardItem], on_click: impl Fn(String) + 'static) -> Ele
     let items_owned = items.to_vec();
     let items_for_handler = items_owned.clone();
 
-    let assets_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("gallery")
-        .join("assets");
+    let assets_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
 
     grid_view(items_owned, move |item, _idx| {
         let image_uri = if item.image_file.is_empty() {

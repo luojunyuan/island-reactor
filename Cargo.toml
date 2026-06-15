@@ -2,7 +2,7 @@
 members = [
     "crates/island-reactor",
     "crates/island-reactor-setup",
-    "crates/samples",
+    "crates/samples/*",
     "crates/tools/island-reactor-codegen",
 ]
 resolver = "3"
