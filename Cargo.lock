@@ -6,7 +6,6 @@ version = 4
 name = "island-reactor"
 version = "0.1.0"
 dependencies = [
- "island-reactor-setup",
  "rustc-hash",
  "windows",
  "windows-collections",
@@ -24,6 +23,14 @@ version = "0.1.0"
 dependencies = [
  "windows-bindgen",
  "xmltree",
+]
+
+[[package]]
+name = "island-reactor-samples"
+version = "0.1.0"
+dependencies = [
+ "island-reactor",
+ "island-reactor-setup",
 ]
 
 [[package]]

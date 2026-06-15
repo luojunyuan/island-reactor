@@ -77,7 +77,6 @@ pub fn card_grid(items: &[CardItem], on_click: impl Fn(String) + 'static) -> Ele
     let items_for_handler = items_owned.clone();
 
     let assets_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("examples")
         .join("gallery")
         .join("assets");
 

@@ -1,0 +1,23 @@
+[package]
+name = "island-reactor-samples"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+island-reactor = { path = "../island-reactor" }
+
+[build-dependencies]
+island-reactor-setup = { path = "../island-reactor-setup" }
+
+[[bin]]
+name = "hello"
+path = "hello.rs"
+
+[[bin]]
+name = "navigation_view_smoke"
+path = "navigation_view_smoke.rs"
+
+[[bin]]
+name = "gallery"
+path = "gallery/src/main.rs"

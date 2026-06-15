@@ -23,13 +23,6 @@ windows-reference = { workspace = true, features = ["std"] }
 windows-threading = { workspace = true, features = ["std"] }
 windows-time = { workspace = true, features = ["std"] }
 
-[build-dependencies]
-island-reactor-setup = { path = "../island-reactor-setup" }
-
-[[example]]
-name = "gallery"
-path = "examples/gallery/src/main.rs"
-
 [features]
 default = ["diagnostics"]
 diagnostics = []
