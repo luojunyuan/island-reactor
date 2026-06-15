@@ -230,8 +230,8 @@ pub struct ReactorHost {
     render_host: RenderHost<WinUIBackend, WinUIDispatcher>,
     hwnd: HWND,
     _application: Application,
-    _xaml_manager: WindowsXamlManager,
     _xaml_source: DesktopWindowXamlSource,
+    _xaml_manager: WindowsXamlManager,
     presenter: Cell<PresenterKind>,
 }
 
@@ -355,6 +355,22 @@ impl ReactorHost {
         F: Fn(f64, f64, f64) + 'static,
     {
         self.render_host.set_render_complete(f);
+    }
+}
+
+impl Drop for ReactorHost {
+    fn drop(&mut self) {
+        self.render_host.clear_callbacks();
+        let _ = self._xaml_source.put_Content(None);
+        ROOT_FRAMEWORK_ELEMENT.with(|cell| {
+            *cell.borrow_mut() = None;
+        });
+        self.render_host.with_backend(|backend| backend.shutdown());
+        UNHANDLED_EXCEPTION_HANDLER.with(|slot| {
+            *slot.borrow_mut() = None;
+        });
+        XAML_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
+        CORE_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
     }
 }
 

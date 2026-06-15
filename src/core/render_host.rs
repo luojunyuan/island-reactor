@@ -281,6 +281,11 @@ impl<B: Backend + 'static, D: Dispatcher + 'static> RenderHost<B, D> {
         *self.inner.render_complete.borrow_mut() = Some(Box::new(f));
     }
 
+    pub(crate) fn clear_callbacks(&self) {
+        *self.inner.post_render.borrow_mut() = None;
+        *self.inner.render_complete.borrow_mut() = None;
+    }
+
     pub fn inner_size(&self) -> Size {
         self.inner.inner_size.get()
     }

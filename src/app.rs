@@ -24,6 +24,12 @@ where
     HOST_SLOT.with(|slot| slot.borrow().as_ref().map(f))
 }
 
+fn clear_active_host() {
+    HOST_SLOT.with(|slot| {
+        *slot.borrow_mut() = None;
+    });
+}
+
 pub struct App {
     title: Option<String>,
     inner_size: Option<crate::core::Size>,
@@ -109,7 +115,9 @@ impl App {
         });
 
         result?;
-        message_loop()
+        let loop_result = message_loop();
+        clear_active_host();
+        loop_result
     }
 
     pub fn render<F>(self, f: F) -> Result<()>

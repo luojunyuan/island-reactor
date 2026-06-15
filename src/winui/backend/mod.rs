@@ -47,6 +47,15 @@ impl WinUIBackend {
             .and_then(|u| u.cast().ok())
     }
 
+    pub(crate) fn shutdown(&self) {
+        self.event_revokers.borrow_mut().clear();
+        self.templated_selection_revokers.borrow_mut().clear();
+        self.templated_realizers.borrow_mut().clear();
+        self.templated_rows.borrow_mut().clear();
+        self.parent_children.borrow_mut().clear();
+        self.controls.borrow_mut().clear();
+    }
+
     fn alloc_id(&self) -> ControlId {
         let mut counter = self.next_id.borrow_mut();
         *counter += 1;
