@@ -17,6 +17,7 @@ pub struct WinUIBackend {
     templated_realizers: RefCell<FxHashMap<ControlId, Rc<dyn Fn(usize)>>>,
     parent_children: RefCell<FxHashMap<ControlId, Vec<ControlId>>>,
     templated_rows: RefCell<FxHashMap<ControlId, Vec<Option<ControlId>>>>,
+    theme_brush_registry: RefCell<FxHashMap<ControlId, Vec<(Prop, crate::core::theme::ThemeRef)>>>,
     next_id: RefCell<u32>,
 }
 
@@ -35,6 +36,7 @@ impl WinUIBackend {
             templated_realizers: RefCell::new(FxHashMap::default()),
             parent_children: RefCell::new(FxHashMap::default()),
             templated_rows: RefCell::new(FxHashMap::default()),
+            theme_brush_registry: RefCell::new(FxHashMap::default()),
             next_id: RefCell::new(0),
         }
     }
@@ -53,6 +55,7 @@ impl WinUIBackend {
         self.templated_realizers.borrow_mut().clear();
         self.templated_rows.borrow_mut().clear();
         self.parent_children.borrow_mut().clear();
+        self.theme_brush_registry.borrow_mut().clear();
         self.controls.borrow_mut().clear();
     }
 
@@ -869,6 +872,7 @@ impl Backend for WinUIBackend {
         self.templated_realizers.borrow_mut().remove(&id);
         self.parent_children.borrow_mut().remove(&id);
         self.templated_rows.borrow_mut().remove(&id);
+        self.theme_brush_registry.borrow_mut().remove(&id);
     }
 
     fn attach_event(&mut self, id: ControlId, event: Event, handler: EventHandler) {
@@ -1286,10 +1290,41 @@ impl Backend for WinUIBackend {
 
     fn set_theme_bindings(
         &mut self,
-        _id: ControlId,
+        id: ControlId,
         _kind: ControlKind,
-        _bindings: &[(Prop, crate::core::theme::ThemeRef)],
+        bindings: &[(Prop, crate::core::theme::ThemeRef)],
     ) {
+        if bindings.is_empty() {
+            self.theme_brush_registry.borrow_mut().remove(&id);
+            let map = self.controls.borrow();
+            if let Some(handle) = map.get(&id)
+                && let Some((_, fe)) = style_target_for_handle(handle)
+            {
+                let _ = fe.put_Style(None);
+            }
+            return;
+        }
+
+        self.theme_brush_registry
+            .borrow_mut()
+            .insert(id, bindings.to_vec());
+
+        let map = self.controls.borrow();
+        let Some(handle) = map.get(&id) else {
+            return;
+        };
+        apply_theme_resource_style(handle, bindings);
+    }
+
+    fn on_theme_changed(&mut self) {
+        let controls = self.controls.borrow();
+        let registry = self.theme_brush_registry.borrow();
+        for (id, bindings) in registry.iter() {
+            let Some(handle) = controls.get(id) else {
+                continue;
+            };
+            apply_theme_resource_style(handle, bindings);
+        }
     }
 
     fn set_implicit_transitions(
@@ -1564,6 +1599,63 @@ impl Handle {
 }
 
 type EventSubscription = windows_core::EventRevoker;
+
+/// Build and apply a XAML Style with {ThemeResource} setters to an element.
+/// WinUI handles theme-reactive resolution natively.
+fn apply_theme_resource_style(handle: &Handle, bindings: &[(Prop, crate::core::theme::ThemeRef)]) {
+    let Some((target_type, fe)) = style_target_for_handle(handle) else {
+        return;
+    };
+
+    let mut setters = String::new();
+    for (prop, theme_ref) in bindings {
+        let dp_name = match prop {
+            Prop::Background => "Background",
+            Prop::Foreground => "Foreground",
+            Prop::BorderBrush => "BorderBrush",
+            _ => continue,
+        };
+        let resource_key = theme_ref.resource_key();
+        setters.push_str(&format!(
+            "<Setter Property='{dp_name}' Value='{{ThemeResource {resource_key}}}'/>"
+        ));
+    }
+
+    if setters.is_empty() {
+        let _ = fe.put_Style(None);
+        return;
+    }
+
+    let xaml = format!(
+        "<Style xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' TargetType='{target_type}'>{setters}</Style>"
+    );
+
+    match Xaml::XamlReader::Load(&xaml) {
+        Ok(obj) => {
+            if let Ok(style) = obj.cast::<Xaml::Style>() {
+                let _ = fe.put_Style(None);
+                let _ = fe.put_Style(&style);
+            }
+        }
+        Err(err) => {
+            crate::diagnostics::emit(&format!(
+                "island_reactor: theme resource style failed: {err:?}\n"
+            ));
+        }
+    }
+}
+
+fn style_target_for_handle(handle: &Handle) -> Option<(&'static str, Xaml::IFrameworkElement)> {
+    match handle {
+        Handle::Border(v) => v.cast().ok().map(|fe| ("Border", fe)),
+        Handle::StackPanel(v) => v.cast().ok().map(|fe| ("StackPanel", fe)),
+        Handle::Grid(v) => v.cast().ok().map(|fe| ("Grid", fe)),
+        Handle::Canvas(v) => v.cast().ok().map(|fe| ("Canvas", fe)),
+        Handle::Button(v) => v.cast().ok().map(|fe| ("Button", fe)),
+        Handle::TextBlock(v) => v.cast().ok().map(|fe| ("TextBlock", fe)),
+        _ => None,
+    }
+}
 
 fn xaml_thickness(t: Thickness) -> Xaml::Thickness {
     Xaml::Thickness {

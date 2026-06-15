@@ -5383,6 +5383,18 @@ impl IFrameworkElement {
             .ok()
         }
     }
+    pub fn put_Style<P0>(&self, value: P0) -> windows_core::Result<()>
+    where
+        P0: windows_core::Param<Style>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).put_Style)(
+                windows_core::Interface::as_raw(self),
+                value.param().abi(),
+            )
+            .ok()
+        }
+    }
 }
 #[repr(C)]
 pub struct IFrameworkElement_Vtbl {
@@ -5437,7 +5449,10 @@ pub struct IFrameworkElement_Vtbl {
     get_DataContext: usize,
     put_DataContext: usize,
     get_Style: usize,
-    put_Style: usize,
+    pub put_Style: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
     get_Parent: usize,
     get_FlowDirection: usize,
     put_FlowDirection: usize,
@@ -8248,6 +8263,22 @@ pub struct IStorageFileStatics_Vtbl {
     ReplaceWithStreamedFileAsync: usize,
     CreateStreamedFileFromUriAsync: usize,
     ReplaceWithStreamedFileFromUriAsync: usize,
+}
+windows_core::imp::define_interface!(IStyle, IStyle_Vtbl, 0xc4a9f225_9db7_4a7d_b6d1_f74edb9293c2);
+impl windows_core::RuntimeType for IStyle {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_interface::<Self>();
+}
+#[repr(C)]
+pub struct IStyle_Vtbl {
+    pub base__: windows_core::IInspectable_Vtbl,
+    get_IsSealed: usize,
+    get_Setters: usize,
+    get_TargetType: usize,
+    put_TargetType: usize,
+    get_BasedOn: usize,
+    put_BasedOn: usize,
+    Seal: usize,
 }
 windows_core::imp::define_interface!(
     ISymbolIcon,
@@ -12625,6 +12656,45 @@ impl windows_core::RuntimeType for Stretch {
     const SIGNATURE: windows_core::imp::ConstBuffer =
         windows_core::imp::ConstBuffer::from_slice(b"enum(Windows.UI.Xaml.Media.Stretch;i4)");
 }
+#[repr(transparent)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Style(windows_core::IUnknown);
+windows_core::imp::interface_hierarchy!(Style, windows_core::IUnknown, windows_core::IInspectable);
+windows_core::imp::required_hierarchy!(Style, DependencyObject);
+impl Style {
+    pub fn new() -> windows_core::Result<Self> {
+        Self::IActivationFactory(|f| f.ActivateInstance::<Self>())
+    }
+    fn IActivationFactory<
+        R,
+        F: FnOnce(&windows_core::imp::IGenericFactory) -> windows_core::Result<R>,
+    >(
+        callback: F,
+    ) -> windows_core::Result<R> {
+        static SHARED: windows_core::imp::FactoryCache<Style, windows_core::imp::IGenericFactory> =
+            windows_core::imp::FactoryCache::new();
+        SHARED.call(callback)
+    }
+}
+impl windows_core::RuntimeType for Style {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_class::<Self, IStyle>();
+}
+unsafe impl windows_core::Interface for Style {
+    type Vtable = <IStyle as windows_core::Interface>::Vtable;
+    const IID: windows_core::GUID = <IStyle as windows_core::Interface>::IID;
+}
+impl core::ops::Deref for Style {
+    type Target = IStyle;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+impl windows_core::RuntimeName for Style {
+    const NAME: &'static str = "Windows.UI.Xaml.Style";
+}
+unsafe impl Send for Style {}
+unsafe impl Sync for Style {}
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Symbol(pub i32);
