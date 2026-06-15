@@ -67,10 +67,10 @@ impl WinUIBackend {
         };
 
         match (prop, value, handle) {
-            (Prop::Text, PropValue::Str(s), Handle::TextBlock(tb)) => tb.SetText(&hstring(s))?,
+            (Prop::Text, PropValue::Str(s), Handle::TextBlock(tb)) => tb.put_Text(s)?,
             (Prop::Text, PropValue::Str(s), Handle::TextBox(tb)) => {
-                if tb.Text().ok().map(|text| text.to_string_lossy()) != Some(s.clone()) {
-                    tb.SetText(&hstring(s))?;
+                if tb.get_Text().ok() != Some(s.clone()) {
+                    tb.put_Text(s)?;
                 }
             }
             (
@@ -78,57 +78,57 @@ impl WinUIBackend {
                 PropValue::I32(v),
                 Handle::TextBlock(tb),
             ) => {
-                tb.SetTextWrapping(Xaml::TextWrapping(*v))?;
+                tb.put_TextWrapping(Xaml::TextWrapping(*v))?;
             }
             (
                 Prop::TextWrapping | Prop::TextWrappingWrap,
                 PropValue::I32(v),
                 Handle::TextBox(tb),
             ) => {
-                tb.SetTextWrapping(Xaml::TextWrapping(*v))?;
+                tb.put_TextWrapping(Xaml::TextWrapping(*v))?;
             }
             (Prop::IsTextSelectionEnabled, PropValue::Bool(v), Handle::TextBlock(tb)) => {
-                tb.SetIsTextSelectionEnabled(*v)?;
+                tb.put_IsTextSelectionEnabled(*v)?;
             }
             (Prop::PlaceholderText, PropValue::Str(s), h) => {
                 if let Ok(tb) = h.cast_inner::<Xaml::TextBox>() {
-                    tb.SetPlaceholderText(&hstring(s))?;
+                    tb.cast::<Xaml::ITextBox2>()?.put_PlaceholderText(s)?;
                 } else if let Ok(pb) = h.cast_inner::<Xaml::PasswordBox>() {
-                    pb.SetPlaceholderText(&hstring(s))?;
+                    pb.cast::<Xaml::IPasswordBox2>()?.put_PlaceholderText(s)?;
                 } else if let Ok(asb) = h.cast_inner::<Xaml::AutoSuggestBox>() {
-                    asb.SetPlaceholderText(&hstring(s))?;
+                    asb.put_PlaceholderText(s)?;
                 } else if let Ok(cdp) = h.cast_inner::<Xaml::CalendarDatePicker>() {
-                    cdp.SetPlaceholderText(&hstring(s))?;
+                    cdp.put_PlaceholderText(s)?;
                 }
             }
             (Prop::Header, PropValue::Str(s), h) => {
                 let content = string_reference(s);
                 if let Ok(tb) = h.cast_inner::<Xaml::TextBox>() {
-                    tb.SetHeader(&content)?;
+                    tb.cast::<Xaml::ITextBox2>()?.put_Header(&content)?;
                 } else if let Ok(pb) = h.cast_inner::<Xaml::PasswordBox>() {
-                    pb.SetHeader(&content)?;
+                    pb.cast::<Xaml::IPasswordBox2>()?.put_Header(&content)?;
                 } else if let Ok(cb) = h.cast_inner::<Xaml::ComboBox>() {
-                    cb.SetHeader(&content)?;
+                    cb.cast::<Xaml::IComboBox2>()?.put_Header(&content)?;
                 } else if let Ok(slider) = h.cast_inner::<Xaml::Slider>() {
-                    slider.SetHeader(&content)?;
+                    slider.cast::<Xaml::ISlider2>()?.put_Header(&content)?;
                 } else if let Ok(tp) = h.cast_inner::<Xaml::TimePicker>() {
-                    tp.SetHeader(&content)?;
+                    tp.put_Header(&content)?;
                 } else if let Ok(dp) = h.cast_inner::<Xaml::DatePicker>() {
-                    dp.SetHeader(&content)?;
+                    dp.put_Header(&content)?;
                 } else if let Ok(cdp) = h.cast_inner::<Xaml::CalendarDatePicker>() {
-                    cdp.SetHeader(&content)?;
+                    cdp.put_Header(&content)?;
                 } else if let Ok(asb) = h.cast_inner::<Xaml::AutoSuggestBox>() {
-                    asb.SetHeader(&content)?;
+                    asb.put_Header(&content)?;
                 } else if let Ok(reb) = h.cast_inner::<Xaml::RichEditBox>() {
-                    reb.SetHeader(&content)?;
+                    reb.cast::<Xaml::IRichEditBox2>()?.put_Header(&content)?;
                 } else if let Ok(expander) = h.cast_inner::<Muxc::Expander>() {
-                    expander.SetHeader(&content)?;
+                    expander.cast::<Muxc::IExpander>()?.put_Header(&content)?;
                 } else if let Ok(number) = h.cast_inner::<Muxc::NumberBox>() {
-                    number.SetHeader(&content)?;
+                    number.cast::<Muxc::INumberBox>()?.put_Header(&content)?;
                 } else if let Ok(radio) = h.cast_inner::<Muxc::RadioButtons>() {
-                    radio.SetHeader(&content)?;
+                    radio.cast::<Muxc::IRadioButtons>()?.put_Header(&content)?;
                 } else if let Ok(tab) = h.cast_inner::<Muxc::TabViewItem>() {
-                    tab.SetHeader(&content)?;
+                    tab.cast::<Muxc::ITabViewItem>()?.put_Header(&content)?;
                 }
             }
             (Prop::Content, PropValue::Str(s), h) => {
@@ -136,153 +136,153 @@ impl WinUIBackend {
             }
             (Prop::IsEnabled, PropValue::Bool(v), h) => {
                 if let Ok(control) = h.cast_inner::<Xaml::Control>() {
-                    control.SetIsEnabled(*v)?;
+                    control.put_IsEnabled(*v)?;
                 }
             }
             (Prop::IsChecked, PropValue::Bool(v), h) => {
                 if let Ok(toggle) = h.cast_inner::<Xaml::ToggleButton>() {
-                    toggle.SetIsChecked(Some(*v))?;
+                    toggle.put_IsChecked(Some(*v))?;
                 }
             }
             (Prop::IsOn, PropValue::Bool(v), Handle::ToggleSwitch(ts)) => {
-                ts.SetIsOn(*v)?;
+                ts.put_IsOn(*v)?;
             }
             (Prop::OnContent, PropValue::Str(s), Handle::ToggleSwitch(ts)) => {
-                ts.SetOnContent(&string_reference(s))?;
+                ts.put_OnContent(&string_reference(s))?;
             }
             (Prop::OffContent, PropValue::Str(s), Handle::ToggleSwitch(ts)) => {
-                ts.SetOffContent(&string_reference(s))?;
+                ts.put_OffContent(&string_reference(s))?;
             }
             (Prop::Orientation, PropValue::I32(v), Handle::StackPanel(sp)) => {
-                sp.SetOrientation(Xaml::Orientation(*v))?;
+                sp.put_Orientation(Xaml::Orientation(*v))?;
             }
             (Prop::Orientation, PropValue::I32(v), Handle::Slider(slider)) => {
-                slider.SetOrientation(Xaml::Orientation(*v))?;
+                slider.put_Orientation(Xaml::Orientation(*v))?;
             }
             (Prop::Spacing, PropValue::F64(v), Handle::StackPanel(sp)) => {
-                sp.SetSpacing(*v)?;
+                sp.cast::<Xaml::IStackPanel4>()?.put_Spacing(*v)?;
             }
             (Prop::RowSpacing, PropValue::F64(v), Handle::Grid(g)) => {
-                g.SetRowSpacing(*v)?;
+                g.cast::<Xaml::IGrid3>()?.put_RowSpacing(*v)?;
             }
             (Prop::ColumnSpacing, PropValue::F64(v), Handle::Grid(g)) => {
-                g.SetColumnSpacing(*v)?;
+                g.cast::<Xaml::IGrid3>()?.put_ColumnSpacing(*v)?;
             }
             (Prop::Margin, PropValue::Thickness(t), h) => {
                 if let Ok(fe) = h.cast_inner::<Xaml::FrameworkElement>() {
-                    fe.SetMargin(xaml_thickness(*t))?;
+                    fe.put_Margin(xaml_thickness(*t))?;
                 }
             }
             (Prop::Padding, PropValue::Thickness(t), h) => {
                 if let Ok(control) = h.cast_inner::<Xaml::Control>() {
-                    control.SetPadding(xaml_thickness(*t))?;
+                    control.put_Padding(xaml_thickness(*t))?;
                 } else if let Ok(border) = h.cast_inner::<Xaml::Border>() {
-                    border.SetPadding(xaml_thickness(*t))?;
+                    border.put_Padding(xaml_thickness(*t))?;
                 }
             }
             (Prop::Width, PropValue::F64(v), h) => {
                 if let Ok(fe) = h.cast_inner::<Xaml::FrameworkElement>() {
-                    fe.SetWidth(*v)?;
+                    fe.put_Width(*v)?;
                 }
             }
             (Prop::Height, PropValue::F64(v), h) => {
                 if let Ok(fe) = h.cast_inner::<Xaml::FrameworkElement>() {
-                    fe.SetHeight(*v)?;
+                    fe.put_Height(*v)?;
                 }
             }
             (Prop::MinWidth, PropValue::F64(v), h) => {
                 if let Ok(fe) = h.cast_inner::<Xaml::FrameworkElement>() {
-                    fe.SetMinWidth(*v)?;
+                    fe.put_MinWidth(*v)?;
                 }
             }
             (Prop::MaxWidth, PropValue::F64(v), h) => {
                 if let Ok(fe) = h.cast_inner::<Xaml::FrameworkElement>() {
-                    fe.SetMaxWidth(*v)?;
+                    fe.put_MaxWidth(*v)?;
                 }
             }
             (Prop::MinHeight, PropValue::F64(v), h) => {
                 if let Ok(fe) = h.cast_inner::<Xaml::FrameworkElement>() {
-                    fe.SetMinHeight(*v)?;
+                    fe.put_MinHeight(*v)?;
                 }
             }
             (Prop::MaxHeight, PropValue::F64(v), h) => {
                 if let Ok(fe) = h.cast_inner::<Xaml::FrameworkElement>() {
-                    fe.SetMaxHeight(*v)?;
+                    fe.put_MaxHeight(*v)?;
                 }
             }
             (Prop::HorizontalAlignment, PropValue::I32(v), h) => {
                 if let Ok(fe) = h.cast_inner::<Xaml::FrameworkElement>() {
-                    fe.SetHorizontalAlignment(Xaml::HorizontalAlignment(*v))?;
+                    fe.put_HorizontalAlignment(Xaml::HorizontalAlignment(*v))?;
                 }
             }
             (Prop::VerticalAlignment, PropValue::I32(v), h) => {
                 if let Ok(fe) = h.cast_inner::<Xaml::FrameworkElement>() {
-                    fe.SetVerticalAlignment(Xaml::VerticalAlignment(*v))?;
+                    fe.put_VerticalAlignment(Xaml::VerticalAlignment(*v))?;
                 }
             }
             (Prop::Opacity, PropValue::F64(v), h) => {
                 if let Ok(ui) = h.cast_inner::<Xaml::UIElement>() {
-                    ui.SetOpacity(*v)?;
+                    ui.put_Opacity(*v)?;
                 }
             }
             (Prop::FontSize, PropValue::F64(v), h) => {
                 if let Ok(control) = h.cast_inner::<Xaml::Control>() {
-                    control.SetFontSize(*v)?;
+                    control.put_FontSize(*v)?;
                 } else if let Ok(tb) = h.cast_inner::<Xaml::TextBlock>() {
-                    tb.SetFontSize(*v)?;
+                    tb.put_FontSize(*v)?;
                 } else if let Ok(rtb) = h.cast_inner::<Xaml::RichTextBlock>() {
-                    rtb.SetFontSize(*v)?;
+                    rtb.put_FontSize(*v)?;
                 }
             }
             (Prop::FontWeight, PropValue::U16(v), h) => {
                 let weight = Xaml::FontWeight { Weight: *v };
                 if let Ok(control) = h.cast_inner::<Xaml::Control>() {
-                    control.SetFontWeight(weight)?;
+                    control.put_FontWeight(weight)?;
                 } else if let Ok(tb) = h.cast_inner::<Xaml::TextBlock>() {
-                    tb.SetFontWeight(weight)?;
+                    tb.put_FontWeight(weight)?;
                 }
             }
             (Prop::FontFamily, PropValue::Str(s), h) => {
-                let family = Xaml::FontFamily::CreateInstanceWithName(&hstring(s))?;
+                let family = Xaml::FontFamily::CreateInstanceWithName(s)?;
                 if let Ok(control) = h.cast_inner::<Xaml::Control>() {
-                    control.SetFontFamily(&family)?;
+                    control.put_FontFamily(&family)?;
                 } else if let Ok(tb) = h.cast_inner::<Xaml::TextBlock>() {
-                    tb.SetFontFamily(&family)?;
+                    tb.put_FontFamily(&family)?;
                 } else if let Ok(rtb) = h.cast_inner::<Xaml::RichTextBlock>() {
-                    rtb.SetFontFamily(&family)?;
+                    rtb.put_FontFamily(&family)?;
                 }
             }
             (Prop::Foreground, PropValue::Brush(b), h) => {
                 let brush = xaml_brush(b)?;
                 if let Ok(control) = h.cast_inner::<Xaml::Control>() {
-                    control.SetForeground(&brush)?;
+                    control.put_Foreground(&brush)?;
                 } else if let Ok(tb) = h.cast_inner::<Xaml::TextBlock>() {
-                    tb.SetForeground(&brush)?;
+                    tb.put_Foreground(&brush)?;
                 } else if let Ok(rtb) = h.cast_inner::<Xaml::RichTextBlock>() {
-                    rtb.SetForeground(&brush)?;
+                    rtb.put_Foreground(&brush)?;
                 }
             }
             (Prop::Background, PropValue::Brush(b), h) => {
                 let brush = xaml_brush(b)?;
                 if let Ok(border) = h.cast_inner::<Xaml::Border>() {
-                    border.SetBackground(&brush)?;
+                    border.put_Background(&brush)?;
                 } else if let Ok(panel) = h.cast_inner::<Xaml::Panel>() {
-                    panel.SetBackground(&brush)?;
+                    panel.put_Background(&brush)?;
                 } else if let Ok(control) = h.cast_inner::<Xaml::Control>() {
-                    control.SetBackground(&brush)?;
+                    control.put_Background(&brush)?;
                 }
             }
             (Prop::StyleVariant, PropValue::I32(v), Handle::Button(button)) => {
                 apply_button_style_variant(button, *v)?;
             }
             (Prop::BorderBrush, PropValue::Brush(b), Handle::Border(border)) => {
-                border.SetBorderBrush(&xaml_brush(b)?)?;
+                border.put_BorderBrush(&xaml_brush(b)?)?;
             }
             (Prop::BorderThickness, PropValue::Thickness(t), Handle::Border(border)) => {
-                border.SetBorderThickness(xaml_thickness(*t))?;
+                border.put_BorderThickness(xaml_thickness(*t))?;
             }
             (Prop::CornerRadius, PropValue::F64(v), Handle::Border(border)) => {
-                border.SetCornerRadius(Xaml::CornerRadius {
+                border.put_CornerRadius(Xaml::CornerRadius {
                     TopLeft: *v,
                     TopRight: *v,
                     BottomRight: *v,
@@ -352,20 +352,20 @@ impl WinUIBackend {
             }
             (Prop::Stretch, PropValue::I32(v), h) => {
                 if let Ok(image) = h.cast_inner::<Xaml::Image>() {
-                    image.SetStretch(Xaml::Stretch(*v))?;
+                    image.put_Stretch(Xaml::Stretch(*v))?;
                 } else if let Ok(viewbox) = h.cast_inner::<Xaml::Viewbox>() {
-                    viewbox.SetStretch(Xaml::Stretch(*v))?;
+                    viewbox.put_Stretch(Xaml::Stretch(*v))?;
                 }
             }
             (Prop::Value, PropValue::F64(v), h) => {
                 if let Ok(range) = h.cast_inner::<Xaml::RangeBase>() {
-                    range.SetValue2(*v)?;
+                    range.put_Value(*v)?;
                 } else if let Ok(rating) = h.cast_inner::<Xaml::RatingControl>() {
-                    rating.SetValue2(*v)?;
+                    rating.put_Value(*v)?;
                 } else if let Ok(number) = h.cast_inner::<Muxc::NumberBox>() {
-                    number.SetValue2(*v)?;
+                    number.put_Value(*v)?;
                 } else if let Ok(cp) = h.cast_inner::<Xaml::ColorPicker>() {
-                    let _ = cp.SetColor(Xaml::Color {
+                    let _ = cp.put_Color(Xaml::Color {
                         A: 255,
                         R: *v as u8,
                         G: *v as u8,
@@ -374,54 +374,56 @@ impl WinUIBackend {
                 }
             }
             (Prop::Value, PropValue::I32(v), Handle::InfoBadge(badge)) => {
-                badge.SetValue2(*v)?;
+                badge.put_Value(*v)?;
             }
             (Prop::Minimum, PropValue::F64(v), h) => {
                 if let Ok(range) = h.cast_inner::<Xaml::RangeBase>() {
-                    range.SetMinimum(*v)?;
+                    range.put_Minimum(*v)?;
                 } else if let Ok(number) = h.cast_inner::<Muxc::NumberBox>() {
-                    number.SetMinimum(*v)?;
+                    number.put_Minimum(*v)?;
                 }
             }
             (Prop::Maximum, PropValue::F64(v), h) => {
                 if let Ok(range) = h.cast_inner::<Xaml::RangeBase>() {
-                    range.SetMaximum(*v)?;
+                    range.put_Maximum(*v)?;
                 } else if let Ok(number) = h.cast_inner::<Muxc::NumberBox>() {
-                    number.SetMaximum(*v)?;
+                    number.put_Maximum(*v)?;
                 }
             }
             (Prop::Step, PropValue::F64(v), Handle::Slider(slider)) => {
-                slider.SetStepFrequency(*v)?;
+                slider.put_StepFrequency(*v)?;
             }
             (Prop::IsActive, PropValue::Bool(v), Handle::ProgressRing(ring)) => {
-                ring.SetIsActive(*v)?;
+                ring.put_IsActive(*v)?;
             }
             (Prop::IsExpanded, PropValue::Bool(v), Handle::Expander(expander)) => {
-                expander.SetIsExpanded(*v)?;
+                expander.put_IsExpanded(*v)?;
             }
             (Prop::IsIndeterminate, PropValue::Bool(v), h) => {
                 if let Ok(bar) = h.cast_inner::<Xaml::ProgressBar>() {
-                    bar.SetIsIndeterminate(*v)?;
+                    bar.put_IsIndeterminate(*v)?;
                 }
             }
             (Prop::SelectedIndex, PropValue::I32(v), h) => {
                 if let Ok(selector) = h.cast_inner::<Xaml::Selector>() {
-                    selector.SetSelectedIndex(*v)?;
+                    selector.put_SelectedIndex(*v)?;
                 } else if let Ok(pivot) = h.cast_inner::<Xaml::Pivot>() {
-                    pivot.SetSelectedIndex(*v)?;
+                    pivot.put_SelectedIndex(*v)?;
                 } else if let Ok(radio) = h.cast_inner::<Muxc::RadioButtons>() {
-                    radio.SetSelectedIndex(*v)?;
+                    radio.put_SelectedIndex(*v)?;
                 } else if let Ok(tab) = h.cast_inner::<Muxc::TabView>() {
-                    tab.SetSelectedIndex(*v)?;
+                    tab.put_SelectedIndex(*v)?;
                 }
             }
             (Prop::SelectionMode, PropValue::I32(v), h) => {
                 if let Ok(list) = h.cast_inner::<Xaml::ListView>() {
-                    list.SetSelectionMode(Xaml::ListViewSelectionMode(*v))?;
+                    list.cast::<Xaml::IListViewBase>()?
+                        .put_SelectionMode(Xaml::ListViewSelectionMode(*v))?;
                 } else if let Ok(grid) = h.cast_inner::<Xaml::GridView>() {
-                    grid.SetSelectionMode(Xaml::ListViewSelectionMode(*v))?;
+                    grid.cast::<Xaml::IListViewBase>()?
+                        .put_SelectionMode(Xaml::ListViewSelectionMode(*v))?;
                 } else if let Ok(tree) = h.cast_inner::<Xaml::TreeView>() {
-                    tree.SetSelectionMode(Xaml::TreeViewSelectionMode(*v))?;
+                    tree.put_SelectionMode(Xaml::TreeViewSelectionMode(*v))?;
                 }
             }
             (Prop::Items, PropValue::StrList(items), h) => {
@@ -437,7 +439,7 @@ impl WinUIBackend {
                 set_string_items_for_items_control(asb, items)?;
             }
             (Prop::AutoSuggestPlaceholder, PropValue::Str(s), Handle::AutoSuggestBox(asb)) => {
-                asb.SetPlaceholderText(&hstring(s))?;
+                asb.put_PlaceholderText(s)?;
             }
             (Prop::MenuItems, PropValue::NavMenuItems(items), Handle::NavigationView(nav)) => {
                 set_nav_items(nav, items)?;
@@ -446,180 +448,184 @@ impl WinUIBackend {
                 select_nav_tag(nav, tag)?;
             }
             (Prop::PaneDisplayMode, PropValue::I32(v), Handle::NavigationView(nav)) => {
-                nav.SetPaneDisplayMode(Muxc::NavigationViewPaneDisplayMode(*v))?;
+                nav.cast::<Muxc::INavigationView2>()?
+                    .put_PaneDisplayMode(Muxc::NavigationViewPaneDisplayMode(*v))?;
             }
             (Prop::IsPaneOpen, PropValue::Bool(v), h) => {
                 if let Ok(nav) = h.cast_inner::<Muxc::NavigationView>() {
-                    nav.SetIsPaneOpen(*v)?;
+                    nav.put_IsPaneOpen(*v)?;
                 } else if let Ok(split) = h.cast_inner::<Xaml::SplitView>() {
-                    split.SetIsPaneOpen(*v)?;
+                    split.put_IsPaneOpen(*v)?;
                 }
             }
             (Prop::IsSettingsVisible, PropValue::Bool(v), Handle::NavigationView(nav)) => {
-                nav.SetIsSettingsVisible(*v)?;
+                nav.put_IsSettingsVisible(*v)?;
             }
             (Prop::IsPaneToggleButtonVisible, PropValue::Bool(v), Handle::NavigationView(nav)) => {
-                nav.SetIsPaneToggleButtonVisible(*v)?;
+                nav.put_IsPaneToggleButtonVisible(*v)?;
             }
             (Prop::IsBackButtonVisible, PropValue::Bool(v), Handle::NavigationView(nav)) => {
-                nav.SetIsBackButtonVisible(if *v {
-                    Muxc::NavigationViewBackButtonVisible::Auto
-                } else {
-                    Muxc::NavigationViewBackButtonVisible::Collapsed
-                })?;
+                nav.cast::<Muxc::INavigationView2>()?
+                    .put_IsBackButtonVisible(if *v {
+                        Muxc::NavigationViewBackButtonVisible::Auto
+                    } else {
+                        Muxc::NavigationViewBackButtonVisible::Collapsed
+                    })?;
             }
             (Prop::IsBackEnabled, PropValue::Bool(v), Handle::NavigationView(nav)) => {
-                nav.SetIsBackEnabled(*v)?;
+                nav.cast::<Muxc::INavigationView2>()?
+                    .put_IsBackEnabled(*v)?;
             }
             (Prop::PaneTitle, PropValue::Str(s), Handle::NavigationView(nav)) => {
-                nav.SetPaneTitle(&hstring(s))?;
+                nav.cast::<Muxc::INavigationView2>()?.put_PaneTitle(s)?;
             }
             (Prop::Title, PropValue::Str(s), Handle::InfoBar(info)) => {
-                info.SetTitle(&hstring(s))?;
+                info.put_Title(s)?;
             }
             (Prop::Message, PropValue::Str(s), Handle::InfoBar(info)) => {
-                info.SetMessage(&hstring(s))?;
+                info.put_Message(s)?;
             }
             (Prop::Severity, PropValue::I32(v), Handle::InfoBar(info)) => {
-                info.SetSeverity(Muxc::InfoBarSeverity(*v))?;
+                info.put_Severity(Muxc::InfoBarSeverity(*v))?;
             }
             (Prop::IsOpen, PropValue::Bool(v), Handle::InfoBar(info)) => {
-                info.SetIsOpen(*v)?;
+                info.put_IsOpen(*v)?;
             }
             (Prop::IsClosable, PropValue::Bool(v), Handle::InfoBar(info)) => {
-                info.SetIsClosable(*v)?;
+                info.put_IsClosable(*v)?;
             }
             (Prop::Title, PropValue::Str(s), Handle::TeachingTip(tip)) => {
-                tip.SetTitle(&hstring(s))?;
+                tip.put_Title(s)?;
             }
             (Prop::Subtitle, PropValue::Str(s), Handle::TeachingTip(tip)) => {
-                tip.SetSubtitle(&hstring(s))?;
+                tip.put_Subtitle(s)?;
             }
             (Prop::IsOpen, PropValue::Bool(v), Handle::TeachingTip(tip)) => {
-                tip.SetIsOpen(*v)?;
+                tip.put_IsOpen(*v)?;
             }
             (Prop::IsLightDismissEnabled, PropValue::Bool(v), Handle::TeachingTip(tip)) => {
-                tip.SetIsLightDismissEnabled(*v)?;
+                tip.put_IsLightDismissEnabled(*v)?;
             }
             (Prop::PreferredPlacement, PropValue::I32(v), Handle::TeachingTip(tip)) => {
-                tip.SetPreferredPlacement(Muxc::TeachingTipPlacementMode(*v))?;
+                tip.put_PreferredPlacement(Muxc::TeachingTipPlacementMode(*v))?;
             }
             (Prop::ActionButtonText, PropValue::Str(s), Handle::TeachingTip(tip)) => {
-                tip.SetActionButtonContent(&string_reference(s))?;
+                tip.put_ActionButtonContent(&string_reference(s))?;
             }
             (Prop::CloseButtonText, PropValue::Str(s), Handle::TeachingTip(tip)) => {
-                tip.SetCloseButtonContent(&string_reference(s))?;
+                tip.put_CloseButtonContent(&string_reference(s))?;
             }
             (Prop::MaxColumns, PropValue::I32(v), Handle::RadioButtons(radio)) => {
-                radio.SetMaxColumns(*v)?;
+                radio.put_MaxColumns(*v)?;
             }
             (Prop::CanReorderTabs, PropValue::Bool(v), Handle::TabView(tab)) => {
-                tab.SetCanReorderTabs(*v)?;
+                tab.put_CanReorderTabs(*v)?;
             }
             (Prop::IsAddTabButtonVisible, PropValue::Bool(v), Handle::TabView(tab)) => {
-                tab.SetIsAddTabButtonVisible(*v)?;
+                tab.put_IsAddTabButtonVisible(*v)?;
             }
             (Prop::ItemKey, PropValue::Str(s), Handle::TabViewItem(tab)) => {
                 tab.cast::<Xaml::FrameworkElement>()?
-                    .SetTag(&string_reference(s))?;
+                    .put_Tag(&string_reference(s))?;
             }
             (Prop::IsClosable, PropValue::Bool(v), Handle::TabViewItem(tab)) => {
-                tab.SetIsClosable(*v)?;
+                tab.put_IsClosable(*v)?;
             }
             (Prop::Fill, PropValue::Brush(b), h) => {
                 if let Ok(shape) = h.cast_inner::<Xaml::Shape>() {
-                    shape.SetFill(&xaml_brush(b)?)?;
+                    shape.put_Fill(&xaml_brush(b)?)?;
                 }
             }
             (Prop::Stroke, PropValue::Brush(b), h) => {
                 if let Ok(shape) = h.cast_inner::<Xaml::Shape>() {
-                    shape.SetStroke(&xaml_brush(b)?)?;
+                    shape.put_Stroke(&xaml_brush(b)?)?;
                 }
             }
             (Prop::StrokeThickness, PropValue::F64(v), h) => {
                 if let Ok(shape) = h.cast_inner::<Xaml::Shape>() {
-                    shape.SetStrokeThickness(*v)?;
+                    shape.put_StrokeThickness(*v)?;
                 }
             }
             (Prop::LineEndpoints, PropValue::LineEndpoints(line), Handle::Line(l)) => {
-                l.SetX1(line.x1)?;
-                l.SetY1(line.y1)?;
-                l.SetX2(line.x2)?;
-                l.SetY2(line.y2)?;
+                l.put_X1(line.x1)?;
+                l.put_Y1(line.y1)?;
+                l.put_X2(line.x2)?;
+                l.put_Y2(line.y2)?;
             }
             (Prop::CornerRadius, PropValue::F64(v), Handle::Rectangle(r)) => {
-                r.SetRadiusX(*v)?;
-                r.SetRadiusY(*v)?;
+                r.put_RadiusX(*v)?;
+                r.put_RadiusY(*v)?;
             }
             (Prop::DisplayName, PropValue::Str(s), Handle::PersonPicture(p)) => {
-                p.SetDisplayName(&hstring(s))?;
+                p.put_DisplayName(s)?;
             }
             (Prop::Initials, PropValue::Str(s), Handle::PersonPicture(p)) => {
-                p.SetInitials(&hstring(s))?;
+                p.put_Initials(s)?;
             }
             (Prop::IsReadOnly, PropValue::Bool(v), Handle::RichEditBox(reb)) => {
-                reb.SetIsReadOnly(*v)?;
+                reb.put_IsReadOnly(*v)?;
             }
             (Prop::AcceptsReturn, PropValue::Bool(v), Handle::TextBox(tb)) => {
-                tb.SetAcceptsReturn(*v)?;
+                tb.put_AcceptsReturn(*v)?;
             }
             (Prop::PasswordRevealMode, PropValue::I32(v), Handle::PasswordBox(pb)) => {
-                pb.SetPasswordRevealMode(Xaml::PasswordRevealMode(*v))?;
+                pb.cast::<Xaml::IPasswordBox3>()?
+                    .put_PasswordRevealMode(Xaml::PasswordRevealMode(*v))?;
             }
             (Prop::IsPasswordRevealButtonEnabled, PropValue::Bool(v), Handle::PasswordBox(pb)) => {
-                pb.SetIsPasswordRevealButtonEnabled(*v)?;
+                pb.put_IsPasswordRevealButtonEnabled(*v)?;
             }
             (Prop::DayVisible, PropValue::Bool(v), Handle::DatePicker(dp)) => {
-                dp.SetDayVisible(*v)?;
+                dp.put_DayVisible(*v)?;
             }
             (Prop::MonthVisible, PropValue::Bool(v), Handle::DatePicker(dp)) => {
-                dp.SetMonthVisible(*v)?;
+                dp.put_MonthVisible(*v)?;
             }
             (Prop::YearVisible, PropValue::Bool(v), Handle::DatePicker(dp)) => {
-                dp.SetYearVisible(*v)?;
+                dp.put_YearVisible(*v)?;
             }
             (Prop::ClockIdentifier, PropValue::Str(s), Handle::TimePicker(tp)) => {
-                tp.SetClockIdentifier(&hstring(s))?;
+                tp.put_ClockIdentifier(s)?;
             }
             (Prop::MinuteIncrement, PropValue::I32(v), Handle::TimePicker(tp)) => {
-                tp.SetMinuteIncrement(*v)?;
+                tp.put_MinuteIncrement(*v)?;
             }
             (Prop::IsCalendarOpen, PropValue::Bool(v), Handle::CalendarDatePicker(cdp)) => {
-                cdp.SetIsCalendarOpen(*v)?;
+                cdp.put_IsCalendarOpen(*v)?;
             }
             (Prop::IsTodayHighlighted, PropValue::Bool(v), h) => {
                 if let Ok(cdp) = h.cast_inner::<Xaml::CalendarDatePicker>() {
-                    cdp.SetIsTodayHighlighted(*v)?;
+                    cdp.put_IsTodayHighlighted(*v)?;
                 } else if let Ok(cv) = h.cast_inner::<Xaml::CalendarView>() {
-                    cv.SetIsTodayHighlighted(*v)?;
+                    cv.put_IsTodayHighlighted(*v)?;
                 }
             }
             (Prop::IsGroupLabelVisible, PropValue::Bool(v), Handle::CalendarView(cv)) => {
-                cv.SetIsGroupLabelVisible(*v)?;
+                cv.put_IsGroupLabelVisible(*v)?;
             }
             (Prop::Delay, PropValue::I32(v), Handle::RepeatButton(rb)) => {
-                rb.SetDelay(*v)?;
+                rb.put_Delay(*v)?;
             }
             (Prop::Interval, PropValue::I32(v), Handle::RepeatButton(rb)) => {
-                rb.SetInterval(*v)?;
+                rb.put_Interval(*v)?;
             }
             (Prop::OpenPaneLength, PropValue::F64(v), Handle::SplitView(sv)) => {
-                sv.SetOpenPaneLength(*v)?;
+                sv.put_OpenPaneLength(*v)?;
             }
             (Prop::CompactPaneLength, PropValue::F64(v), Handle::SplitView(sv)) => {
-                sv.SetCompactPaneLength(*v)?;
+                sv.put_CompactPaneLength(*v)?;
             }
             (Prop::DisplayMode, PropValue::I32(v), Handle::SplitView(sv)) => {
-                sv.SetDisplayMode(Xaml::SplitViewDisplayMode(*v))?;
+                sv.put_DisplayMode(Xaml::SplitViewDisplayMode(*v))?;
             }
             (Prop::HorizontalScrollBarVisibility, PropValue::I32(v), h) => {
                 if let Ok(sv) = h.cast_inner::<Xaml::ScrollViewer>() {
-                    sv.SetHorizontalScrollBarVisibility(Xaml::ScrollBarVisibility(*v))?;
+                    sv.put_HorizontalScrollBarVisibility(Xaml::ScrollBarVisibility(*v))?;
                 }
             }
             (Prop::VerticalScrollBarVisibility, PropValue::I32(v), h) => {
                 if let Ok(sv) = h.cast_inner::<Xaml::ScrollViewer>() {
-                    sv.SetVerticalScrollBarVisibility(Xaml::ScrollBarVisibility(*v))?;
+                    sv.put_VerticalScrollBarVisibility(Xaml::ScrollBarVisibility(*v))?;
                 }
             }
             _ => {}
@@ -655,10 +661,10 @@ impl WinUIBackend {
                 }
             }
             Handle::Border(border) => {
-                let _ = border.SetChild(&child_ui);
+                let _ = border.put_Child(&child_ui);
             }
             Handle::Viewbox(v) => {
-                let _ = v.SetChild(&child_ui);
+                let _ = v.put_Child(&child_ui);
             }
             Handle::ScrollViewer(_)
             | Handle::NavigationView(_)
@@ -667,17 +673,14 @@ impl WinUIBackend {
             | Handle::TabViewItem(_)
             | Handle::TeachingTip(_) => {
                 if let Some(cc) = content_control_for(parent_h) {
-                    let _ = cc.SetContent(&child_ui);
+                    let _ = cc.put_Content(&child_ui);
                 }
             }
             Handle::SplitView(sv) => {
-                let _ = sv.SetContent(&child_ui);
+                let _ = sv.put_Content(&child_ui);
             }
-            Handle::Pivot(pivot) => {
-                if let Ok(items) = pivot
-                    .Items()
-                    .and_then(|i| i.cast::<windows_collections::IVector<IInspectable>>())
-                {
+            Handle::Pivot(_) => {
+                if let Some(items) = items_vector(parent_h) {
                     let Ok(insp) = child_ui.cast::<IInspectable>() else {
                         return;
                     };
@@ -690,7 +693,7 @@ impl WinUIBackend {
                 }
             }
             Handle::TabView(tab) => {
-                if let Ok(items) = tab.TabItems() {
+                if let Ok(items) = tab.get_TabItems() {
                     let Ok(insp) = child_ui.cast::<IInspectable>() else {
                         return;
                     };
@@ -736,10 +739,10 @@ impl WinUIBackend {
                 }
             }
             Handle::Border(border) => {
-                let _ = border.SetChild(None);
+                let _ = border.put_Child(None);
             }
             Handle::Viewbox(v) => {
-                let _ = v.SetChild(None);
+                let _ = v.put_Child(None);
             }
             Handle::ScrollViewer(_)
             | Handle::NavigationView(_)
@@ -748,11 +751,11 @@ impl WinUIBackend {
             | Handle::TabViewItem(_)
             | Handle::TeachingTip(_) => {
                 if let Some(cc) = content_control_for(parent_h) {
-                    let _ = cc.SetContent(None);
+                    let _ = cc.put_Content(None);
                 }
             }
             Handle::SplitView(sv) => {
-                let _ = sv.SetContent(None);
+                let _ = sv.put_Content(None);
             }
             Handle::Pivot(_) | Handle::ListView(_) | Handle::GridView(_) | Handle::FlipView(_) => {
                 if let Some(items) = items_vector(parent_h)
@@ -762,7 +765,7 @@ impl WinUIBackend {
                 }
             }
             Handle::TabView(tab) => {
-                if let Ok(items) = tab.TabItems()
+                if let Ok(items) = tab.get_TabItems()
                     && (index as u32) < items.Size().unwrap_or(0)
                 {
                     let _ = items.RemoveAt(index as u32);
@@ -869,346 +872,276 @@ impl Backend for WinUIBackend {
 
         match (event, handle) {
             (Event::ItemClicked, Handle::BreadcrumbBar(breadcrumb)) => {
-                let event_handler = windows::Foundation::TypedEventHandler::<
-                    Muxc::BreadcrumbBar,
-                    Muxc::BreadcrumbBarItemClickedEventArgs,
-                >::new(move |_, args| {
-                    let index = args.as_ref().and_then(|a| a.Index().ok()).unwrap_or(-1);
-                    handler.invoke_i32(index);
-                    Ok(())
-                });
-                let token = breadcrumb.ItemClicked(&event_handler).unwrap();
-                revokers.push(EventSubscription::BreadcrumbBarItemClicked(
-                    breadcrumb.clone(),
-                    token,
-                ));
+                revokers.push(
+                    breadcrumb
+                        .add_ItemClicked(move |_, args| {
+                            let index =
+                                args.as_ref().and_then(|a| a.get_Index().ok()).unwrap_or(-1);
+                            handler.invoke_i32(index);
+                        })
+                        .unwrap(),
+                );
             }
             (Event::Click, h) => {
                 if let Ok(button) = h.cast_inner::<Xaml::ButtonBase>() {
-                    let event_handler = Xaml::RoutedEventHandler::new(move |_, _| {
-                        handler.invoke();
-                        Ok(())
-                    });
-                    let token = button.Click(&event_handler).unwrap();
-                    revokers.push(EventSubscription::ButtonClick(button, token));
+                    revokers.push(
+                        button
+                            .add_Click(move |_, _| {
+                                handler.invoke();
+                            })
+                            .unwrap(),
+                    );
                 }
             }
             (Event::Checked, h) => {
                 if let Ok(toggle) = h.cast_inner::<Xaml::ToggleButton>() {
                     let h1 = handler.clone();
-                    let checked_handler = Xaml::RoutedEventHandler::new(move |_, _| {
-                        h1.invoke_bool(true);
-                        Ok(())
-                    });
-                    let unchecked_handler = Xaml::RoutedEventHandler::new(move |_, _| {
-                        handler.invoke_bool(false);
-                        Ok(())
-                    });
-                    let checked = toggle.Checked(&checked_handler).unwrap();
-                    let unchecked = toggle.Unchecked(&unchecked_handler).unwrap();
-                    revokers.push(EventSubscription::ToggleButtonChecked(
-                        toggle.clone(),
-                        checked,
-                    ));
-                    revokers.push(EventSubscription::ToggleButtonUnchecked(toggle, unchecked));
+                    revokers.push(
+                        toggle
+                            .add_Checked(move |_, _| {
+                                h1.invoke_bool(true);
+                            })
+                            .unwrap(),
+                    );
+                    revokers.push(
+                        toggle
+                            .add_Unchecked(move |_, _| {
+                                handler.invoke_bool(false);
+                            })
+                            .unwrap(),
+                    );
                 }
             }
             (Event::Toggled, Handle::ToggleSwitch(ts)) => {
-                let ts = ts.clone();
                 let ts_for_cb = ts.clone();
-                let handler = Xaml::RoutedEventHandler::new(move |_, _| {
-                    handler.invoke_bool(ts_for_cb.IsOn().unwrap_or(false));
-                    Ok(())
-                });
-                let token = ts.Toggled(&handler).unwrap();
-                revokers.push(EventSubscription::ToggleSwitchToggled(ts, token));
+                revokers.push(
+                    ts.add_Toggled(move |_, _| {
+                        handler.invoke_bool(ts_for_cb.get_IsOn().unwrap_or(false));
+                    })
+                    .unwrap(),
+                );
             }
             (Event::Expanding, Handle::Expander(expander)) => {
                 let h1 = handler.clone();
-                let expanding_handler = windows::Foundation::TypedEventHandler::<
-                    Muxc::Expander,
-                    Muxc::ExpanderExpandingEventArgs,
-                >::new(move |_, _| {
-                    h1.invoke_bool(true);
-                    Ok(())
-                });
-                let collapsed_handler = windows::Foundation::TypedEventHandler::<
-                    Muxc::Expander,
-                    Muxc::ExpanderCollapsedEventArgs,
-                >::new(move |_, _| {
-                    handler.invoke_bool(false);
-                    Ok(())
-                });
-                let expanding = expander.Expanding(&expanding_handler).unwrap();
-                let collapsed = expander.Collapsed(&collapsed_handler).unwrap();
-                revokers.push(EventSubscription::ExpanderExpanding(
-                    expander.clone(),
-                    expanding,
-                ));
-                revokers.push(EventSubscription::ExpanderCollapsed(
-                    expander.clone(),
-                    collapsed,
-                ));
+                revokers.push(
+                    expander
+                        .add_Expanding(move |_, _| {
+                            h1.invoke_bool(true);
+                        })
+                        .unwrap(),
+                );
+                revokers.push(
+                    expander
+                        .add_Collapsed(move |_, _| {
+                            handler.invoke_bool(false);
+                        })
+                        .unwrap(),
+                );
             }
             (Event::TextChanged, Handle::TextBox(tb)) => {
-                let handler = Xaml::TextChangedEventHandler::new(move |sender, _| {
-                    let text = sender
-                        .as_ref()
-                        .and_then(|s| s.cast::<Xaml::TextBox>().ok())
-                        .and_then(|t| t.Text().ok())
-                        .map(|s| s.to_string_lossy())
-                        .unwrap_or_default();
-                    handler.invoke_string(text);
-                    Ok(())
-                });
-                let token = tb.TextChanged(&handler).unwrap();
-                revokers.push(EventSubscription::TextBoxTextChanged(tb.clone(), token));
+                revokers.push(
+                    tb.add_TextChanged(move |sender, _| {
+                        let text = sender
+                            .as_ref()
+                            .and_then(|s| s.cast::<Xaml::TextBox>().ok())
+                            .and_then(|t| t.get_Text().ok())
+                            .unwrap_or_default();
+                        handler.invoke_string(text);
+                    })
+                    .unwrap(),
+                );
             }
             (Event::TextChanged, Handle::AutoSuggestBox(asb)) => {
-                let handler = windows::Foundation::TypedEventHandler::<
-                    Xaml::AutoSuggestBox,
-                    Xaml::AutoSuggestBoxTextChangedEventArgs,
-                >::new(move |sender, _| {
-                    let text = sender
-                        .as_ref()
-                        .and_then(|t| t.Text().ok())
-                        .map(|s| s.to_string_lossy())
-                        .unwrap_or_default();
-                    handler.invoke_string(text);
-                    Ok(())
-                });
-                let token = asb.TextChanged(&handler).unwrap();
-                revokers.push(EventSubscription::AutoSuggestBoxTextChanged(
-                    asb.clone(),
-                    token,
-                ));
+                revokers.push(
+                    asb.add_TextChanged(move |sender, _| {
+                        let text = sender
+                            .as_ref()
+                            .and_then(|t| t.get_Text().ok())
+                            .unwrap_or_default();
+                        handler.invoke_string(text);
+                    })
+                    .unwrap(),
+                );
             }
             (Event::QuerySubmitted, Handle::AutoSuggestBox(asb)) => {
-                let handler = windows::Foundation::TypedEventHandler::<
-                    Xaml::AutoSuggestBox,
-                    Xaml::AutoSuggestBoxQuerySubmittedEventArgs,
-                >::new(move |_, args| {
-                    let text = args
-                        .as_ref()
-                        .and_then(|a| a.QueryText().ok())
-                        .map(|s| s.to_string_lossy())
-                        .unwrap_or_default();
-                    handler.invoke_string(text);
-                    Ok(())
-                });
-                let token = asb.QuerySubmitted(&handler).unwrap();
-                revokers.push(EventSubscription::AutoSuggestBoxQuerySubmitted(
-                    asb.clone(),
-                    token,
-                ));
+                revokers.push(
+                    asb.cast::<Xaml::IAutoSuggestBox2>()
+                        .unwrap()
+                        .add_QuerySubmitted(move |_, args| {
+                            let text = args
+                                .as_ref()
+                                .and_then(|a| a.get_QueryText().ok())
+                                .unwrap_or_default();
+                            handler.invoke_string(text);
+                        })
+                        .unwrap(),
+                );
             }
             (Event::SuggestionChosen, Handle::AutoSuggestBox(asb)) => {
-                let handler = windows::Foundation::TypedEventHandler::<
-                    Xaml::AutoSuggestBox,
-                    Xaml::AutoSuggestBoxSuggestionChosenEventArgs,
-                >::new(move |_, args| {
-                    let text = args
-                        .as_ref()
-                        .and_then(|a| a.SelectedItem().ok())
-                        .and_then(inspectable_to_string)
-                        .unwrap_or_default();
-                    handler.invoke_string(text);
-                    Ok(())
-                });
-                let token = asb.SuggestionChosen(&handler).unwrap();
-                revokers.push(EventSubscription::AutoSuggestBoxSuggestionChosen(
-                    asb.clone(),
-                    token,
-                ));
+                revokers.push(
+                    asb.add_SuggestionChosen(move |_, args| {
+                        let text = args
+                            .as_ref()
+                            .and_then(|a| a.get_SelectedItem().ok())
+                            .and_then(inspectable_to_string)
+                            .unwrap_or_default();
+                        handler.invoke_string(text);
+                    })
+                    .unwrap(),
+                );
             }
             (Event::SelectionChanged, h) => {
                 if let Ok(selector) = h.cast_inner::<Xaml::Selector>() {
                     let selector_for_cb = selector.clone();
-                    let handler = Xaml::SelectionChangedEventHandler::new(move |_, _| {
-                        handler.invoke_i32(selector_for_cb.SelectedIndex().unwrap_or(-1));
-                        Ok(())
-                    });
-                    let token = selector.SelectionChanged(&handler).unwrap();
-                    revokers.push(EventSubscription::SelectorSelectionChanged(selector, token));
+                    revokers.push(
+                        selector
+                            .add_SelectionChanged(move |_, _| {
+                                handler
+                                    .invoke_i32(selector_for_cb.get_SelectedIndex().unwrap_or(-1));
+                            })
+                            .unwrap(),
+                    );
                 } else if let Ok(radio) = h.cast_inner::<Muxc::RadioButtons>() {
                     let radio_for_cb = radio.clone();
-                    let handler = Xaml::SelectionChangedEventHandler::new(move |_, _| {
-                        handler.invoke_i32(radio_for_cb.SelectedIndex().unwrap_or(-1));
-                        Ok(())
-                    });
-                    let token = radio.SelectionChanged(&handler).unwrap();
-                    revokers.push(EventSubscription::RadioButtonsSelectionChanged(
-                        radio, token,
-                    ));
+                    revokers.push(
+                        radio
+                            .add_SelectionChanged(move |_, _| {
+                                handler.invoke_i32(radio_for_cb.get_SelectedIndex().unwrap_or(-1));
+                            })
+                            .unwrap(),
+                    );
                 } else if let Ok(tab) = h.cast_inner::<Muxc::TabView>() {
                     let tab_for_cb = tab.clone();
-                    let handler = Xaml::SelectionChangedEventHandler::new(move |_, _| {
-                        handler.invoke_i32(tab_for_cb.SelectedIndex().unwrap_or(-1));
-                        Ok(())
-                    });
-                    let token = tab.SelectionChanged(&handler).unwrap();
-                    revokers.push(EventSubscription::TabViewSelectionChanged(tab, token));
+                    revokers.push(
+                        tab.add_SelectionChanged(move |_, _| {
+                            handler.invoke_i32(tab_for_cb.get_SelectedIndex().unwrap_or(-1));
+                        })
+                        .unwrap(),
+                    );
                 } else if let Ok(nav) = h.cast_inner::<Muxc::NavigationView>() {
-                    let handler = windows::Foundation::TypedEventHandler::<
-                        Muxc::NavigationView,
-                        Muxc::NavigationViewSelectionChangedEventArgs,
-                    >::new(move |_, args| {
-                        let tag = args
-                            .as_ref()
-                            .and_then(|a| a.SelectedItem().ok())
-                            .and_then(|i| i.cast::<Xaml::FrameworkElement>().ok())
-                            .and_then(|fe| fe.Tag().ok())
-                            .and_then(inspectable_to_string)
-                            .unwrap_or_default();
-                        handler.invoke_string(tag);
-                        Ok(())
-                    });
-                    let token = nav.SelectionChanged(&handler).unwrap();
-                    revokers.push(EventSubscription::NavigationViewSelectionChanged(
-                        nav, token,
-                    ));
+                    revokers.push(
+                        nav.add_SelectionChanged(move |_, args| {
+                            let tag = args
+                                .as_ref()
+                                .and_then(|a| a.get_SelectedItem().ok())
+                                .and_then(|i| i.cast::<Xaml::FrameworkElement>().ok())
+                                .and_then(|fe| fe.get_Tag().ok())
+                                .and_then(inspectable_to_string)
+                                .unwrap_or_default();
+                            handler.invoke_string(tag);
+                        })
+                        .unwrap(),
+                    );
                 }
             }
             (Event::ValueChanged, h) => {
                 if let Ok(range) = h.cast_inner::<Xaml::RangeBase>() {
-                    let handler = Xaml::RangeBaseValueChangedEventHandler::new(move |_, args| {
-                        let value = args
-                            .as_ref()
-                            .and_then(|a| a.NewValue().ok())
-                            .unwrap_or_default();
-                        handler.invoke_f64(value);
-                        Ok(())
-                    });
-                    let token = range.ValueChanged(&handler).unwrap();
-                    revokers.push(EventSubscription::RangeBaseValueChanged(range, token));
+                    revokers.push(
+                        range
+                            .add_ValueChanged(move |_, args| {
+                                let value = args
+                                    .as_ref()
+                                    .and_then(|a| a.get_NewValue().ok())
+                                    .unwrap_or_default();
+                                handler.invoke_f64(value);
+                            })
+                            .unwrap(),
+                    );
                 } else if let Ok(rating) = h.cast_inner::<Xaml::RatingControl>() {
-                    let handler = windows::Foundation::TypedEventHandler::<
-                        Xaml::RatingControl,
-                        IInspectable,
-                    >::new(move |sender, _| {
-                        let value = sender
-                            .as_ref()
-                            .and_then(|r| r.Value().ok())
-                            .unwrap_or_default();
-                        handler.invoke_f64(value);
-                        Ok(())
-                    });
-                    let token = rating.ValueChanged(&handler).unwrap();
-                    revokers.push(EventSubscription::RatingControlValueChanged(rating, token));
+                    revokers.push(
+                        rating
+                            .add_ValueChanged(move |sender, _| {
+                                let value = sender
+                                    .as_ref()
+                                    .and_then(|r| r.get_Value().ok())
+                                    .unwrap_or_default();
+                                handler.invoke_f64(value);
+                            })
+                            .unwrap(),
+                    );
                 } else if let Ok(number) = h.cast_inner::<Muxc::NumberBox>() {
-                    let handler = windows::Foundation::TypedEventHandler::<
-                        Muxc::NumberBox,
-                        Muxc::NumberBoxValueChangedEventArgs,
-                    >::new(move |_, args| {
-                        let value = args
-                            .as_ref()
-                            .and_then(|a| a.NewValue().ok())
-                            .unwrap_or_default();
-                        handler.invoke_f64(value);
-                        Ok(())
-                    });
-                    let token = number.ValueChanged(&handler).unwrap();
-                    revokers.push(EventSubscription::NumberBoxValueChanged(number, token));
+                    revokers.push(
+                        number
+                            .add_ValueChanged(move |_, args| {
+                                let value = args
+                                    .as_ref()
+                                    .and_then(|a| a.get_NewValue().ok())
+                                    .unwrap_or_default();
+                                handler.invoke_f64(value);
+                            })
+                            .unwrap(),
+                    );
                 }
             }
             (Event::CloseRequested, Handle::TabView(tab)) => {
-                let event_handler = windows::Foundation::TypedEventHandler::<
-                    Muxc::TabView,
-                    Muxc::TabViewTabCloseRequestedEventArgs,
-                >::new(move |_, args| {
-                    let key = args
-                        .as_ref()
-                        .and_then(|a| a.Tab().ok())
-                        .and_then(|tab| tab.cast::<Xaml::FrameworkElement>().ok())
-                        .and_then(|fe| fe.Tag().ok())
-                        .and_then(inspectable_to_string)
-                        .unwrap_or_default();
-                    handler.invoke_string(key);
-                    Ok(())
-                });
-                let token = tab.TabCloseRequested(&event_handler).unwrap();
-                revokers.push(EventSubscription::TabViewCloseRequested(tab.clone(), token));
+                revokers.push(
+                    tab.add_TabCloseRequested(move |_, args| {
+                        let key = args
+                            .as_ref()
+                            .and_then(|a| a.get_Tab().ok())
+                            .and_then(|tab| tab.cast::<Xaml::FrameworkElement>().ok())
+                            .and_then(|fe| fe.get_Tag().ok())
+                            .and_then(inspectable_to_string)
+                            .unwrap_or_default();
+                        handler.invoke_string(key);
+                    })
+                    .unwrap(),
+                );
             }
             (Event::AddTabButtonClick, Handle::TabView(tab)) => {
-                let event_handler = windows::Foundation::TypedEventHandler::<
-                    Muxc::TabView,
-                    IInspectable,
-                >::new(move |_, _| {
-                    handler.invoke();
-                    Ok(())
-                });
-                let token = tab.AddTabButtonClick(&event_handler).unwrap();
-                revokers.push(EventSubscription::TabViewAddTabButtonClick(
-                    tab.clone(),
-                    token,
-                ));
+                revokers.push(
+                    tab.add_AddTabButtonClick(move |_, _| {
+                        handler.invoke();
+                    })
+                    .unwrap(),
+                );
             }
             (Event::Closed, Handle::InfoBar(info)) => {
-                let event_handler = windows::Foundation::TypedEventHandler::<
-                    Muxc::InfoBar,
-                    Muxc::InfoBarClosedEventArgs,
-                >::new(move |_, _| {
-                    handler.invoke();
-                    Ok(())
-                });
-                let token = info.Closed(&event_handler).unwrap();
-                revokers.push(EventSubscription::InfoBarClosed(info.clone(), token));
+                revokers.push(
+                    info.add_Closed(move |_, _| {
+                        handler.invoke();
+                    })
+                    .unwrap(),
+                );
             }
             (Event::Closed, Handle::TeachingTip(tip)) => {
-                let event_handler = windows::Foundation::TypedEventHandler::<
-                    Muxc::TeachingTip,
-                    Muxc::TeachingTipClosedEventArgs,
-                >::new(move |_, _| {
-                    handler.invoke();
-                    Ok(())
-                });
-                let token = tip.Closed(&event_handler).unwrap();
-                revokers.push(EventSubscription::TeachingTipClosed(tip.clone(), token));
+                revokers.push(
+                    tip.add_Closed(move |_, _| {
+                        handler.invoke();
+                    })
+                    .unwrap(),
+                );
             }
             (Event::ActionButtonClick, Handle::TeachingTip(tip)) => {
-                let event_handler = windows::Foundation::TypedEventHandler::<
-                    Muxc::TeachingTip,
-                    IInspectable,
-                >::new(move |_, _| {
-                    handler.invoke();
-                    Ok(())
-                });
-                let token = tip.ActionButtonClick(&event_handler).unwrap();
-                revokers.push(EventSubscription::TeachingTipActionButtonClick(
-                    tip.clone(),
-                    token,
-                ));
+                revokers.push(
+                    tip.add_ActionButtonClick(move |_, _| {
+                        handler.invoke();
+                    })
+                    .unwrap(),
+                );
             }
             (Event::BackRequested, Handle::NavigationView(nav)) => {
-                let event_handler = windows::Foundation::TypedEventHandler::<
-                    Muxc::NavigationView,
-                    Muxc::NavigationViewBackRequestedEventArgs,
-                >::new(move |_, _| {
-                    handler.invoke();
-                    Ok(())
-                });
-                let token = nav.BackRequested(&event_handler).unwrap();
-                revokers.push(EventSubscription::NavigationViewBackRequested(
-                    nav.clone(),
-                    token,
-                ));
+                revokers.push(
+                    nav.cast::<Muxc::INavigationView2>()
+                        .unwrap()
+                        .add_BackRequested(move |_, _| {
+                            handler.invoke();
+                        })
+                        .unwrap(),
+                );
             }
             (Event::PasswordChanged, Handle::PasswordBox(pb)) => {
-                let event_handler = Xaml::RoutedEventHandler::new(move |sender, _| {
-                    let text = sender
-                        .as_ref()
-                        .and_then(|s| s.cast::<Xaml::PasswordBox>().ok())
-                        .and_then(|p| p.Password().ok())
-                        .map(|s| s.to_string_lossy())
-                        .unwrap_or_default();
-                    handler.invoke_string(text);
-                    Ok(())
-                });
-                let token = pb.PasswordChanged(&event_handler).unwrap();
-                revokers.push(EventSubscription::PasswordBoxPasswordChanged(
-                    pb.clone(),
-                    token,
-                ));
+                revokers.push(
+                    pb.add_PasswordChanged(move |sender, _| {
+                        let text = sender
+                            .as_ref()
+                            .and_then(|s| s.cast::<Xaml::PasswordBox>().ok())
+                            .and_then(|p| p.get_Password().ok())
+                            .unwrap_or_default();
+                        handler.invoke_string(text);
+                    })
+                    .unwrap(),
+                );
             }
             _ => {}
         }
@@ -1282,12 +1215,9 @@ impl Backend for WinUIBackend {
         };
         if let Ok(selector) = handle.cast_inner::<Xaml::Selector>() {
             let selector_for_cb = selector.clone();
-            let event_handler = Xaml::SelectionChangedEventHandler::new(move |_, _| {
-                handler.invoke(selector_for_cb.SelectedIndex().unwrap_or(-1));
-                Ok(())
-            });
-            if let Ok(revoker) = selector.SelectionChanged(&event_handler) {
-                let subscription = EventSubscription::SelectorSelectionChanged(selector, revoker);
+            if let Ok(subscription) = selector.add_SelectionChanged(move |_, _| {
+                handler.invoke(selector_for_cb.get_SelectedIndex().unwrap_or(-1));
+            }) {
                 self.templated_selection_revokers
                     .borrow_mut()
                     .insert(id, subscription);
@@ -1315,10 +1245,14 @@ impl Backend for WinUIBackend {
             .and_then(|ui| ui.cast::<IInspectable>().ok())
         {
             Some(header) => {
-                let _ = expander.SetHeader(&header);
+                let _ = expander
+                    .cast::<Muxc::IExpander>()
+                    .and_then(|expander| expander.put_Header(&header));
             }
             None => {
-                let _ = expander.SetHeader(None);
+                let _ = expander
+                    .cast::<Muxc::IExpander>()
+                    .and_then(|expander| expander.put_Header(None));
             }
         }
     }
@@ -1333,10 +1267,10 @@ impl Backend for WinUIBackend {
             .and_then(|h| h.as_ui_element().ok())
         {
             Some(ui) => {
-                let _ = split.SetPane(&ui);
+                let _ = split.put_Pane(&ui);
             }
             None => {
-                let _ = split.SetPane(None);
+                let _ = split.put_Pane(None);
             }
         }
     }
@@ -1372,7 +1306,7 @@ impl Backend for WinUIBackend {
         let Some(Handle::RichTextBlock(rtb)) = map.get(&id) else {
             return;
         };
-        let Ok(blocks) = rtb.Blocks() else {
+        let Ok(blocks) = rtb.get_Blocks() else {
             return;
         };
         let _ = blocks.Clear();
@@ -1380,7 +1314,7 @@ impl Backend for WinUIBackend {
             let Ok(para) = Xaml::Paragraph::new() else {
                 continue;
             };
-            let Ok(inlines) = para.Inlines() else {
+            let Ok(inlines) = para.get_Inlines() else {
                 continue;
             };
             for inline in &para_def.inlines {
@@ -1390,7 +1324,7 @@ impl Backend for WinUIBackend {
                     crate::core::rich_text::RichTextInline::Hyperlink(link) => link.text.as_str(),
                 };
                 if let Ok(run) = Xaml::Run::new() {
-                    let _ = run.SetText(&hstring(text));
+                    let _ = run.put_Text(text);
                     let _ = run.cast::<Xaml::Inline>().and_then(|r| inlines.Append(&r));
                 }
             }
@@ -1620,115 +1554,7 @@ impl Handle {
     }
 }
 
-enum EventSubscription {
-    BreadcrumbBarItemClicked(Muxc::BreadcrumbBar, i64),
-    ButtonClick(Xaml::ButtonBase, i64),
-    ExpanderCollapsed(Muxc::Expander, i64),
-    ExpanderExpanding(Muxc::Expander, i64),
-    InfoBarClosed(Muxc::InfoBar, i64),
-    ToggleButtonChecked(Xaml::ToggleButton, i64),
-    ToggleButtonUnchecked(Xaml::ToggleButton, i64),
-    ToggleSwitchToggled(Xaml::ToggleSwitch, i64),
-    NumberBoxValueChanged(Muxc::NumberBox, i64),
-    RadioButtonsSelectionChanged(Muxc::RadioButtons, i64),
-    TextBoxTextChanged(Xaml::TextBox, i64),
-    AutoSuggestBoxTextChanged(Xaml::AutoSuggestBox, i64),
-    AutoSuggestBoxQuerySubmitted(Xaml::AutoSuggestBox, i64),
-    AutoSuggestBoxSuggestionChosen(Xaml::AutoSuggestBox, i64),
-    SelectorSelectionChanged(Xaml::Selector, i64),
-    NavigationViewSelectionChanged(Muxc::NavigationView, i64),
-    NavigationViewBackRequested(Muxc::NavigationView, i64),
-    TabViewAddTabButtonClick(Muxc::TabView, i64),
-    TabViewCloseRequested(Muxc::TabView, i64),
-    TabViewSelectionChanged(Muxc::TabView, i64),
-    TeachingTipActionButtonClick(Muxc::TeachingTip, i64),
-    TeachingTipClosed(Muxc::TeachingTip, i64),
-    RangeBaseValueChanged(Xaml::RangeBase, i64),
-    RatingControlValueChanged(Xaml::RatingControl, i64),
-    PasswordBoxPasswordChanged(Xaml::PasswordBox, i64),
-}
-
-impl Drop for EventSubscription {
-    fn drop(&mut self) {
-        match self {
-            Self::BreadcrumbBarItemClicked(target, token) => {
-                let _ = target.RemoveItemClicked(*token);
-            }
-            Self::ButtonClick(target, token) => {
-                let _ = target.RemoveClick(*token);
-            }
-            Self::ExpanderCollapsed(target, token) => {
-                let _ = target.RemoveCollapsed(*token);
-            }
-            Self::ExpanderExpanding(target, token) => {
-                let _ = target.RemoveExpanding(*token);
-            }
-            Self::InfoBarClosed(target, token) => {
-                let _ = target.RemoveClosed(*token);
-            }
-            Self::ToggleButtonChecked(target, token) => {
-                let _ = target.RemoveChecked(*token);
-            }
-            Self::ToggleButtonUnchecked(target, token) => {
-                let _ = target.RemoveUnchecked(*token);
-            }
-            Self::ToggleSwitchToggled(target, token) => {
-                let _ = target.RemoveToggled(*token);
-            }
-            Self::NumberBoxValueChanged(target, token) => {
-                let _ = target.RemoveValueChanged(*token);
-            }
-            Self::RadioButtonsSelectionChanged(target, token) => {
-                let _ = target.RemoveSelectionChanged(*token);
-            }
-            Self::TextBoxTextChanged(target, token) => {
-                let _ = target.RemoveTextChanged(*token);
-            }
-            Self::AutoSuggestBoxTextChanged(target, token) => {
-                let _ = target.RemoveTextChanged(*token);
-            }
-            Self::AutoSuggestBoxQuerySubmitted(target, token) => {
-                let _ = target.RemoveQuerySubmitted(*token);
-            }
-            Self::AutoSuggestBoxSuggestionChosen(target, token) => {
-                let _ = target.RemoveSuggestionChosen(*token);
-            }
-            Self::SelectorSelectionChanged(target, token) => {
-                let _ = target.RemoveSelectionChanged(*token);
-            }
-            Self::NavigationViewSelectionChanged(target, token) => {
-                let _ = target.RemoveSelectionChanged(*token);
-            }
-            Self::NavigationViewBackRequested(target, token) => {
-                let _ = target.RemoveBackRequested(*token);
-            }
-            Self::TabViewAddTabButtonClick(target, token) => {
-                let _ = target.RemoveAddTabButtonClick(*token);
-            }
-            Self::TabViewCloseRequested(target, token) => {
-                let _ = target.RemoveTabCloseRequested(*token);
-            }
-            Self::TabViewSelectionChanged(target, token) => {
-                let _ = target.RemoveSelectionChanged(*token);
-            }
-            Self::TeachingTipActionButtonClick(target, token) => {
-                let _ = target.RemoveActionButtonClick(*token);
-            }
-            Self::TeachingTipClosed(target, token) => {
-                let _ = target.RemoveClosed(*token);
-            }
-            Self::RangeBaseValueChanged(target, token) => {
-                let _ = target.RemoveValueChanged(*token);
-            }
-            Self::RatingControlValueChanged(target, token) => {
-                let _ = target.RemoveValueChanged(*token);
-            }
-            Self::PasswordBoxPasswordChanged(target, token) => {
-                let _ = target.RemovePasswordChanged(*token);
-            }
-        }
-    }
-}
+type EventSubscription = windows_core::EventRevoker;
 
 fn xaml_thickness(t: Thickness) -> Xaml::Thickness {
     Xaml::Thickness {
@@ -1752,7 +1578,7 @@ fn xaml_brush(brush: &Brush) -> Result<Xaml::Brush> {
     match brush {
         Brush::Solid(color) => {
             let b = Xaml::SolidColorBrush::new()?;
-            b.SetColor(xaml_color(*color))?;
+            b.put_Color(xaml_color(*color))?;
             b.cast()
         }
     }
@@ -1760,7 +1586,7 @@ fn xaml_brush(brush: &Brush) -> Result<Xaml::Brush> {
 
 fn solid_brush(color: Xaml::Color) -> Result<Xaml::Brush> {
     let brush = Xaml::SolidColorBrush::new()?;
-    brush.SetColor(color)?;
+    brush.put_Color(color)?;
     brush.cast()
 }
 
@@ -1768,13 +1594,13 @@ fn apply_button_style_variant(button: &Xaml::Button, variant: i32) -> Result<()>
     let control: Xaml::Control = button.cast()?;
     match variant {
         1 => {
-            control.SetBackground(&solid_brush(Xaml::Color {
+            control.put_Background(&solid_brush(Xaml::Color {
                 A: 255,
                 R: 0,
                 G: 120,
                 B: 212,
             })?)?;
-            control.SetForeground(&solid_brush(Xaml::Color {
+            control.put_Foreground(&solid_brush(Xaml::Color {
                 A: 255,
                 R: 255,
                 G: 255,
@@ -1782,7 +1608,7 @@ fn apply_button_style_variant(button: &Xaml::Button, variant: i32) -> Result<()>
             })?)?;
         }
         2 => {
-            control.SetBackground(&solid_brush(Xaml::Color {
+            control.put_Background(&solid_brush(Xaml::Color {
                 A: 0,
                 R: 0,
                 G: 0,
@@ -1790,13 +1616,13 @@ fn apply_button_style_variant(button: &Xaml::Button, variant: i32) -> Result<()>
             })?)?;
         }
         3 => {
-            control.SetBackground(&solid_brush(Xaml::Color {
+            control.put_Background(&solid_brush(Xaml::Color {
                 A: 0,
                 R: 0,
                 G: 0,
                 B: 0,
             })?)?;
-            control.SetForeground(&solid_brush(Xaml::Color {
+            control.put_Foreground(&solid_brush(Xaml::Color {
                 A: 255,
                 R: 0,
                 G: 102,
@@ -1827,13 +1653,16 @@ fn inspectable_to_string(value: IInspectable) -> Option<String> {
 
 fn set_content_string(handle: &Handle, s: &str) -> Result<()> {
     let tb = Xaml::TextBlock::new()?;
-    tb.SetText(&hstring(s))?;
+    tb.put_Text(s)?;
     if let Ok(cc) = handle.cast_inner::<Xaml::ContentControl>() {
-        cc.SetContent(&tb)?;
+        cc.put_Content(&tb)?;
     } else if let Ok(ddb) = handle.cast_inner::<Xaml::DropDownButton>() {
-        ddb.SetContent(&string_reference(s))?;
+        ddb.cast::<Xaml::ContentControl>()?
+            .put_Content(&string_reference(s))?;
     } else if let Ok(split) = handle.cast_inner::<Xaml::SplitButton>() {
-        split.SetContent(&string_reference(s))?;
+        split
+            .cast::<Xaml::ContentControl>()?
+            .put_Content(&string_reference(s))?;
     }
     Ok(())
 }
@@ -1842,7 +1671,7 @@ fn panel_children_vec(parent: &Handle) -> Option<windows_collections::IVector<Xa
     parent
         .cast_inner::<Xaml::Panel>()
         .ok()?
-        .Children()
+        .get_Children()
         .ok()?
         .cast()
         .ok()
@@ -1856,7 +1685,7 @@ fn items_vector(parent: &Handle) -> Option<windows_collections::IVector<IInspect
     parent
         .cast_inner::<Xaml::ItemsControl>()
         .ok()?
-        .Items()
+        .get_Items()
         .ok()?
         .cast()
         .ok()
@@ -1873,7 +1702,7 @@ fn set_string_items(handle: &Handle, items: &[String]) -> Result<()> {
 }
 
 fn set_radio_buttons_items(radio: &Muxc::RadioButtons, items: &[String]) -> Result<()> {
-    let vec = radio.Items()?;
+    let vec = radio.get_Items()?;
     vec.Clear()?;
     for item in items {
         vec.Append(&string_reference(item))?;
@@ -1887,12 +1716,12 @@ fn set_breadcrumb_items(breadcrumb: &Muxc::BreadcrumbBar, items: &[String]) -> R
         .map(|item| Some(string_reference(item)))
         .collect();
     let vec: windows_collections::IVector<IInspectable> = vec.into();
-    breadcrumb.SetItemsSource(&vec)
+    breadcrumb.put_ItemsSource(&vec)
 }
 
 fn set_string_items_for_items_control<T: Interface>(control: &T, items: &[String]) -> Result<()> {
     let items_control: Xaml::ItemsControl = control.cast()?;
-    let vec: windows_collections::IVector<IInspectable> = items_control.Items()?.cast()?;
+    let vec: windows_collections::IVector<IInspectable> = items_control.get_Items()?.cast()?;
     vec.Clear()?;
     for item in items {
         vec.Append(&string_reference(item))?;
@@ -1901,22 +1730,22 @@ fn set_string_items_for_items_control<T: Interface>(control: &T, items: &[String
 }
 
 fn set_grid_rows(grid: &Xaml::Grid, rows: &[GridLength]) -> Result<()> {
-    let defs = grid.RowDefinitions()?;
+    let defs = grid.get_RowDefinitions()?;
     defs.Clear()?;
     for row in rows {
         let def = Xaml::RowDefinition::new()?;
-        def.SetHeight(xaml_grid_length(*row))?;
+        def.put_Height(xaml_grid_length(*row))?;
         defs.Append(&def)?;
     }
     Ok(())
 }
 
 fn set_grid_columns(grid: &Xaml::Grid, cols: &[GridLength]) -> Result<()> {
-    let defs = grid.ColumnDefinitions()?;
+    let defs = grid.get_ColumnDefinitions()?;
     defs.Clear()?;
     for col in cols {
         let def = Xaml::ColumnDefinition::new()?;
-        def.SetWidth(xaml_grid_length(*col))?;
+        def.put_Width(xaml_grid_length(*col))?;
         defs.Append(&def)?;
     }
     Ok(())
@@ -1945,12 +1774,12 @@ fn set_image_uri(image: &Xaml::Image, uri: &str) -> Result<()> {
     }
     let uri = windows::Foundation::Uri::CreateUri(&hstring(uri))?;
     let bitmap = Xaml::BitmapImage::new()?;
-    bitmap.cast::<Xaml::BitmapImage>()?.SetUriSource(&uri)?;
-    image.SetSource(&bitmap.cast::<Xaml::ImageSource>()?)
+    bitmap.cast::<Xaml::BitmapImage>()?.put_UriSource(&uri)?;
+    image.put_Source(&bitmap.cast::<Xaml::ImageSource>()?)
 }
 
 fn set_nav_items(nav: &Muxc::NavigationView, items: &[NavViewItem]) -> Result<()> {
-    let vec = nav.MenuItems()?;
+    let vec = nav.get_MenuItems()?;
     vec.Clear()?;
     for item in items {
         let element = build_nav_item(item)?;
@@ -1963,30 +1792,34 @@ fn set_nav_items(nav: &Muxc::NavigationView, items: &[NavViewItem]) -> Result<()
 fn build_nav_item(item: &NavViewItem) -> Result<Muxc::NavigationViewItemBase> {
     if item.is_header {
         let header = Muxc::NavigationViewItemHeader::new()?;
-        header.SetContent(&string_reference(&item.content))?;
+        header
+            .cast::<Xaml::ContentControl>()?
+            .put_Content(&string_reference(&item.content))?;
         return header.cast();
     }
 
     let nav_item = Muxc::NavigationViewItem::new()?;
-    nav_item.SetContent(&string_reference(&item.content))?;
+    nav_item
+        .cast::<Xaml::ContentControl>()?
+        .put_Content(&string_reference(&item.content))?;
     if let Some(tag) = &item.tag {
         nav_item
             .cast::<Xaml::FrameworkElement>()?
-            .SetTag(&string_reference(tag))?;
+            .put_Tag(&string_reference(tag))?;
     }
     if let Some(icon) = item.icon {
         let icon = Xaml::SymbolIcon::CreateInstanceWithSymbol(Xaml::Symbol(icon.0))?;
-        nav_item.SetIcon(&icon.cast::<Xaml::IconElement>()?)?;
+        nav_item.put_Icon(&icon.cast::<Xaml::IconElement>()?)?;
     }
     nav_item.cast()
 }
 
 fn select_nav_tag(nav: &Muxc::NavigationView, tag: &str) -> Result<()> {
-    let items = nav.MenuItems()?;
+    let items = nav.get_MenuItems()?;
     for i in 0..items.Size()? {
         let item = items.GetAt(i)?;
         if nav_item_has_tag(&item, tag)? {
-            nav.SetSelectedItem(&item)?;
+            nav.put_SelectedItem(&item)?;
             break;
         }
     }
@@ -1995,7 +1828,7 @@ fn select_nav_tag(nav: &Muxc::NavigationView, tag: &str) -> Result<()> {
 
 fn nav_item_has_tag(item: &IInspectable, tag: &str) -> Result<bool> {
     if let Ok(fe) = item.cast::<Xaml::FrameworkElement>()
-        && let Ok(value) = fe.Tag()
+        && let Ok(value) = fe.get_Tag()
         && inspectable_to_string(value).as_deref() == Some(tag)
     {
         return Ok(true);

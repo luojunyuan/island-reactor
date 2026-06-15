@@ -1,13 +1,11 @@
 use std::time::Duration;
 
-use windows_core::IInspectable;
-
 use crate::bindings as Xaml;
 
 /// RAII timer wrapper; stops and unhooks on drop.
 pub struct DispatcherTimer {
     timer: Xaml::DispatcherTimer,
-    tick_token: i64,
+    _tick_revoker: windows_core::EventRevoker,
 }
 
 impl DispatcherTimer {
@@ -30,20 +28,21 @@ impl DispatcherTimer {
         F: Fn() + 'static,
     {
         let timer = Xaml::DispatcherTimer::new()?;
-        timer.SetInterval(duration_to_timespan(interval))?;
+        timer.put_Interval(duration_to_timespan(interval))?;
 
         let timer_for_cb = timer.clone();
         let callback = UiThreadCallback(f);
-        let tick_handler = windows::Foundation::EventHandler::<IInspectable>::new(move |_, _| {
+        let tick_revoker = timer.add_Tick(move |_, _| {
             if !repeating {
                 let _ = timer_for_cb.Stop();
             }
             callback.call();
-            Ok(())
-        });
-        let tick_token = timer.Tick(&tick_handler)?;
+        })?;
         timer.Start()?;
-        Ok(Self { timer, tick_token })
+        Ok(Self {
+            timer,
+            _tick_revoker: tick_revoker,
+        })
     }
 
     pub fn stop(&self) -> windows_core::Result<()> {
@@ -58,13 +57,12 @@ impl DispatcherTimer {
 impl Drop for DispatcherTimer {
     fn drop(&mut self) {
         let _ = self.timer.Stop();
-        let _ = self.timer.RemoveTick(self.tick_token);
     }
 }
 
 /// RAII handle for a `CompositionTarget::Rendering` subscription; detaches on drop.
 pub struct Rendering {
-    token: i64,
+    _revoker: windows_core::EventRevoker,
 }
 
 /// Subscribe `f` to `CompositionTarget::Rendering` for the current thread.
@@ -73,18 +71,10 @@ where
     F: Fn() + 'static,
 {
     let callback = UiThreadCallback(f);
-    let handler = windows::Foundation::EventHandler::<IInspectable>::new(move |_, _| {
+    let revoker = Xaml::CompositionTarget::add_Rendering(move |_, _| {
         callback.call();
-        Ok(())
-    });
-    let token = Xaml::CompositionTarget::Rendering(&handler)?;
-    Ok(Rendering { token })
-}
-
-impl Drop for Rendering {
-    fn drop(&mut self) {
-        let _ = Xaml::CompositionTarget::RemoveRendering(self.token);
-    }
+    })?;
+    Ok(Rendering { _revoker: revoker })
 }
 
 fn duration_to_timespan(d: Duration) -> windows_time::TimeSpan {

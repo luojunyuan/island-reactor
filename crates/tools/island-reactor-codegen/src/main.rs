@@ -9,6 +9,253 @@ use xmltree::{Element, EmitterConfig, XMLNode};
 
 const WINUI2_VERSION: &str = "2.8.7";
 
+const XAML_MINIMAL_FILTERS: &[&str] = &[
+    "Windows.ApplicationModel.Resources.Core.ResourceManager::{get_Current}",
+    "Windows.ApplicationModel.Resources.Core.IResourceManager::{LoadPriFiles}",
+    "Windows.Storage.IStorageFile",
+    "Windows.Storage.StorageFile::{GetFileFromPathAsync}",
+    "Windows.UI.Color",
+    "Windows.UI.Text.FontWeight",
+    "Windows.UI.Xaml.Application::{CreateInstance, get_Current}",
+    "Windows.UI.Xaml.IApplication::{get_Resources, put_Resources, add_UnhandledException}",
+    "Windows.UI.Xaml.IApplicationOverrides::*",
+    "Windows.UI.Xaml.Controls.AutoSuggestBox::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IAutoSuggestBox::{get_Text, put_PlaceholderText, put_Header, add_TextChanged, add_SuggestionChosen}",
+    "Windows.UI.Xaml.Controls.IAutoSuggestBox2::{add_QuerySubmitted}",
+    "Windows.UI.Xaml.Controls.AutoSuggestBoxQuerySubmittedEventArgs",
+    "Windows.UI.Xaml.Controls.IAutoSuggestBoxQuerySubmittedEventArgs::{get_QueryText}",
+    "Windows.UI.Xaml.Controls.AutoSuggestBoxSuggestionChosenEventArgs",
+    "Windows.UI.Xaml.Controls.IAutoSuggestBoxSuggestionChosenEventArgs::{get_SelectedItem}",
+    "Windows.UI.Xaml.Controls.AutoSuggestBoxTextChangedEventArgs",
+    "Windows.UI.Xaml.Controls.Border::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IBorder::{put_Child, put_Padding, put_Background, put_CornerRadius, put_BorderBrush, put_BorderThickness}",
+    "Windows.UI.Xaml.Controls.Button::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.CalendarDatePicker::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ICalendarDatePicker::{put_Header, put_PlaceholderText, put_IsCalendarOpen, put_IsTodayHighlighted}",
+    "Windows.UI.Xaml.Controls.CalendarView::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ICalendarView::{put_IsTodayHighlighted, put_IsGroupLabelVisible}",
+    "Windows.UI.Xaml.Controls.Canvas::{CreateInstance, SetLeft, SetTop, SetZIndex}",
+    "Windows.UI.Xaml.Controls.CheckBox::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ColorChangedEventArgs",
+    "Windows.UI.Xaml.Controls.ColorPicker::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IColorChangedEventArgs::{get_NewColor}",
+    "Windows.UI.Xaml.Controls.IColorPicker::{put_Color, add_ColorChanged}",
+    "Windows.UI.Xaml.Controls.ColumnDefinition::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IColumnDefinition::{put_Width}",
+    "Windows.UI.Xaml.Controls.ColumnDefinitionCollection",
+    "Windows.UI.Xaml.Controls.ComboBox::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IComboBox2::{put_Header, put_PlaceholderText}",
+    "Windows.UI.Xaml.Controls.CommandBar::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.CommandBarDefaultLabelPosition",
+    "Windows.UI.Xaml.Controls.ContentControl",
+    "Windows.UI.Xaml.Controls.IContentControl::{put_Content}",
+    "Windows.UI.Xaml.Controls.ContentDialog::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.Control",
+    "Windows.UI.Xaml.Controls.IControl::{put_IsEnabled, put_Padding, put_Background, put_Foreground, put_FontSize, put_FontWeight, put_FontFamily}",
+    "Windows.UI.Xaml.Controls.DatePicker::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IDatePicker::{put_Header, put_DayVisible, put_MonthVisible, put_YearVisible}",
+    "Windows.UI.Xaml.Controls.DropDownButton::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.FlipView::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.Grid::{CreateInstance, SetColumn, SetColumnSpan, SetRow, SetRowSpan}",
+    "Windows.UI.Xaml.Controls.IGrid::{get_RowDefinitions, get_ColumnDefinitions}",
+    "Windows.UI.Xaml.Controls.IGrid3::{put_RowSpacing, put_ColumnSpacing}",
+    "Windows.UI.Xaml.Controls.GridView::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.HyperlinkButton::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IconElement",
+    "Windows.UI.Xaml.Controls.Image::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IImage::{put_Source, put_Stretch}",
+    "Windows.UI.Xaml.Controls.ItemCollection",
+    "Windows.UI.Xaml.Controls.ItemsControl",
+    "Windows.UI.Xaml.Controls.IItemsControl::{get_Items}",
+    "Windows.UI.Xaml.Controls.ListBox::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ListView::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ListViewSelectionMode",
+    "Windows.UI.Xaml.Controls.IListViewBase::{put_SelectionMode}",
+    "Windows.UI.Xaml.Controls.MenuBar::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.Orientation",
+    "Windows.UI.Xaml.Controls.Panel",
+    "Windows.UI.Xaml.Controls.IPanel::{get_Children, put_Background}",
+    "Windows.UI.Xaml.Controls.PasswordBox::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IPasswordBox::{get_Password, put_IsPasswordRevealButtonEnabled, add_PasswordChanged}",
+    "Windows.UI.Xaml.Controls.IPasswordBox2::{put_Header, put_PlaceholderText}",
+    "Windows.UI.Xaml.Controls.IPasswordBox3::{put_PasswordRevealMode}",
+    "Windows.UI.Xaml.Controls.PasswordRevealMode",
+    "Windows.UI.Xaml.Controls.PersonPicture::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IPersonPicture::{put_DisplayName, put_Initials}",
+    "Windows.UI.Xaml.Controls.Pivot::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IPivot::{put_SelectedIndex}",
+    "Windows.UI.Xaml.Controls.PivotItem::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ProgressBar::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IProgressBar::{put_IsIndeterminate}",
+    "Windows.UI.Xaml.Controls.ProgressRing::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IProgressRing::{put_IsActive}",
+    "Windows.UI.Xaml.Controls.RadioButton::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.RatingControl::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IRatingControl::{get_Value, put_Value, add_ValueChanged}",
+    "Windows.UI.Xaml.Controls.RelativePanel::{CreateInstance, SetAlignBottomWithPanel, SetAlignHorizontalCenterWithPanel, SetAlignLeftWithPanel, SetAlignRightWithPanel, SetAlignTopWithPanel, SetAlignVerticalCenterWithPanel}",
+    "Windows.UI.Xaml.Controls.RichEditBox::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IRichEditBox::{put_IsReadOnly}",
+    "Windows.UI.Xaml.Controls.IRichEditBox2::{put_Header, put_PlaceholderText}",
+    "Windows.UI.Xaml.Controls.RichTextBlock::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IRichTextBlock::{get_Blocks, put_FontSize, put_FontFamily, put_Foreground}",
+    "Windows.UI.Xaml.Controls.RowDefinition::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IRowDefinition::{put_Height}",
+    "Windows.UI.Xaml.Controls.RowDefinitionCollection",
+    "Windows.UI.Xaml.Controls.ScrollBarVisibility",
+    "Windows.UI.Xaml.Controls.ScrollViewer::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IScrollViewer::{put_HorizontalScrollBarVisibility, put_VerticalScrollBarVisibility}",
+    "Windows.UI.Xaml.Controls.SelectionChangedEventArgs",
+    "Windows.UI.Xaml.Controls.SelectionChangedEventHandler::*",
+    "Windows.UI.Xaml.Controls.Slider::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ISlider::{put_Orientation, put_StepFrequency}",
+    "Windows.UI.Xaml.Controls.ISlider2::{put_Header}",
+    "Windows.UI.Xaml.Controls.SplitButton::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.SplitView::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ISplitView::{put_IsPaneOpen, put_OpenPaneLength, put_CompactPaneLength, put_DisplayMode, put_Content, put_Pane}",
+    "Windows.UI.Xaml.Controls.SplitViewDisplayMode",
+    "Windows.UI.Xaml.Controls.StackPanel::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IStackPanel::{put_Orientation}",
+    "Windows.UI.Xaml.Controls.IStackPanel4::{put_Spacing}",
+    "Windows.UI.Xaml.Controls.Symbol",
+    "Windows.UI.Xaml.Controls.SymbolIcon::{CreateInstanceWithSymbol}",
+    "Windows.UI.Xaml.Controls.TextBlock::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ITextBlock::{put_Text, put_TextWrapping, put_IsTextSelectionEnabled, put_FontSize, put_FontWeight, put_FontFamily, put_Foreground}",
+    "Windows.UI.Xaml.Controls.TextBox::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ITextBox::{get_Text, put_Text, put_TextWrapping, put_AcceptsReturn, add_TextChanged}",
+    "Windows.UI.Xaml.Controls.ITextBox2::{put_Header, put_PlaceholderText}",
+    "Windows.UI.Xaml.Controls.TimePicker::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ITimePicker::{put_Header, put_ClockIdentifier, put_MinuteIncrement}",
+    "Windows.UI.Xaml.Controls.ToggleSwitch::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IToggleSwitch::{get_IsOn, put_IsOn, put_OnContent, put_OffContent, add_Toggled}",
+    "Windows.UI.Xaml.Controls.ToolTipService::{SetToolTip}",
+    "Windows.UI.Xaml.Controls.TreeView::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ITreeView::{put_SelectionMode}",
+    "Windows.UI.Xaml.Controls.TreeViewSelectionMode",
+    "Windows.UI.Xaml.Controls.UIElementCollection",
+    "Windows.UI.Xaml.Controls.Viewbox::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IViewbox::{put_Child, put_Stretch}",
+    "Windows.UI.Xaml.Controls.Primitives.ButtonBase",
+    "Windows.UI.Xaml.Controls.Primitives.IButtonBase::{add_Click}",
+    "Windows.UI.Xaml.Controls.Primitives.FlyoutPlacementMode",
+    "Windows.UI.Xaml.Controls.Primitives.RangeBase",
+    "Windows.UI.Xaml.Controls.Primitives.IRangeBase::{get_Value, put_Value, put_Minimum, put_Maximum, add_ValueChanged}",
+    "Windows.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs",
+    "Windows.UI.Xaml.Controls.Primitives.IRangeBaseValueChangedEventArgs::{get_NewValue}",
+    "Windows.UI.Xaml.Controls.Primitives.RepeatButton::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.Primitives.IRepeatButton::{put_Delay, put_Interval}",
+    "Windows.UI.Xaml.Controls.Primitives.Selector",
+    "Windows.UI.Xaml.Controls.Primitives.ISelector::{get_SelectedIndex, put_SelectedIndex, add_SelectionChanged}",
+    "Windows.UI.Xaml.Controls.Primitives.ToggleButton::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.Primitives.IToggleButton::{put_IsChecked, add_Checked, add_Unchecked}",
+    "Windows.UI.Xaml.CornerRadius",
+    "Windows.UI.Xaml.DataTemplate::{CreateInstance}",
+    "Windows.UI.Xaml.DependencyObject",
+    "Windows.UI.Xaml.DispatcherTimer::{CreateInstance}",
+    "Windows.UI.Xaml.IDispatcherTimer::{put_Interval, add_Tick, Start, Stop}",
+    "Windows.UI.Xaml.Documents.Block",
+    "Windows.UI.Xaml.Documents.BlockCollection",
+    "Windows.UI.Xaml.Documents.IParagraph::{get_Inlines}",
+    "Windows.UI.Xaml.Documents.Inline",
+    "Windows.UI.Xaml.Documents.InlineCollection",
+    "Windows.UI.Xaml.Documents.IRun::{put_Text}",
+    "Windows.UI.Xaml.Documents.Paragraph::{CreateInstance}",
+    "Windows.UI.Xaml.Documents.Run::{CreateInstance}",
+    "Windows.UI.Xaml.ElementTheme",
+    "Windows.UI.Xaml.FrameworkElement",
+    "Windows.UI.Xaml.IFrameworkElement::{put_VerticalAlignment, put_HorizontalAlignment, put_Margin, put_Height, put_Width, put_MinWidth, put_MaxWidth, put_MinHeight, put_MaxHeight, put_Tag, get_Tag}",
+    "Windows.UI.Xaml.IFrameworkElement2::{put_RequestedTheme}",
+    "Windows.UI.Xaml.IFrameworkElement6::{get_ActualTheme}",
+    "Windows.UI.Xaml.GridLength",
+    "Windows.UI.Xaml.GridUnitType",
+    "Windows.UI.Xaml.HorizontalAlignment",
+    "Windows.UI.Xaml.Hosting.DesktopWindowXamlSource::{CreateInstance}",
+    "Windows.UI.Xaml.Hosting.IDesktopWindowXamlSource::{put_Content}",
+    "Windows.UI.Xaml.Hosting.WindowsXamlManager::{InitializeForCurrentThread}",
+    "Windows.UI.Xaml.Interop.TypeName",
+    "Windows.UI.Xaml.Markup.IXamlMetadataProvider::*",
+    "Windows.UI.Xaml.Markup.IXamlType::*",
+    "Windows.UI.Xaml.Markup.XamlReader::{Load}",
+    "Windows.UI.Xaml.Markup.XmlnsDefinition",
+    "Windows.UI.Xaml.Media.Brush",
+    "Windows.UI.Xaml.Media.CompositionTarget::{add_Rendering}",
+    "Windows.UI.Xaml.Media.FontFamily::{CreateInstanceWithName}",
+    "Windows.UI.Xaml.Media.ImageSource",
+    "Windows.UI.Xaml.Media.Imaging.BitmapImage::{CreateInstance}",
+    "Windows.UI.Xaml.Media.Imaging.IBitmapImage::{put_UriSource}",
+    "Windows.UI.Xaml.Media.SolidColorBrush::{CreateInstance}",
+    "Windows.UI.Xaml.Media.ISolidColorBrush::{put_Color}",
+    "Windows.UI.Xaml.Media.Stretch",
+    "Windows.UI.Xaml.ResourceDictionary::{CreateInstance}",
+    "Windows.UI.Xaml.IResourceDictionary::{get_MergedDictionaries}",
+    "Windows.UI.Xaml.RoutedEventArgs",
+    "Windows.UI.Xaml.RoutedEventHandler::*",
+    "Windows.UI.Xaml.Shapes.Ellipse::{CreateInstance}",
+    "Windows.UI.Xaml.Shapes.Line::{CreateInstance}",
+    "Windows.UI.Xaml.Shapes.ILine::{put_X1, put_Y1, put_X2, put_Y2}",
+    "Windows.UI.Xaml.Shapes.Rectangle::{CreateInstance}",
+    "Windows.UI.Xaml.Shapes.IRectangle::{put_RadiusX, put_RadiusY}",
+    "Windows.UI.Xaml.Shapes.Shape",
+    "Windows.UI.Xaml.Shapes.IShape::{put_Fill, put_Stroke, put_StrokeThickness}",
+    "Windows.UI.Xaml.TextWrapping",
+    "Windows.UI.Xaml.Thickness",
+    "Windows.UI.Xaml.UIElement",
+    "Windows.UI.Xaml.IUIElement::{put_Opacity}",
+    "Windows.UI.Xaml.UnhandledExceptionEventArgs",
+    "Windows.UI.Xaml.IUnhandledExceptionEventArgs::{get_Exception, get_Message}",
+    "Windows.UI.Xaml.UnhandledExceptionEventHandler",
+    "Windows.UI.Xaml.VerticalAlignment",
+    "Windows.Win32.Foundation.HWND",
+    "Windows.Win32.System.WinRT.Xaml.IDesktopWindowXamlSourceNative::{AttachToWindow, get_WindowHandle}",
+];
+
+const MUXC_MINIMAL_FILTERS: &[&str] = &[
+    "Microsoft.UI.Xaml.Controls.BreadcrumbBar::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.BreadcrumbBarItem",
+    "Microsoft.UI.Xaml.Controls.BreadcrumbBarItemClickedEventArgs",
+    "Microsoft.UI.Xaml.Controls.IBreadcrumbBar::{put_ItemsSource, add_ItemClicked}",
+    "Microsoft.UI.Xaml.Controls.IBreadcrumbBarItemClickedEventArgs::{get_Index}",
+    "Microsoft.UI.Xaml.Controls.Expander::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.ExpanderCollapsedEventArgs",
+    "Microsoft.UI.Xaml.Controls.ExpanderExpandingEventArgs",
+    "Microsoft.UI.Xaml.Controls.IExpander::{put_Header, put_IsExpanded, add_Expanding, add_Collapsed}",
+    "Microsoft.UI.Xaml.Controls.InfoBadge::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.IInfoBadge::{put_Value}",
+    "Microsoft.UI.Xaml.Controls.InfoBar::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.InfoBarClosedEventArgs",
+    "Microsoft.UI.Xaml.Controls.InfoBarSeverity",
+    "Microsoft.UI.Xaml.Controls.IInfoBar::{put_Title, put_Message, put_Severity, put_IsOpen, put_IsClosable, add_Closed}",
+    "Microsoft.UI.Xaml.Controls.NavigationView::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.NavigationViewBackButtonVisible",
+    "Microsoft.UI.Xaml.Controls.NavigationViewBackRequestedEventArgs",
+    "Microsoft.UI.Xaml.Controls.INavigationView::{get_MenuItems, put_SelectedItem, put_IsPaneOpen, put_IsSettingsVisible, put_IsPaneToggleButtonVisible, add_SelectionChanged}",
+    "Microsoft.UI.Xaml.Controls.INavigationView2::{put_PaneDisplayMode, put_IsBackButtonVisible, put_IsBackEnabled, put_PaneTitle, add_BackRequested}",
+    "Microsoft.UI.Xaml.Controls.INavigationViewItem::{put_Icon}",
+    "Microsoft.UI.Xaml.Controls.INavigationViewSelectionChangedEventArgs::{get_SelectedItem}",
+    "Microsoft.UI.Xaml.Controls.NavigationViewItem::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.NavigationViewItemBase",
+    "Microsoft.UI.Xaml.Controls.NavigationViewItemHeader::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.NavigationViewPaneDisplayMode",
+    "Microsoft.UI.Xaml.Controls.NavigationViewSelectionChangedEventArgs",
+    "Microsoft.UI.Xaml.Controls.NumberBox::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.NumberBoxValueChangedEventArgs",
+    "Microsoft.UI.Xaml.Controls.INumberBox::{put_Header, put_Value, put_Minimum, put_Maximum, add_ValueChanged}",
+    "Microsoft.UI.Xaml.Controls.INumberBoxValueChangedEventArgs::{get_NewValue}",
+    "Microsoft.UI.Xaml.Controls.RadioButtons::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.IRadioButtons::{put_Header, get_Items, put_SelectedIndex, get_SelectedIndex, put_MaxColumns, add_SelectionChanged}",
+    "Microsoft.UI.Xaml.Controls.TabView::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.ITabView::{get_TabItems, put_SelectedIndex, get_SelectedIndex, put_CanReorderTabs, put_IsAddTabButtonVisible, add_SelectionChanged, add_TabCloseRequested, add_AddTabButtonClick}",
+    "Microsoft.UI.Xaml.Controls.TabViewItem::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.TabViewTabCloseRequestedEventArgs",
+    "Microsoft.UI.Xaml.Controls.ITabViewItem::{put_Header, put_IsClosable}",
+    "Microsoft.UI.Xaml.Controls.ITabViewTabCloseRequestedEventArgs::{get_Tab}",
+    "Microsoft.UI.Xaml.Controls.TeachingTip::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.TeachingTipClosedEventArgs",
+    "Microsoft.UI.Xaml.Controls.TeachingTipPlacementMode",
+    "Microsoft.UI.Xaml.Controls.ITeachingTip::{put_Title, put_Subtitle, put_IsOpen, put_IsLightDismissEnabled, put_PreferredPlacement, put_ActionButtonContent, put_CloseButtonContent, add_Closed, add_ActionButtonClick}",
+    "Microsoft.UI.Xaml.Controls.XamlControlsResources::{CreateInstance}",
+    "Microsoft.UI.Xaml.XamlTypeInfo.XamlControlsXamlMetaDataProvider::{CreateInstance}",
+];
+
 fn main() {
     let mut args = env::args().skip(1);
     match args.next().as_deref() {
@@ -43,24 +290,20 @@ fn generate_xaml_bindings(root: &Path) -> Result<(), String> {
         .join("island-reactor-codegen")
         .join("xaml-bindings.rs");
     let temp_arg = path_arg(&temp);
-    let args = vec![
+    let mut args = vec![
         "--in",
         "default",
         "--out",
         &temp_arg,
+        "--implement",
+        "Windows.UI.Xaml.IApplicationOverrides",
+        "Windows.UI.Xaml.Markup.IXamlMetadataProvider",
+        "--minimal",
         "--flat",
         "--filter",
-        "Windows.ApplicationModel.Resources.Core.ResourceManager",
-        "Windows.Storage.IStorageFile",
-        "Windows.Storage.StorageFile",
-        "Windows.UI.Composition.ICompositionAnimationBase",
-        "Windows.UI.Core.CoreDispatcher",
-        "Windows.UI.Xaml",
-        "Windows.UI.Composition.AnimationPropertyInfo",
-        "Windows.UI.UIContext",
-        "Windows.UI.Input",
-        "Windows.UI.Text",
-        "Windows.Win32.System.WinRT.Xaml.IDesktopWindowXamlSourceNative",
+    ];
+    args.extend(XAML_MINIMAL_FILTERS);
+    args.extend([
         "--reference",
         "windows,skip-root,Windows.ApplicationModel.Core",
         "--reference",
@@ -81,8 +324,9 @@ fn generate_xaml_bindings(root: &Path) -> Result<(), String> {
         "windows,skip-root,Windows.Win32.Foundation",
         "--reference",
         "windows,skip-root,Windows.Win32.UI.WindowsAndMessaging",
-    ];
+    ]);
     run_bindgen(args)?;
+    patch_xaml_bindings(&temp)?;
     copy_if_changed(&temp, &out)
 }
 
@@ -94,105 +338,18 @@ fn generate_muxc_bindings(root: &Path, winmd: &Path) -> Result<(), String> {
         .join("muxc-bindings.rs");
     let temp_arg = path_arg(&temp);
     let winmd = path_arg(winmd);
-    let args = vec![
+    let mut args = vec![
         "--in",
         "default",
         &winmd,
         "--out",
         &temp_arg,
+        "--minimal",
         "--flat",
         "--filter",
-        "Microsoft.UI.Xaml.Controls.BreadcrumbBar",
-        "Microsoft.UI.Xaml.Controls.BreadcrumbBarItem",
-        "Microsoft.UI.Xaml.Controls.BreadcrumbBarItemClickedEventArgs",
-        "Microsoft.UI.Xaml.Controls.ColorChangedEventArgs",
-        "Microsoft.UI.Xaml.Controls.ColorPicker",
-        "Microsoft.UI.Xaml.Controls.ColorPickerHsvChannel",
-        "Microsoft.UI.Xaml.Controls.ColorSpectrumComponents",
-        "Microsoft.UI.Xaml.Controls.ColorSpectrumShape",
-        "Microsoft.UI.Xaml.Controls.CommandBarFlyout",
-        "Microsoft.UI.Xaml.Controls.DropDownButton",
-        "Microsoft.UI.Xaml.Controls.ExpandDirection",
-        "Microsoft.UI.Xaml.Controls.Expander",
-        "Microsoft.UI.Xaml.Controls.ExpanderCollapsedEventArgs",
-        "Microsoft.UI.Xaml.Controls.ExpanderExpandingEventArgs",
-        "Microsoft.UI.Xaml.Controls.ExpanderTemplateSettings",
-        "Microsoft.UI.Xaml.Controls.InfoBadge",
-        "Microsoft.UI.Xaml.Controls.InfoBadgeTemplateSettings",
-        "Microsoft.UI.Xaml.Controls.InfoBar",
-        "Microsoft.UI.Xaml.Controls.InfoBarClosedEventArgs",
-        "Microsoft.UI.Xaml.Controls.InfoBarCloseReason",
-        "Microsoft.UI.Xaml.Controls.InfoBarClosingEventArgs",
-        "Microsoft.UI.Xaml.Controls.InfoBarSeverity",
-        "Microsoft.UI.Xaml.Controls.InfoBarTemplateSettings",
-        "Microsoft.UI.Xaml.Controls.MenuBar",
-        "Microsoft.UI.Xaml.Controls.MenuBarItem",
-        "Microsoft.UI.Xaml.Controls.MenuBarItemFlyout",
-        "Microsoft.UI.Xaml.Controls.NavigationView",
-        "Microsoft.UI.Xaml.Controls.NavigationViewBackButtonVisible",
-        "Microsoft.UI.Xaml.Controls.NavigationViewBackRequestedEventArgs",
-        "Microsoft.UI.Xaml.Controls.NavigationViewDisplayMode",
-        "Microsoft.UI.Xaml.Controls.NavigationViewDisplayModeChangedEventArgs",
-        "Microsoft.UI.Xaml.Controls.NavigationViewItem",
-        "Microsoft.UI.Xaml.Controls.NavigationViewItemBase",
-        "Microsoft.UI.Xaml.Controls.NavigationViewItemCollapsedEventArgs",
-        "Microsoft.UI.Xaml.Controls.NavigationViewItemExpandingEventArgs",
-        "Microsoft.UI.Xaml.Controls.NavigationViewItemHeader",
-        "Microsoft.UI.Xaml.Controls.NavigationViewItemInvokedEventArgs",
-        "Microsoft.UI.Xaml.Controls.NavigationViewItemSeparator",
-        "Microsoft.UI.Xaml.Controls.NavigationViewOverflowLabelMode",
-        "Microsoft.UI.Xaml.Controls.NavigationViewPaneClosingEventArgs",
-        "Microsoft.UI.Xaml.Controls.NavigationViewPaneDisplayMode",
-        "Microsoft.UI.Xaml.Controls.NavigationViewSelectionChangedEventArgs",
-        "Microsoft.UI.Xaml.Controls.NavigationViewSelectionFollowsFocus",
-        "Microsoft.UI.Xaml.Controls.NavigationViewShoulderNavigationEnabled",
-        "Microsoft.UI.Xaml.Controls.NavigationViewTemplateSettings",
-        "Microsoft.UI.Xaml.Controls.NumberBox",
-        "Microsoft.UI.Xaml.Controls.NumberBoxSpinButtonPlacementMode",
-        "Microsoft.UI.Xaml.Controls.NumberBoxValidationMode",
-        "Microsoft.UI.Xaml.Controls.NumberBoxValueChangedEventArgs",
-        "Microsoft.UI.Xaml.Controls.PersonPicture",
-        "Microsoft.UI.Xaml.Controls.PersonPictureTemplateSettings",
-        "Microsoft.UI.Xaml.Controls.ProgressBar",
-        "Microsoft.UI.Xaml.Controls.ProgressBarTemplateSettings",
-        "Microsoft.UI.Xaml.Controls.ProgressRing",
-        "Microsoft.UI.Xaml.Controls.ProgressRingTemplateSettings",
-        "Microsoft.UI.Xaml.Controls.RadioButtons",
-        "Microsoft.UI.Xaml.Controls.RatingControl",
-        "Microsoft.UI.Xaml.Controls.RatingItemFontInfo",
-        "Microsoft.UI.Xaml.Controls.RatingItemImageInfo",
-        "Microsoft.UI.Xaml.Controls.RatingItemInfo",
-        "Microsoft.UI.Xaml.Controls.RefreshContainer",
-        "Microsoft.UI.Xaml.Controls.RefreshVisualizer",
-        "Microsoft.UI.Xaml.Controls.SplitButton",
-        "Microsoft.UI.Xaml.Controls.SplitButtonClickEventArgs",
-        "Microsoft.UI.Xaml.Controls.TabView",
-        "Microsoft.UI.Xaml.Controls.TabViewCloseButtonOverlayMode",
-        "Microsoft.UI.Xaml.Controls.TabViewItem",
-        "Microsoft.UI.Xaml.Controls.TabViewItemTemplateSettings",
-        "Microsoft.UI.Xaml.Controls.TabViewTabCloseRequestedEventArgs",
-        "Microsoft.UI.Xaml.Controls.TabViewWidthMode",
-        "Microsoft.UI.Xaml.Controls.TeachingTip",
-        "Microsoft.UI.Xaml.Controls.TeachingTipClosedEventArgs",
-        "Microsoft.UI.Xaml.Controls.TeachingTipCloseReason",
-        "Microsoft.UI.Xaml.Controls.TeachingTipClosingEventArgs",
-        "Microsoft.UI.Xaml.Controls.TeachingTipHeroContentPlacementMode",
-        "Microsoft.UI.Xaml.Controls.TeachingTipPlacementMode",
-        "Microsoft.UI.Xaml.Controls.TeachingTipTailVisibility",
-        "Microsoft.UI.Xaml.Controls.TeachingTipTemplateSettings",
-        "Microsoft.UI.Xaml.Controls.ToggleSplitButton",
-        "Microsoft.UI.Xaml.Controls.ToggleSplitButtonIsCheckedChangedEventArgs",
-        "Microsoft.UI.Xaml.Controls.TreeView",
-        "Microsoft.UI.Xaml.Controls.TreeViewCollapsedEventArgs",
-        "Microsoft.UI.Xaml.Controls.TreeViewExpandingEventArgs",
-        "Microsoft.UI.Xaml.Controls.TreeViewItem",
-        "Microsoft.UI.Xaml.Controls.TreeViewItemInvokedEventArgs",
-        "Microsoft.UI.Xaml.Controls.TreeViewItemTemplateSettings",
-        "Microsoft.UI.Xaml.Controls.TreeViewList",
-        "Microsoft.UI.Xaml.Controls.TreeViewNode",
-        "Microsoft.UI.Xaml.Controls.TreeViewSelectionMode",
-        "Microsoft.UI.Xaml.Controls.XamlControlsResources",
-        "Microsoft.UI.Xaml.XamlTypeInfo.XamlControlsXamlMetaDataProvider",
+    ];
+    args.extend(MUXC_MINIMAL_FILTERS);
+    args.extend([
         "--reference",
         "xaml_bindings,flat,Windows.UI",
         "--reference",
@@ -211,7 +368,7 @@ fn generate_muxc_bindings(root: &Path, winmd: &Path) -> Result<(), String> {
         "windows_numerics,flat,Windows.Foundation.Numerics",
         "--reference",
         "windows,skip-root,Windows.Foundation",
-    ];
+    ]);
     run_bindgen(args)?;
     copy_if_changed(&temp, &out)
 }
@@ -620,6 +777,94 @@ fn copy_if_changed(src: &Path, dst: &Path) -> Result<(), String> {
         return Ok(());
     }
     copy_file(src, dst)
+}
+
+fn patch_xaml_bindings(path: &Path) -> Result<(), String> {
+    let mut code = fs::read_to_string(path)
+        .map_err(|err| format!("failed to read {}: {err}", path.display()))?;
+    insert_selection_changed_event_handler_ctor(&mut code)?;
+    fs::write(path, code).map_err(|err| format!("failed to write {}: {err}", path.display()))
+}
+
+fn insert_selection_changed_event_handler_ctor(code: &mut String) -> Result<(), String> {
+    if code.contains("impl SelectionChangedEventHandler {\n    pub fn new<") {
+        return Ok(());
+    }
+
+    let ctor = r#"struct SelectionChangedEventHandlerResultBox<
+    F: Fn(
+            windows_core::Ref<windows_core::IInspectable>,
+            windows_core::Ref<SelectionChangedEventArgs>,
+        ) -> windows_core::Result<()>
+        + Send
+        + 'static,
+>(core::marker::PhantomData<(fn() -> F,)>);
+impl<
+    F: Fn(
+            windows_core::Ref<windows_core::IInspectable>,
+            windows_core::Ref<SelectionChangedEventArgs>,
+        ) -> windows_core::Result<()>
+        + Send
+        + 'static,
+> SelectionChangedEventHandlerResultBox<F>
+{
+    const VTABLE: SelectionChangedEventHandler_Vtbl = SelectionChangedEventHandler_Vtbl {
+        base__: windows_core::IUnknown_Vtbl {
+            QueryInterface:
+                windows_core::imp::DelegateBox::<SelectionChangedEventHandler, F>::QueryInterface,
+            AddRef: windows_core::imp::DelegateBox::<SelectionChangedEventHandler, F>::AddRef,
+            Release: windows_core::imp::DelegateBox::<SelectionChangedEventHandler, F>::Release,
+        },
+        Invoke: Self::Invoke,
+    };
+    unsafe extern "system" fn Invoke(
+        this: *mut core::ffi::c_void,
+        sender: *mut core::ffi::c_void,
+        e: *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT {
+        unsafe {
+            let this = &mut *(this as *mut *mut core::ffi::c_void
+                as *mut windows_core::imp::DelegateBox<SelectionChangedEventHandler, F>);
+            (this.invoke)(
+                core::mem::transmute_copy(&sender),
+                core::mem::transmute_copy(&e),
+            )
+            .into()
+        }
+    }
+}
+impl SelectionChangedEventHandler {
+    pub fn new<F>(handler: F) -> Self
+    where
+        F: Fn(
+                windows_core::Ref<windows_core::IInspectable>,
+                windows_core::Ref<SelectionChangedEventArgs>,
+            ) -> windows_core::Result<()>
+            + Send
+            + 'static,
+    {
+        let com = windows_core::imp::DelegateBox::<SelectionChangedEventHandler, _>::new(
+            &SelectionChangedEventHandlerResultBox::<F>::VTABLE,
+            handler,
+        );
+        unsafe { core::mem::transmute(windows_core::imp::Box::new(com)) }
+    }
+}
+"#;
+
+    for needle in [
+        "#[repr(transparent)]\r\n#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]\r\npub struct SelectionMode(pub i32);",
+        "#[repr(transparent)]\n#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]\npub struct SelectionMode(pub i32);",
+        "#[repr(transparent)]\r\n#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]\r\npub struct ListViewSelectionMode(pub i32);",
+        "#[repr(transparent)]\n#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]\npub struct ListViewSelectionMode(pub i32);",
+    ] {
+        if let Some(index) = code.find(needle) {
+            code.insert_str(index, ctor);
+            return Ok(());
+        }
+    }
+
+    Err("failed to patch SelectionChangedEventHandler constructor".to_string())
 }
 
 fn require_file(path: &Path, label: &str) -> Result<(), String> {

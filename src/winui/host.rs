@@ -41,7 +41,7 @@ thread_local! {
     static ROOT_FRAMEWORK_ELEMENT: RefCell<Option<FrameworkElement>> = const { RefCell::new(None) };
     static PENDING_THEME: Cell<Option<ElementTheme>> = const { Cell::new(None) };
     static WINUI2_RESOURCES_INSTALLED: Cell<bool> = const { Cell::new(false) };
-    static UNHANDLED_EXCEPTION_HANDLER: RefCell<Option<UnhandledExceptionEventHandler>> =
+    static UNHANDLED_EXCEPTION_HANDLER: RefCell<Option<windows_core::EventRevoker>> =
         const { RefCell::new(None) };
 }
 
@@ -68,7 +68,9 @@ pub fn set_requested_theme(theme: RequestedTheme) {
     };
     ROOT_FRAMEWORK_ELEMENT.with(|cell| {
         if let Some(fe) = cell.borrow().as_ref() {
-            let _ = fe.SetRequestedTheme(element_theme);
+            let _ = fe
+                .cast::<IFrameworkElement2>()
+                .and_then(|fe| fe.put_RequestedTheme(element_theme));
             update_color_scheme_from(fe);
         } else {
             PENDING_THEME.with(|pending| pending.set(Some(element_theme)));
@@ -105,16 +107,16 @@ pub fn install_winui2_resources() -> windows_core::Result<()> {
 }
 
 fn install_xaml_controls_resources() -> windows_core::Result<()> {
-    let app = Application::Current()?;
-    let resources = match app.Resources() {
+    let app = Application::get_Current()?;
+    let resources = match app.get_Resources() {
         Ok(resources) => resources,
         Err(_) => {
             let resources = ResourceDictionary::new()?;
-            app.SetResources(&resources)?;
+            app.put_Resources(&resources)?;
             resources
         }
     };
-    let dictionaries = resources.MergedDictionaries()?;
+    let dictionaries = resources.get_MergedDictionaries()?;
     let mux_resources = create_xaml_controls_resources().map_err(|err| {
         crate::diagnostics::emit(&format!(
             "island_reactor: XamlControlsResources creation failed: {err:?}\n"
@@ -158,7 +160,7 @@ fn load_winui2_pri() -> windows_core::Result<()> {
         return Ok(());
     }
 
-    let path = windows_core::HSTRING::from(pri_path.display().to_string());
+    let path = pri_path.display().to_string();
     let pri_file = StorageFile::GetFileFromPathAsync(&path)
         .map_err(|err| {
             crate::diagnostics::emit(&format!(
@@ -177,7 +179,7 @@ fn load_winui2_pri() -> windows_core::Result<()> {
         })?;
     let pri_file: IStorageFile = pri_file.cast()?;
     let files = windows_collections::IVector::<IStorageFile>::from(vec![Some(pri_file)]);
-    let resource_manager = ResourceManager::Current().map_err(|err| {
+    let resource_manager = ResourceManager::get_Current().map_err(|err| {
         crate::diagnostics::emit(&format!(
             "island_reactor: ResourceManager::Current failed: {err:?}\n"
         ));
@@ -202,28 +204,24 @@ fn current_exe_sibling(file_name: &str) -> windows_core::Result<PathBuf> {
 }
 
 fn install_xaml_exception_logging() {
-    let Ok(app) = Application::Current() else {
+    let Ok(app) = Application::get_Current() else {
         return;
     };
     UNHANDLED_EXCEPTION_HANDLER.with(|slot| {
         if slot.borrow().is_some() {
             return;
         }
-        let handler = UnhandledExceptionEventHandler::new(|_, args| {
+        let revoker = app.add_UnhandledException(|_, args| {
             if let Some(args) = args.as_ref() {
-                let hr = args.Exception().map(|v| v.0).unwrap_or_default();
-                let message = args
-                    .Message()
-                    .map(|v| v.to_string_lossy())
-                    .unwrap_or_default();
+                let hr = args.get_Exception().map(|v| v.0).unwrap_or_default();
+                let message = args.get_Message().unwrap_or_default();
                 crate::diagnostics::emit(&format!(
                     "island_reactor: XAML unhandled exception 0x{hr:08X}: {message}\n"
                 ));
             }
-            Ok(())
         });
-        if app.UnhandledException(&handler).is_ok() {
-            *slot.borrow_mut() = Some(handler);
+        if let Ok(revoker) = revoker {
+            *slot.borrow_mut() = Some(revoker);
         }
     });
 }
@@ -263,7 +261,7 @@ impl ReactorHost {
     where
         F: FnOnce(&mut crate::core::reconciler::Reconciler<WinUIBackend>),
     {
-        let application = match Application::Current() {
+        let application = match Application::get_Current() {
             Ok(application) => application,
             Err(_) => create_island_application()?,
         };
@@ -276,10 +274,10 @@ impl ReactorHost {
         let xaml_source = DesktopWindowXamlSource::new()?;
         let native_source: IDesktopWindowXamlSourceNative = xaml_source.cast()?;
         unsafe {
-            native_source.AttachToWindow(hwnd)?;
+            native_source.AttachToWindow(hwnd.0 as _)?;
         }
-        let xaml_hwnd = unsafe { native_source.WindowHandle()? };
-        XAML_HWND.store(xaml_hwnd.0, Ordering::Relaxed);
+        let xaml_hwnd = unsafe { native_source.get_WindowHandle()? };
+        XAML_HWND.store(xaml_hwnd, Ordering::Relaxed);
         enable_resize_layout_synchronization(hwnd, true);
         resize_xaml_island(hwnd);
 
@@ -301,14 +299,16 @@ impl ReactorHost {
                 if let Some(ui) = render_for_post_render.with_backend(|b| b.get_ui_element(rid))
                     && let Ok(ui_element) = ui.cast::<UIElement>()
                 {
-                    let _ = source_for_post_render.SetContent(&ui_element);
+                    let _ = source_for_post_render.put_Content(&ui_element);
                     last_for_hook.set(Some(rid));
                     if let Ok(fe) = ui_element.cast::<FrameworkElement>() {
                         ROOT_FRAMEWORK_ELEMENT.with(|cell| {
                             *cell.borrow_mut() = Some(fe.clone());
                         });
                         if let Some(theme) = PENDING_THEME.with(|pending| pending.take()) {
-                            let _ = fe.SetRequestedTheme(theme);
+                            let _ = fe
+                                .cast::<IFrameworkElement2>()
+                                .and_then(|fe| fe.put_RequestedTheme(theme));
                         }
                         update_color_scheme_from(&fe);
                     }
@@ -572,7 +572,10 @@ fn default_display_size() -> crate::core::Size {
 }
 
 fn update_color_scheme_from(fe: &FrameworkElement) {
-    if let Ok(theme) = fe.ActualTheme() {
+    if let Ok(theme) = fe
+        .cast::<IFrameworkElement6>()
+        .and_then(|fe| fe.get_ActualTheme())
+    {
         let scheme = match theme {
             ElementTheme::Dark => crate::core::theme::ColorScheme::Dark,
             _ => crate::core::theme::ColorScheme::Light,

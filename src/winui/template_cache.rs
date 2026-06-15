@@ -18,8 +18,7 @@ pub fn shared_content_control_template() -> DataTemplate {
 }
 
 fn parse_template() -> DataTemplate {
-    let xaml = windows_core::HSTRING::from(SHARED_TEMPLATE_XAML);
-    let inspectable = XamlReader::Load(&xaml).unwrap();
+    let inspectable = XamlReader::Load(SHARED_TEMPLATE_XAML).unwrap();
     inspectable.cast::<DataTemplate>().unwrap()
 }
 
