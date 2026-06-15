@@ -58,5 +58,7 @@ pub use core::theme::*;
 pub use core::window::*;
 pub use dsl::*;
 pub use winui::dispatcher::WinUIDispatcher;
-pub use winui::host::{PresenterKind, ReactorHost, RequestedTheme, set_requested_theme};
+pub use winui::host::{
+    PresenterKind, ReactorHost, RequestedTheme, install_winui2_resources, set_requested_theme,
+};
 pub use winui::{DispatcherTimer, Rendering, on_rendering};

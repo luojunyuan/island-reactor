@@ -7,13 +7,26 @@ fn main() -> Result<()> {
 }
 
 fn app(_cx: &mut RenderCx) -> Element {
-    vstack((
-        text_block("Hello, Rust Island Reactor!")
-            .font_size(24.0)
-            .bold(),
-        text_block("This is a native Windows.UI.Xaml Islands app built from Rust."),
-    ))
-    .spacing(8.0)
-    .padding(24.0)
-    .into()
+    let mut layout = grid(())
+        .rows([GridLength::Auto, GridLength::Auto, GridLength::Auto])
+        .row_spacing(8.0)
+        .width(190.0);
+    layout.children = vec![
+        text_block("Hello, island-reactor")
+            .font_size(20.0)
+            .bold()
+            .wrap()
+            .grid_row(0)
+            .into(),
+        text_block("WinUI 2 package styles loaded.")
+            .wrap()
+            .grid_row(1)
+            .into(),
+        button("WinUI 2 Button")
+            .accent()
+            .horizontal_alignment(HorizontalAlignment::Right)
+            .grid_row(2)
+            .into(),
+    ];
+    border(layout).padding(16.0).into()
 }

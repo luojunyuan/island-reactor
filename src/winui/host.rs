@@ -1,5 +1,6 @@
 use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
@@ -29,6 +30,7 @@ use windows_core::Interface;
 use crate::bindings::*;
 use crate::core::*;
 
+use super::app_shim::create_island_application;
 use super::{WinUIBackend, WinUIDispatcher};
 
 static XAML_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
@@ -37,6 +39,9 @@ static CORE_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 thread_local! {
     static ROOT_FRAMEWORK_ELEMENT: RefCell<Option<FrameworkElement>> = const { RefCell::new(None) };
     static PENDING_THEME: Cell<Option<ElementTheme>> = const { Cell::new(None) };
+    static WINUI2_RESOURCES_INSTALLED: Cell<bool> = const { Cell::new(false) };
+    static UNHANDLED_EXCEPTION_HANDLER: RefCell<Option<UnhandledExceptionEventHandler>> =
+        const { RefCell::new(None) };
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -72,9 +77,176 @@ pub fn set_requested_theme(theme: RequestedTheme) {
 
 pub fn set_backdrop(_backdrop: Option<()>) {}
 
+pub fn install_winui2_resources() -> windows_core::Result<()> {
+    if WINUI2_RESOURCES_INSTALLED.with(Cell::get) {
+        return Ok(());
+    }
+
+    if !current_exe_sibling("Microsoft.UI.Xaml.dll")?.exists() {
+        crate::diagnostics::emit(
+            "island_reactor: WinUI 2 runtime DLL not found; skipping resource install\n",
+        );
+        return Ok(());
+    }
+
+    if let Err(err) = load_winui2_pri() {
+        crate::diagnostics::emit(&format!(
+            "island_reactor: WinUI 2 PRI load failed: {err:?}\n"
+        ));
+        return Err(err);
+    }
+
+    install_xaml_controls_resources()?;
+    WINUI2_RESOURCES_INSTALLED.with(|installed| installed.set(true));
+    Ok(())
+}
+
+fn install_xaml_controls_resources() -> windows_core::Result<()> {
+    let app = Application::Current()?;
+    let resources = match app.Resources() {
+        Ok(resources) => resources,
+        Err(_) => {
+            let resources = ResourceDictionary::new()?;
+            app.SetResources(&resources)?;
+            resources
+        }
+    };
+    let dictionaries = resources.MergedDictionaries()?;
+    let mux_resources = create_xaml_controls_resources().map_err(|err| {
+        crate::diagnostics::emit(&format!(
+            "island_reactor: XamlControlsResources creation failed: {err:?}\n"
+        ));
+        err
+    })?;
+    let mux_resources = mux_resources.cast::<ResourceDictionary>().map_err(|err| {
+        crate::diagnostics::emit(&format!(
+            "island_reactor: XamlControlsResources dictionary cast failed: {err:?}\n"
+        ));
+        err
+    })?;
+    dictionaries.Append(&mux_resources).map_err(|err| {
+        crate::diagnostics::emit(&format!(
+            "island_reactor: XamlControlsResources append failed: {err:?}\n"
+        ));
+        err
+    })?;
+    Ok(())
+}
+
+fn try_install_winui2_resources() {
+    if let Err(err) = install_winui2_resources() {
+        crate::diagnostics::emit(&format!(
+            "island_reactor: WinUI 2 resources were not installed: {err:?}\n"
+        ));
+    }
+}
+
+fn create_xaml_controls_resources() -> windows_core::Result<ResourceDictionary> {
+    const XAML: &str = r#"<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls">
+    <ResourceDictionary.MergedDictionaries>
+        <muxc:XamlControlsResources />
+    </ResourceDictionary.MergedDictionaries>
+</ResourceDictionary>"#;
+
+    match XamlReader::Load(&windows_core::HSTRING::from(XAML))
+        .and_then(|value| value.cast::<ResourceDictionary>())
+    {
+        Ok(resources) => Ok(resources),
+        Err(err) => {
+            crate::diagnostics::emit(&format!(
+                "island_reactor: XamlReader WinUI 2 resource load failed, falling back to activation: {err:?}\n"
+            ));
+            XamlControlsResources::new()?.cast()
+        }
+    }
+}
+
+fn load_winui2_pri() -> windows_core::Result<()> {
+    let pri_path = current_exe_sibling("Microsoft.UI.Xaml.pri")?;
+    if !pri_path.exists() {
+        crate::diagnostics::emit(&format!(
+            "island_reactor: WinUI 2 PRI not found at {}\n",
+            pri_path.display()
+        ));
+        return Ok(());
+    }
+
+    let path = windows_core::HSTRING::from(pri_path.display().to_string());
+    let pri_file = StorageFile::GetFileFromPathAsync(&path)
+        .map_err(|err| {
+            crate::diagnostics::emit(&format!(
+                "island_reactor: StorageFile::GetFileFromPathAsync failed for {}: {err:?}\n",
+                pri_path.display()
+            ));
+            err
+        })?
+        .join()
+        .map_err(|err| {
+            crate::diagnostics::emit(&format!(
+                "island_reactor: StorageFile::GetFileFromPathAsync join failed for {}: {err:?}\n",
+                pri_path.display()
+            ));
+            err
+        })?;
+    let pri_file: IStorageFile = pri_file.cast()?;
+    let files = windows_collections::IVector::<IStorageFile>::from(vec![Some(pri_file)]);
+    let resource_manager = ResourceManager::Current().map_err(|err| {
+        crate::diagnostics::emit(&format!(
+            "island_reactor: ResourceManager::Current failed: {err:?}\n"
+        ));
+        err
+    })?;
+    resource_manager.LoadPriFiles(&files).map_err(|err| {
+        crate::diagnostics::emit(&format!(
+            "island_reactor: ResourceManager::LoadPriFiles failed for {}: {err:?}\n",
+            pri_path.display()
+        ));
+        err
+    })?;
+    Ok(())
+}
+
+fn current_exe_sibling(file_name: &str) -> windows_core::Result<PathBuf> {
+    let mut path = std::env::current_exe().map_err(|err| {
+        windows_core::Error::new(windows_core::HRESULT(0x80004005u32 as i32), err.to_string())
+    })?;
+    path.set_file_name(file_name);
+    Ok(path)
+}
+
+fn install_xaml_exception_logging() {
+    let Ok(app) = Application::Current() else {
+        return;
+    };
+    UNHANDLED_EXCEPTION_HANDLER.with(|slot| {
+        if slot.borrow().is_some() {
+            return;
+        }
+        let handler = UnhandledExceptionEventHandler::new(|_, args| {
+            if let Some(args) = args.as_ref() {
+                let hr = args.Exception().map(|v| v.0).unwrap_or_default();
+                let message = args
+                    .Message()
+                    .map(|v| v.to_string_lossy())
+                    .unwrap_or_default();
+                crate::diagnostics::emit(&format!(
+                    "island_reactor: XAML unhandled exception 0x{hr:08X}: {message}\n"
+                ));
+            }
+            Ok(())
+        });
+        if app.UnhandledException(&handler).is_ok() {
+            *slot.borrow_mut() = Some(handler);
+        }
+    });
+}
+
 pub struct ReactorHost {
     render_host: RenderHost<WinUIBackend, WinUIDispatcher>,
     hwnd: HWND,
+    _application: Application,
     _xaml_manager: WindowsXamlManager,
     _xaml_source: DesktopWindowXamlSource,
     presenter: Cell<PresenterKind>,
@@ -106,7 +278,13 @@ impl ReactorHost {
     where
         F: FnOnce(&mut crate::core::reconciler::Reconciler<WinUIBackend>),
     {
+        let application = match Application::Current() {
+            Ok(application) => application,
+            Err(_) => create_island_application()?,
+        };
         let xaml_manager = WindowsXamlManager::InitializeForCurrentThread()?;
+        install_xaml_exception_logging();
+        try_install_winui2_resources();
         initialize_core_window_handle();
 
         let hwnd = create_main_window(title.as_ref(), size)?;
@@ -160,6 +338,7 @@ impl ReactorHost {
         Ok(Self {
             render_host,
             hwnd,
+            _application: application,
             _xaml_manager: xaml_manager,
             _xaml_source: xaml_source,
             presenter: Cell::new(PresenterKind::Default),

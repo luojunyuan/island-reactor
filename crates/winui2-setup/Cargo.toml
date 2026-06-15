@@ -1,8 +1,7 @@
 [package]
-name = "island-reactor-setup"
+name = "winui2-setup"
 version = "0.1.0"
 edition = "2024"
 publish = false
 
 [dependencies]
-winui2-setup = { path = "../winui2-setup" }

@@ -6,9 +6,12 @@ edition = "2024"
 [dependencies]
 windows = { workspace = true, features = [
     "ApplicationModel_Core",
+    "ApplicationModel_Resources_Core",
     "Foundation",
     "Foundation_Collections",
     "Foundation_Numerics",
+    "Storage",
+    "Storage_Streams",
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging",
 ] }
@@ -21,3 +24,4 @@ windows-time = { workspace = true, features = ["std"] }
 
 [build-dependencies]
 windows-bindgen = { workspace = true }
+winui2-setup = { path = "../winui2-setup" }

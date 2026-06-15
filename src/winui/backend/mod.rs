@@ -263,6 +263,9 @@ impl WinUIBackend {
                     control.SetBackground(&brush)?;
                 }
             }
+            (Prop::StyleVariant, PropValue::I32(v), Handle::Button(button)) => {
+                apply_button_style_variant(button, *v)?;
+            }
             (Prop::BorderBrush, PropValue::Brush(b), Handle::Border(border)) => {
                 border.SetBorderBrush(&xaml_brush(b)?)?;
             }
@@ -1408,6 +1411,56 @@ fn xaml_brush(brush: &Brush) -> Result<Xaml::Brush> {
             b.cast()
         }
     }
+}
+
+fn solid_brush(color: Xaml::Color) -> Result<Xaml::Brush> {
+    let brush = Xaml::SolidColorBrush::new()?;
+    brush.SetColor(color)?;
+    brush.cast()
+}
+
+fn apply_button_style_variant(button: &Xaml::Button, variant: i32) -> Result<()> {
+    let control: Xaml::Control = button.cast()?;
+    match variant {
+        1 => {
+            control.SetBackground(&solid_brush(Xaml::Color {
+                A: 255,
+                R: 0,
+                G: 120,
+                B: 212,
+            })?)?;
+            control.SetForeground(&solid_brush(Xaml::Color {
+                A: 255,
+                R: 255,
+                G: 255,
+                B: 255,
+            })?)?;
+        }
+        2 => {
+            control.SetBackground(&solid_brush(Xaml::Color {
+                A: 0,
+                R: 0,
+                G: 0,
+                B: 0,
+            })?)?;
+        }
+        3 => {
+            control.SetBackground(&solid_brush(Xaml::Color {
+                A: 0,
+                R: 0,
+                G: 0,
+                B: 0,
+            })?)?;
+            control.SetForeground(&solid_brush(Xaml::Color {
+                A: 255,
+                R: 0,
+                G: 102,
+                B: 204,
+            })?)?;
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 fn hstring(s: &str) -> windows_core::HSTRING {

@@ -15,12 +15,16 @@ dependencies = [
  "windows-numerics",
  "windows-threading",
  "windows-time",
+ "winui2-setup",
  "xaml-bindings",
 ]
 
 [[package]]
 name = "island-reactor-setup"
 version = "0.1.0"
+dependencies = [
+ "winui2-setup",
+]
 
 [[package]]
 name = "itoa"
@@ -156,6 +160,8 @@ name = "windows-core"
 version = "0.62.2"
 source = "git+https://github.com/microsoft/windows-rs?rev=62af965b827a68079605ee6461241764e4a6374b#62af965b827a68079605ee6461241764e4a6374b"
 dependencies = [
+ "windows-implement",
+ "windows-interface",
  "windows-link",
  "windows-result",
  "windows-strings",
@@ -169,6 +175,26 @@ dependencies = [
  "windows-core",
  "windows-link",
  "windows-threading",
+]
+
+[[package]]
+name = "windows-implement"
+version = "0.60.2"
+source = "git+https://github.com/microsoft/windows-rs?rev=62af965b827a68079605ee6461241764e4a6374b#62af965b827a68079605ee6461241764e4a6374b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "windows-interface"
+version = "0.59.3"
+source = "git+https://github.com/microsoft/windows-rs?rev=62af965b827a68079605ee6461241764e4a6374b#62af965b827a68079605ee6461241764e4a6374b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -233,6 +259,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "winui2-setup"
+version = "0.1.0"
+
+[[package]]
 name = "xaml-bindings"
 version = "0.1.0"
 dependencies = [
@@ -244,6 +274,7 @@ dependencies = [
  "windows-numerics",
  "windows-reference",
  "windows-time",
+ "winui2-setup",
 ]
 
 [[package]]

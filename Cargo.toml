@@ -6,6 +6,7 @@ edition = "2024"
 [workspace]
 members = [
     "crates/island-reactor-setup",
+    "crates/winui2-setup",
     "crates/xaml-bindings",
 ]
 resolver = "3"
@@ -33,7 +34,7 @@ windows = { workspace = true, features = [
     "Win32_UI_HiDpi",
     "Win32_UI_WindowsAndMessaging",
 ] }
-windows-core = { workspace = true }
+windows-core = { workspace = true, features = ["proc-macros"] }
 windows-collections = { workspace = true, features = ["std"] }
 windows-future = { workspace = true }
 windows-numerics = { workspace = true }
@@ -43,6 +44,7 @@ xaml-bindings = { path = "crates/xaml-bindings" }
 
 [build-dependencies]
 island-reactor-setup = { path = "crates/island-reactor-setup" }
+winui2-setup = { path = "crates/winui2-setup" }
 
 [[example]]
 name = "gallery"
