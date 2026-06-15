@@ -5,10 +5,10 @@ edition = "2024"
 publish = false
 
 [dependencies]
-island-reactor = { path = "../../island-reactor" }
+island-reactor = { path = "../../crates/island-reactor" }
 
 [build-dependencies]
-island-reactor-setup = { path = "../../island-reactor-setup" }
+island-reactor-setup = { path = "../../crates/island-reactor-setup" }
 
 [[bin]]
 name = "hello"
