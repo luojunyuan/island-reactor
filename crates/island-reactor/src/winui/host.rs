@@ -266,6 +266,7 @@ impl ReactorHost {
             Err(_) => create_island_application()?,
         };
         let xaml_manager = WindowsXamlManager::InitializeForCurrentThread()?;
+        enable_xaml_background_transparency();
         install_xaml_exception_logging();
         try_install_winui2_resources();
         initialize_core_window_handle();
@@ -503,6 +504,17 @@ fn initialize_core_window_handle() {
     CORE_HWND.store(core_hwnd.0, Ordering::Relaxed);
     unsafe {
         let _ = ShowWindow(core_hwnd, SW_HIDE);
+    }
+}
+
+fn enable_xaml_background_transparency() {
+    let result = crate::xaml_interop::interop::Window::Current()
+        .and_then(|window| window.cast::<crate::xaml_interop::interop::IXamlSourceTransparency>())
+        .and_then(|transparency| unsafe { transparency.SetIsBackgroundTransparent(true) });
+    if let Err(err) = result {
+        crate::diagnostics::emit(&format!(
+            "island_reactor: XAML background transparency setup failed: {err:?}\n"
+        ));
     }
 }
 

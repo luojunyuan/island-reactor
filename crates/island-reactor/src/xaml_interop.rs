@@ -209,6 +209,143 @@ pub mod interop {
     }
 
     windows_core::imp::define_interface!(
+        IWindow,
+        IWindow_Vtbl,
+        0x3276167d_c9f6_462d_9de2_ae4c1fd8c2e5
+    );
+    impl windows_core::RuntimeType for IWindow {
+        const SIGNATURE: windows_core::imp::ConstBuffer =
+            windows_core::imp::ConstBuffer::for_interface::<Self>();
+    }
+    windows_core::imp::interface_hierarchy!(
+        IWindow,
+        windows_core::IUnknown,
+        windows_core::IInspectable
+    );
+
+    #[repr(C)]
+    pub struct IWindow_Vtbl {
+        pub base__: windows_core::IInspectable_Vtbl,
+        Bounds: usize,
+        Visible: usize,
+        Content: usize,
+        SetContent: usize,
+        CoreWindow: usize,
+        Dispatcher: usize,
+        Activated: usize,
+        RemoveActivated: usize,
+        Closed: usize,
+        RemoveClosed: usize,
+        SizeChanged: usize,
+        RemoveSizeChanged: usize,
+        VisibilityChanged: usize,
+        RemoveVisibilityChanged: usize,
+        Activate: usize,
+        Close: usize,
+    }
+
+    windows_core::imp::define_interface!(
+        IWindowStatics,
+        IWindowStatics_Vtbl,
+        0x93328409_4ea1_4afa_83dc_0c4e73e88bb1
+    );
+    impl windows_core::RuntimeType for IWindowStatics {
+        const SIGNATURE: windows_core::imp::ConstBuffer =
+            windows_core::imp::ConstBuffer::for_interface::<Self>();
+    }
+    windows_core::imp::interface_hierarchy!(
+        IWindowStatics,
+        windows_core::IUnknown,
+        windows_core::IInspectable
+    );
+
+    #[repr(C)]
+    pub struct IWindowStatics_Vtbl {
+        pub base__: windows_core::IInspectable_Vtbl,
+        pub Current:
+            unsafe extern "system" fn(*mut c_void, *mut *mut c_void) -> windows_core::HRESULT,
+    }
+
+    #[repr(transparent)]
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct Window(windows_core::IUnknown);
+    windows_core::imp::interface_hierarchy!(
+        Window,
+        windows_core::IUnknown,
+        windows_core::IInspectable,
+        IWindow
+    );
+
+    impl Window {
+        pub fn Current() -> windows_core::Result<Self> {
+            Self::IWindowStatics(|this| unsafe {
+                let mut result__ = std::ptr::null_mut();
+                (windows_core::Interface::vtable(this).Current)(
+                    windows_core::Interface::as_raw(this),
+                    &mut result__,
+                )
+                .and_then(|| windows_core::Type::from_abi(result__))
+            })
+        }
+
+        fn IWindowStatics<R, F: FnOnce(&IWindowStatics) -> windows_core::Result<R>>(
+            callback: F,
+        ) -> windows_core::Result<R> {
+            static SHARED: windows_core::imp::FactoryCache<Window, IWindowStatics> =
+                windows_core::imp::FactoryCache::new();
+            SHARED.call(callback)
+        }
+    }
+
+    impl windows_core::RuntimeType for Window {
+        const SIGNATURE: windows_core::imp::ConstBuffer =
+            windows_core::imp::ConstBuffer::for_class::<Self, IWindow>();
+    }
+    unsafe impl windows_core::Interface for Window {
+        type Vtable = <IWindow as windows_core::Interface>::Vtable;
+        const IID: windows_core::GUID = <IWindow as windows_core::Interface>::IID;
+    }
+    impl windows_core::RuntimeName for Window {
+        const NAME: &'static str = "Windows.UI.Xaml.Window";
+    }
+
+    windows_core::imp::define_interface!(
+        IXamlSourceTransparency,
+        IXamlSourceTransparency_Vtbl,
+        0x06636c29_5a17_458d_8ea2_2422d997a922
+    );
+    impl windows_core::RuntimeType for IXamlSourceTransparency {
+        const SIGNATURE: windows_core::imp::ConstBuffer =
+            windows_core::imp::ConstBuffer::for_interface::<Self>();
+    }
+    windows_core::imp::interface_hierarchy!(
+        IXamlSourceTransparency,
+        windows_core::IUnknown,
+        windows_core::IInspectable
+    );
+
+    impl IXamlSourceTransparency {
+        pub unsafe fn SetIsBackgroundTransparent(&self, value: bool) -> windows_core::Result<()> {
+            unsafe {
+                (windows_core::Interface::vtable(self).SetIsBackgroundTransparent)(
+                    windows_core::Interface::as_raw(self),
+                    value,
+                )
+            }
+            .ok()
+        }
+    }
+
+    #[repr(C)]
+    pub struct IXamlSourceTransparency_Vtbl {
+        pub base__: windows_core::IInspectable_Vtbl,
+        pub GetIsBackgroundTransparent:
+            unsafe extern "system" fn(*mut c_void, *mut bool) -> windows_core::HRESULT,
+        pub SetIsBackgroundTransparent:
+            unsafe extern "system" fn(*mut c_void, bool) -> windows_core::HRESULT,
+    }
+
+    windows_core::imp::define_interface!(
         IFrameworkApplicationPrivate,
         IFrameworkApplicationPrivate_Vtbl,
         0xb3ab45d8_6a4e_4e76_a00d_32d4643a9f1a
