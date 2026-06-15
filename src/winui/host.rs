@@ -29,6 +29,7 @@ use windows_core::Interface;
 
 use crate::bindings::*;
 use crate::core::*;
+use muxc_bindings as Muxc;
 
 use super::app_shim::create_island_application;
 use super::{WinUIBackend, WinUIDispatcher};
@@ -89,11 +90,13 @@ pub fn install_winui2_resources() -> windows_core::Result<()> {
         return Ok(());
     }
 
-    if let Err(err) = load_winui2_pri() {
-        crate::diagnostics::emit(&format!(
-            "island_reactor: WinUI 2 PRI load failed: {err:?}\n"
-        ));
-        return Err(err);
+    if !current_exe_sibling("resources.pri")?.exists() {
+        if let Err(err) = load_winui2_pri() {
+            crate::diagnostics::emit(&format!(
+                "island_reactor: WinUI 2 PRI load failed: {err:?}\n"
+            ));
+            return Err(err);
+        }
     }
 
     install_xaml_controls_resources()?;
@@ -142,25 +145,7 @@ fn try_install_winui2_resources() {
 }
 
 fn create_xaml_controls_resources() -> windows_core::Result<ResourceDictionary> {
-    const XAML: &str = r#"<ResourceDictionary
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:muxc="using:Microsoft.UI.Xaml.Controls">
-    <ResourceDictionary.MergedDictionaries>
-        <muxc:XamlControlsResources />
-    </ResourceDictionary.MergedDictionaries>
-</ResourceDictionary>"#;
-
-    match XamlReader::Load(&windows_core::HSTRING::from(XAML))
-        .and_then(|value| value.cast::<ResourceDictionary>())
-    {
-        Ok(resources) => Ok(resources),
-        Err(err) => {
-            crate::diagnostics::emit(&format!(
-                "island_reactor: XamlReader WinUI 2 resource load failed, falling back to activation: {err:?}\n"
-            ));
-            XamlControlsResources::new()?.cast()
-        }
-    }
+    Muxc::XamlControlsResources::new()?.cast()
 }
 
 fn load_winui2_pri() -> windows_core::Result<()> {

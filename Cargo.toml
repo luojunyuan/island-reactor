@@ -6,7 +6,8 @@ edition = "2024"
 [workspace]
 members = [
     "crates/island-reactor-setup",
-    "crates/winui2-setup",
+    "crates/muxc-bindings",
+    "crates/tools/island-reactor-codegen",
     "crates/xaml-bindings",
 ]
 resolver = "3"
@@ -41,10 +42,10 @@ windows-numerics = { workspace = true }
 windows-threading = { workspace = true, features = ["std"] }
 windows-time = { workspace = true, features = ["std"] }
 xaml-bindings = { path = "crates/xaml-bindings" }
+muxc-bindings = { path = "crates/muxc-bindings" }
 
 [build-dependencies]
 island-reactor-setup = { path = "crates/island-reactor-setup" }
-winui2-setup = { path = "crates/winui2-setup" }
 
 [[example]]
 name = "gallery"

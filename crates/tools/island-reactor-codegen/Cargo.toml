@@ -1,0 +1,9 @@
+[package]
+name = "island-reactor-codegen"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+windows-bindgen = { workspace = true }
+xmltree = "0.11"

@@ -21,7 +21,3 @@ windows-future = { workspace = true }
 windows-numerics = { workspace = true }
 windows-reference = { workspace = true, features = ["std"] }
 windows-time = { workspace = true, features = ["std"] }
-
-[build-dependencies]
-windows-bindgen = { workspace = true }
-winui2-setup = { path = "../winui2-setup" }

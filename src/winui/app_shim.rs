@@ -3,10 +3,11 @@ use std::cell::RefCell;
 use windows_core::{Interface, Result, implement};
 
 use crate::bindings::*;
+use muxc_bindings as Muxc;
 
 #[implement(IXamlMetadataProvider)]
 struct IslandApplicationOverrides {
-    controls_provider: RefCell<Option<XamlControlsXamlMetaDataProvider>>,
+    controls_provider: RefCell<Option<Muxc::XamlControlsXamlMetaDataProvider>>,
 }
 
 impl IslandApplicationOverrides {
@@ -21,7 +22,7 @@ impl IslandApplicationOverrides {
             return provider.cast();
         }
 
-        let provider = XamlControlsXamlMetaDataProvider::new()?;
+        let provider = Muxc::XamlControlsXamlMetaDataProvider::new()?;
         *self.controls_provider.borrow_mut() = Some(provider.clone());
         provider.cast()
     }

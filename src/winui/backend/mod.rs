@@ -7,6 +7,7 @@ use windows_core::{IInspectable, Interface, Result};
 use crate::bindings as Xaml;
 use crate::core::backend::*;
 use crate::core::*;
+use muxc_bindings as Muxc;
 
 /// Backend that creates native `Windows.UI.Xaml` controls for XAML Islands.
 pub struct WinUIBackend {
@@ -415,10 +416,10 @@ impl WinUIBackend {
                 select_nav_tag(nav, tag)?;
             }
             (Prop::PaneDisplayMode, PropValue::I32(v), Handle::NavigationView(nav)) => {
-                nav.SetPaneDisplayMode(Xaml::NavigationViewPaneDisplayMode(*v))?;
+                nav.SetPaneDisplayMode(Muxc::NavigationViewPaneDisplayMode(*v))?;
             }
             (Prop::IsPaneOpen, PropValue::Bool(v), h) => {
-                if let Ok(nav) = h.cast_inner::<Xaml::NavigationView>() {
+                if let Ok(nav) = h.cast_inner::<Muxc::NavigationView>() {
                     nav.SetIsPaneOpen(*v)?;
                 } else if let Ok(split) = h.cast_inner::<Xaml::SplitView>() {
                     split.SetIsPaneOpen(*v)?;
@@ -432,9 +433,9 @@ impl WinUIBackend {
             }
             (Prop::IsBackButtonVisible, PropValue::Bool(v), Handle::NavigationView(nav)) => {
                 nav.SetIsBackButtonVisible(if *v {
-                    Xaml::NavigationViewBackButtonVisible::Auto
+                    Muxc::NavigationViewBackButtonVisible::Auto
                 } else {
-                    Xaml::NavigationViewBackButtonVisible::Collapsed
+                    Muxc::NavigationViewBackButtonVisible::Collapsed
                 })?;
             }
             (Prop::IsBackEnabled, PropValue::Bool(v), Handle::NavigationView(nav)) => {
@@ -875,10 +876,10 @@ impl Backend for WinUIBackend {
                     });
                     let token = selector.SelectionChanged(&handler).unwrap();
                     revokers.push(EventSubscription::SelectorSelectionChanged(selector, token));
-                } else if let Ok(nav) = h.cast_inner::<Xaml::NavigationView>() {
+                } else if let Ok(nav) = h.cast_inner::<Muxc::NavigationView>() {
                     let handler = windows::Foundation::TypedEventHandler::<
-                        Xaml::NavigationView,
-                        Xaml::NavigationViewSelectionChangedEventArgs,
+                        Muxc::NavigationView,
+                        Muxc::NavigationViewSelectionChangedEventArgs,
                     >::new(move |_, args| {
                         let tag = args
                             .as_ref()
@@ -926,8 +927,8 @@ impl Backend for WinUIBackend {
             }
             (Event::BackRequested, Handle::NavigationView(nav)) => {
                 let event_handler = windows::Foundation::TypedEventHandler::<
-                    Xaml::NavigationView,
-                    Xaml::NavigationViewBackRequestedEventArgs,
+                    Muxc::NavigationView,
+                    Muxc::NavigationViewBackRequestedEventArgs,
                 >::new(move |_, _| {
                     handler.invoke();
                     Ok(())
@@ -1166,7 +1167,7 @@ enum Handle {
     Image(Xaml::Image),
     ListBox(Xaml::ListBox),
     MenuBar(Xaml::MenuBar),
-    NavigationView(Xaml::NavigationView),
+    NavigationView(Muxc::NavigationView),
     PasswordBox(Xaml::PasswordBox),
     PersonPicture(Xaml::PersonPicture),
     Pivot(Xaml::Pivot),
@@ -1222,7 +1223,7 @@ impl Handle {
             ControlKind::Image => Self::Image(Xaml::Image::new()?),
             ControlKind::ListBox => Self::ListBox(Xaml::ListBox::new()?),
             ControlKind::MenuBar => Self::MenuBar(Xaml::MenuBar::new()?),
-            ControlKind::NavigationView => Self::NavigationView(Xaml::NavigationView::new()?),
+            ControlKind::NavigationView => Self::NavigationView(Muxc::NavigationView::new()?),
             ControlKind::PasswordBox => Self::PasswordBox(Xaml::PasswordBox::new()?),
             ControlKind::PersonPicture => Self::PersonPicture(Xaml::PersonPicture::new()?),
             ControlKind::Pivot => Self::Pivot(Xaml::Pivot::new()?),
@@ -1329,8 +1330,8 @@ enum EventSubscription {
     AutoSuggestBoxQuerySubmitted(Xaml::AutoSuggestBox, i64),
     AutoSuggestBoxSuggestionChosen(Xaml::AutoSuggestBox, i64),
     SelectorSelectionChanged(Xaml::Selector, i64),
-    NavigationViewSelectionChanged(Xaml::NavigationView, i64),
-    NavigationViewBackRequested(Xaml::NavigationView, i64),
+    NavigationViewSelectionChanged(Muxc::NavigationView, i64),
+    NavigationViewBackRequested(Muxc::NavigationView, i64),
     RangeBaseValueChanged(Xaml::RangeBase, i64),
     RatingControlValueChanged(Xaml::RatingControl, i64),
     PasswordBoxPasswordChanged(Xaml::PasswordBox, i64),
@@ -1586,7 +1587,7 @@ fn set_image_uri(image: &Xaml::Image, uri: &str) -> Result<()> {
     image.SetSource(&bitmap.cast::<Xaml::ImageSource>()?)
 }
 
-fn set_nav_items(nav: &Xaml::NavigationView, items: &[NavViewItem]) -> Result<()> {
+fn set_nav_items(nav: &Muxc::NavigationView, items: &[NavViewItem]) -> Result<()> {
     let vec = nav.MenuItems()?;
     vec.Clear()?;
     for item in items {
@@ -1597,14 +1598,14 @@ fn set_nav_items(nav: &Xaml::NavigationView, items: &[NavViewItem]) -> Result<()
     Ok(())
 }
 
-fn build_nav_item(item: &NavViewItem) -> Result<Xaml::NavigationViewItemBase> {
+fn build_nav_item(item: &NavViewItem) -> Result<Muxc::NavigationViewItemBase> {
     if item.is_header {
-        let header = Xaml::NavigationViewItemHeader::new()?;
+        let header = Muxc::NavigationViewItemHeader::new()?;
         header.SetContent(&string_reference(&item.content))?;
         return header.cast();
     }
 
-    let nav_item = Xaml::NavigationViewItem::new()?;
+    let nav_item = Muxc::NavigationViewItem::new()?;
     nav_item.SetContent(&string_reference(&item.content))?;
     if let Some(tag) = &item.tag {
         nav_item
@@ -1618,7 +1619,7 @@ fn build_nav_item(item: &NavViewItem) -> Result<Xaml::NavigationViewItemBase> {
     nav_item.cast()
 }
 
-fn select_nav_tag(nav: &Xaml::NavigationView, tag: &str) -> Result<()> {
+fn select_nav_tag(nav: &Muxc::NavigationView, tag: &str) -> Result<()> {
     let items = nav.MenuItems()?;
     for i in 0..items.Size()? {
         let item = items.GetAt(i)?;

@@ -5,9 +5,7 @@
     dead_code,
     clippy::all
 )]
-mod generated {
-    include!(concat!(env!("OUT_DIR"), "/xaml_bindings.rs"));
-}
+mod bindings;
 
 #[allow(
     non_snake_case,
@@ -254,4 +252,4 @@ pub mod interop {
     }
 }
 
-pub use generated::*;
+pub use bindings::*;

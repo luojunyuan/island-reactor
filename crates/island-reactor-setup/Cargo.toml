@@ -5,4 +5,4 @@ edition = "2024"
 publish = false
 
 [dependencies]
-winui2-setup = { path = "../winui2-setup" }
+muxc-bindings = { path = "../muxc-bindings", default-features = false }

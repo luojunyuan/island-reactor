@@ -7,6 +7,7 @@ name = "island-reactor"
 version = "0.1.0"
 dependencies = [
  "island-reactor-setup",
+ "muxc-bindings",
  "rustc-hash",
  "windows",
  "windows-collections",
@@ -15,15 +16,22 @@ dependencies = [
  "windows-numerics",
  "windows-threading",
  "windows-time",
- "winui2-setup",
  "xaml-bindings",
+]
+
+[[package]]
+name = "island-reactor-codegen"
+version = "0.1.0"
+dependencies = [
+ "windows-bindgen",
+ "xmltree",
 ]
 
 [[package]]
 name = "island-reactor-setup"
 version = "0.1.0"
 dependencies = [
- "winui2-setup",
+ "muxc-bindings",
 ]
 
 [[package]]
@@ -37,6 +45,20 @@ name = "memchr"
 version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88904434abc2901f197fe8cc55f0445e7ded921dba5911dad2e2b39b48e663c4"
+
+[[package]]
+name = "muxc-bindings"
+version = "0.1.0"
+dependencies = [
+ "windows",
+ "windows-collections",
+ "windows-core",
+ "windows-future",
+ "windows-numerics",
+ "windows-reference",
+ "windows-time",
+ "xaml-bindings",
+]
 
 [[package]]
 name = "proc-macro2"
@@ -259,22 +281,31 @@ dependencies = [
 ]
 
 [[package]]
-name = "winui2-setup"
-version = "0.1.0"
-
-[[package]]
 name = "xaml-bindings"
 version = "0.1.0"
 dependencies = [
  "windows",
- "windows-bindgen",
  "windows-collections",
  "windows-core",
  "windows-future",
  "windows-numerics",
  "windows-reference",
  "windows-time",
- "winui2-setup",
+]
+
+[[package]]
+name = "xml-rs"
+version = "0.8.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ae8337f8a065cfc972643663ea4279e04e7256de865aa66fe25cec5fb912d3f"
+
+[[package]]
+name = "xmltree"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b619f8c85654798007fb10afa5125590b43b088c225a25fc2fec100a9fad0fc6"
+dependencies = [
+ "xml-rs",
 ]
 
 [[package]]
