@@ -1,7 +1,7 @@
 use std::{
     env, fs, io,
     path::{Path, PathBuf},
-    process::{self, Command},
+    process::{self, Command, Stdio},
     thread,
     time::{Duration, Instant},
 };
@@ -15,23 +15,15 @@ pub fn embed_manifest() {
     if env::var_os("CARGO_CFG_WINDOWS").is_none() {
         return;
     }
-    let mux = stage_mux_runtime();
-    embed_manifest_for_bins(mux.as_ref());
-}
-
-fn embed_manifest_for_bins(mux: Option<&MuxRegistration>) {
     let manifest_asset = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
         .join("app.manifest");
     println!("cargo:rerun-if-changed={}", manifest_asset.display());
 
-    if env::var_os("CARGO_CFG_WINDOWS").is_none() {
-        return;
-    }
-
+    let mux = stage_mux_runtime();
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
     let manifest_path = out_dir.join("island-reactor-app.manifest");
-    let manifest = match mux {
+    let manifest = match mux.as_ref() {
         Some(mux) => merged_manifest(mux),
         None => APP_MANIFEST.to_string(),
     };
@@ -193,6 +185,8 @@ fn ensure_app_resources_pri(target_dir: &Path, mux_pri: &Path) -> std::io::Resul
         .arg("/cf")
         .arg(&config)
         .arg("/o")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .status()?;
     if !status.success() {
         println!(
