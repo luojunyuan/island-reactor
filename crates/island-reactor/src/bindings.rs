@@ -5517,6 +5517,37 @@ impl IFrameworkElement6 {
             .map(|| result__)
         }
     }
+    pub fn add_ActualThemeChanged<F>(
+        &self,
+        handler: F,
+    ) -> windows_core::Result<windows_core::EventRevoker>
+    where
+        F: Fn(windows_core::Ref<FrameworkElement>, windows_core::Ref<windows_core::IInspectable>)
+            + Send
+            + 'static,
+    {
+        let handler = <windows::Foundation::TypedEventHandler<
+            FrameworkElement,
+            windows_core::IInspectable,
+        >>::new(move |a0, a1| {
+            handler(a0, a1);
+            Ok(())
+        });
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            let token__ = (windows_core::Interface::vtable(self).add_ActualThemeChanged)(
+                windows_core::Interface::as_raw(self),
+                windows_core::Interface::as_raw(&handler),
+                &mut result__,
+            )
+            .map(|| result__)?;
+            Ok(windows_core::EventRevoker::new(
+                self.clone(),
+                token__,
+                windows_core::Interface::vtable(self).remove_ActualThemeChanged,
+            ))
+        }
+    }
 }
 #[repr(C)]
 pub struct IFrameworkElement6_Vtbl {
@@ -5525,8 +5556,13 @@ pub struct IFrameworkElement6_Vtbl {
         *mut core::ffi::c_void,
         *mut ElementTheme,
     ) -> windows_core::HRESULT,
-    add_ActualThemeChanged: usize,
-    remove_ActualThemeChanged: usize,
+    pub add_ActualThemeChanged: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *mut i64,
+    ) -> windows_core::HRESULT,
+    pub remove_ActualThemeChanged:
+        unsafe extern "system" fn(*mut core::ffi::c_void, i64) -> windows_core::HRESULT,
 }
 windows_core::imp::define_interface!(
     IFrameworkTemplate,
@@ -9244,6 +9280,101 @@ pub struct IUIElement_Vtbl {
     InvalidateMeasure: usize,
     InvalidateArrange: usize,
     UpdateLayout: usize,
+}
+windows_core::imp::define_interface!(
+    IUISettings,
+    IUISettings_Vtbl,
+    0x85361600_1c63_4627_bcb1_3a89e0bc9c55
+);
+impl windows_core::RuntimeType for IUISettings {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_interface::<Self>();
+}
+#[repr(C)]
+pub struct IUISettings_Vtbl {
+    pub base__: windows_core::IInspectable_Vtbl,
+    get_HandPreference: usize,
+    get_CursorSize: usize,
+    get_ScrollBarSize: usize,
+    get_ScrollBarArrowSize: usize,
+    get_ScrollBarThumbBoxSize: usize,
+    get_MessageDuration: usize,
+    get_AnimationsEnabled: usize,
+    get_CaretBrowsingEnabled: usize,
+    get_CaretBlinkRate: usize,
+    get_CaretWidth: usize,
+    get_DoubleClickTime: usize,
+    get_MouseHoverTime: usize,
+    UIElementColor: usize,
+}
+windows_core::imp::define_interface!(
+    IUISettings3,
+    IUISettings3_Vtbl,
+    0x03021be4_5254_4781_8194_5168f7d06d7b
+);
+impl windows_core::RuntimeType for IUISettings3 {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_interface::<Self>();
+}
+impl IUISettings3 {
+    pub fn GetColorValue(&self, desiredcolor: UIColorType) -> windows_core::Result<Color> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).GetColorValue)(
+                windows_core::Interface::as_raw(self),
+                desiredcolor,
+                &mut result__,
+            )
+            .map(|| result__)
+        }
+    }
+    pub fn add_ColorValuesChanged<F>(
+        &self,
+        handler: F,
+    ) -> windows_core::Result<windows_core::EventRevoker>
+    where
+        F: Fn(windows_core::Ref<UISettings>, windows_core::Ref<windows_core::IInspectable>)
+            + Send
+            + 'static,
+    {
+        let handler = <windows::Foundation::TypedEventHandler<
+            UISettings,
+            windows_core::IInspectable,
+        >>::new(move |a0, a1| {
+            handler(a0, a1);
+            Ok(())
+        });
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            let token__ = (windows_core::Interface::vtable(self).add_ColorValuesChanged)(
+                windows_core::Interface::as_raw(self),
+                windows_core::Interface::as_raw(&handler),
+                &mut result__,
+            )
+            .map(|| result__)?;
+            Ok(windows_core::EventRevoker::new(
+                self.clone(),
+                token__,
+                windows_core::Interface::vtable(self).remove_ColorValuesChanged,
+            ))
+        }
+    }
+}
+#[repr(C)]
+pub struct IUISettings3_Vtbl {
+    pub base__: windows_core::IInspectable_Vtbl,
+    pub GetColorValue: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        UIColorType,
+        *mut Color,
+    ) -> windows_core::HRESULT,
+    pub add_ColorValuesChanged: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *mut i64,
+    ) -> windows_core::HRESULT,
+    pub remove_ColorValuesChanged:
+        unsafe extern "system" fn(*mut core::ffi::c_void, i64) -> windows_core::HRESULT,
 }
 windows_core::imp::define_interface!(
     IUnhandledExceptionEventArgs,
@@ -13596,6 +13727,29 @@ impl windows_core::RuntimeType for TypeName {
     const SIGNATURE : windows_core::imp::ConstBuffer = windows_core::imp::ConstBuffer::from_slice (b"struct(Windows.UI.Xaml.Interop.TypeName;string;enum(Windows.UI.Xaml.Interop.TypeKind;i4))") ;
 }
 #[repr(transparent)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UIColorType(pub i32);
+impl UIColorType {
+    pub const Background: Self = Self(0);
+    pub const Foreground: Self = Self(1);
+    pub const AccentDark3: Self = Self(2);
+    pub const AccentDark2: Self = Self(3);
+    pub const AccentDark1: Self = Self(4);
+    pub const Accent: Self = Self(5);
+    pub const AccentLight1: Self = Self(6);
+    pub const AccentLight2: Self = Self(7);
+    pub const AccentLight3: Self = Self(8);
+    pub const Complement: Self = Self(9);
+}
+impl windows_core::TypeKind for UIColorType {
+    type TypeKind = windows_core::CopyType;
+}
+impl windows_core::RuntimeType for UIColorType {
+    const SIGNATURE: windows_core::imp::ConstBuffer = windows_core::imp::ConstBuffer::from_slice(
+        b"enum(Windows.UI.ViewManagement.UIColorType;i4)",
+    );
+}
+#[repr(transparent)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UIElement(windows_core::IUnknown);
 windows_core::imp::interface_hierarchy!(
@@ -13653,6 +13807,50 @@ impl windows_core::RuntimeName for UIElementCollection {
 }
 unsafe impl Send for UIElementCollection {}
 unsafe impl Sync for UIElementCollection {}
+#[repr(transparent)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UISettings(windows_core::IUnknown);
+windows_core::imp::interface_hierarchy!(
+    UISettings,
+    windows_core::IUnknown,
+    windows_core::IInspectable
+);
+impl UISettings {
+    pub fn new() -> windows_core::Result<Self> {
+        Self::IActivationFactory(|f| f.ActivateInstance::<Self>())
+    }
+    fn IActivationFactory<
+        R,
+        F: FnOnce(&windows_core::imp::IGenericFactory) -> windows_core::Result<R>,
+    >(
+        callback: F,
+    ) -> windows_core::Result<R> {
+        static SHARED: windows_core::imp::FactoryCache<
+            UISettings,
+            windows_core::imp::IGenericFactory,
+        > = windows_core::imp::FactoryCache::new();
+        SHARED.call(callback)
+    }
+}
+impl windows_core::RuntimeType for UISettings {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_class::<Self, IUISettings>();
+}
+unsafe impl windows_core::Interface for UISettings {
+    type Vtable = <IUISettings as windows_core::Interface>::Vtable;
+    const IID: windows_core::GUID = <IUISettings as windows_core::Interface>::IID;
+}
+impl core::ops::Deref for UISettings {
+    type Target = IUISettings;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+impl windows_core::RuntimeName for UISettings {
+    const NAME: &'static str = "Windows.UI.ViewManagement.UISettings";
+}
+unsafe impl Send for UISettings {}
+unsafe impl Sync for UISettings {}
 #[repr(transparent)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UnhandledExceptionEventArgs(windows_core::IUnknown);

@@ -24,10 +24,10 @@ use windows::{
             WindowsAndMessaging::{
                 CREATESTRUCTW, CW_USEDEFAULT, CreateWindowExW, DefWindowProcW, DispatchMessageW,
                 GWLP_USERDATA, GetClientRect, GetMessageW, HMENU, IDC_ARROW, LoadCursorW, MSG,
-                PostQuitMessage, RegisterClassW, SW_HIDE, SW_SHOW, SWP_NOACTIVATE, SWP_NOZORDER,
-                SWP_SHOWWINDOW, SendMessageW, SetWindowLongPtrW, SetWindowPos, ShowWindow,
-                TranslateMessage, WINDOW_EX_STYLE, WM_DESTROY, WM_NCCREATE, WM_SIZE, WNDCLASSW,
-                WS_EX_NOREDIRECTIONBITMAP, WS_OVERLAPPEDWINDOW,
+                PostMessageW, PostQuitMessage, RegisterClassW, SW_HIDE, SW_SHOW, SWP_NOACTIVATE,
+                SWP_NOZORDER, SWP_SHOWWINDOW, SendMessageW, SetWindowLongPtrW, SetWindowPos,
+                ShowWindow, TranslateMessage, WINDOW_EX_STYLE, WM_APP, WM_DESTROY, WM_NCCREATE,
+                WM_SIZE, WNDCLASSW, WS_EX_NOREDIRECTIONBITMAP, WS_OVERLAPPEDWINDOW,
             },
         },
     },
@@ -45,14 +45,17 @@ use super::{WinUIBackend, WinUIDispatcher};
 static XAML_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 static CORE_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 static ACTIVE_HOST_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
+const WM_ISLAND_REACTOR_SYSTEM_THEME_CHANGED: u32 = WM_APP + 0x491;
 
 thread_local! {
     static ROOT_FRAMEWORK_ELEMENT: RefCell<Option<FrameworkElement>> = const { RefCell::new(None) };
-    static PENDING_THEME: Cell<Option<ElementTheme>> = const { Cell::new(None) };
+    static REQUESTED_THEME: Cell<RequestedTheme> = const { Cell::new(RequestedTheme::Default) };
+    static PENDING_THEME: Cell<Option<RequestedTheme>> = const { Cell::new(None) };
     static PENDING_BACKDROP: Cell<Option<Backdrop>> = const { Cell::new(None) };
     static WINUI2_RESOURCES_INSTALLED: Cell<bool> = const { Cell::new(false) };
     static UNHANDLED_EXCEPTION_HANDLER: RefCell<Option<windows_core::EventRevoker>> =
         const { RefCell::new(None) };
+    static THEME_CHANGED_CALLBACK: RefCell<Option<Rc<dyn Fn()>>> = const { RefCell::new(None) };
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -88,19 +91,13 @@ impl Backdrop {
 }
 
 pub fn set_requested_theme(theme: RequestedTheme) {
-    let element_theme = match theme {
-        RequestedTheme::Light => ElementTheme::Light,
-        RequestedTheme::Dark => ElementTheme::Dark,
-        RequestedTheme::Default => ElementTheme::Default,
-    };
+    REQUESTED_THEME.with(|requested| requested.set(theme));
     ROOT_FRAMEWORK_ELEMENT.with(|cell| {
         if let Some(fe) = cell.borrow().as_ref() {
-            let _ = fe
-                .cast::<IFrameworkElement2>()
-                .and_then(|fe| fe.put_RequestedTheme(element_theme));
-            update_color_scheme_from(fe);
+            apply_requested_theme(fe, theme);
         } else {
-            PENDING_THEME.with(|pending| pending.set(Some(element_theme)));
+            PENDING_THEME.with(|pending| pending.set(Some(theme)));
+            update_window_theme_from_requested();
         }
     });
 }
@@ -268,11 +265,16 @@ fn install_xaml_exception_logging() {
 pub struct ReactorHost {
     render_host: RenderHost<WinUIBackend, WinUIDispatcher>,
     hwnd: HWND,
+    _system_theme_subscription: Option<SystemThemeSubscription>,
     _application: Application,
     _xaml_source: DesktopWindowXamlSource,
     _xaml_manager: WindowsXamlManager,
     presenter: Cell<PresenterKind>,
     backdrop: Cell<Option<Backdrop>>,
+}
+
+struct SystemThemeSubscription {
+    _revoker: windows_core::EventRevoker,
 }
 
 impl ReactorHost {
@@ -327,6 +329,8 @@ impl ReactorHost {
 
         let hwnd = create_main_window(title.as_ref(), size, backdrop)?;
         ACTIVE_HOST_HWND.store(hwnd.0, Ordering::Relaxed);
+        let system_theme_subscription = subscribe_system_theme_changed(hwnd);
+        update_window_theme_from_requested();
         apply_backdrop(hwnd, backdrop);
         let xaml_source = DesktopWindowXamlSource::new()?;
         let native_source: IDesktopWindowXamlSourceNative = xaml_source.cast()?;
@@ -349,6 +353,7 @@ impl ReactorHost {
 
         let dispatcher = WinUIDispatcher::for_current_thread()?;
         let render_host = RenderHost::new(WinUIBackend::new(), root, dispatcher);
+        install_theme_changed_callback(render_host.clone_inner());
         render_host.set_inner_size(client_size_dips(hwnd));
         render_host.set_dpi(current_dpi(hwnd));
         render_host.with_reconciler_mut(configure);
@@ -377,11 +382,11 @@ impl ReactorHost {
                             *cell.borrow_mut() = Some(fe.clone());
                         });
                         if let Some(theme) = PENDING_THEME.with(|pending| pending.take()) {
-                            let _ = fe
-                                .cast::<IFrameworkElement2>()
-                                .and_then(|fe| fe.put_RequestedTheme(theme));
+                            apply_requested_theme(&fe, theme);
+                        } else {
+                            apply_requested_theme(&fe, requested_theme());
                         }
-                        update_color_scheme_from(&fe);
+                        subscribe_actual_theme_changed(&fe);
                     }
                 }
             } else {
@@ -394,6 +399,7 @@ impl ReactorHost {
         Ok(Self {
             render_host,
             hwnd,
+            _system_theme_subscription: system_theme_subscription,
             _application: application,
             _xaml_manager: xaml_manager,
             _xaml_source: xaml_source,
@@ -437,6 +443,7 @@ impl ReactorHost {
 
 impl Drop for ReactorHost {
     fn drop(&mut self) {
+        self._system_theme_subscription = None;
         self.render_host.clear_callbacks();
         let _ = self._xaml_source.put_Content(None);
         ROOT_FRAMEWORK_ELEMENT.with(|cell| {
@@ -444,6 +451,9 @@ impl Drop for ReactorHost {
         });
         self.render_host.with_backend(|backend| backend.shutdown());
         UNHANDLED_EXCEPTION_HANDLER.with(|slot| {
+            *slot.borrow_mut() = None;
+        });
+        THEME_CHANGED_CALLBACK.with(|slot| {
             *slot.borrow_mut() = None;
         });
         XAML_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
@@ -536,6 +546,11 @@ unsafe extern "system" fn wnd_proc(
             set_synchronization_window(hwnd);
             LRESULT(0)
         }
+        WM_ISLAND_REACTOR_SYSTEM_THEME_CHANGED => {
+            apply_current_requested_theme();
+            notify_host_theme_changed();
+            LRESULT(0)
+        }
         WM_DESTROY => {
             if ACTIVE_HOST_HWND.load(Ordering::Relaxed) == hwnd.0 {
                 ACTIVE_HOST_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
@@ -553,7 +568,131 @@ fn window_ex_style(_backdrop: Option<Backdrop>) -> WINDOW_EX_STYLE {
     WS_EX_NOREDIRECTIONBITMAP
 }
 
+fn subscribe_system_theme_changed(hwnd: HWND) -> Option<SystemThemeSubscription> {
+    let settings = match UISettings::new() {
+        Ok(settings) => settings,
+        Err(err) => {
+            crate::diagnostics::emit(&format!(
+                "island_reactor: UISettings creation failed: {err:?}\n"
+            ));
+            return None;
+        }
+    };
+    let settings = match settings.cast::<IUISettings3>() {
+        Ok(settings) => settings,
+        Err(err) => {
+            crate::diagnostics::emit(&format!(
+                "island_reactor: UISettings theme interface unavailable: {err:?}\n"
+            ));
+            return None;
+        }
+    };
+    let raw_hwnd = hwnd.0 as isize;
+    let revoker = match settings.add_ColorValuesChanged(move |_, _| {
+        let hwnd = HWND(raw_hwnd as *mut c_void);
+        unsafe {
+            let _ = PostMessageW(
+                Some(hwnd),
+                WM_ISLAND_REACTOR_SYSTEM_THEME_CHANGED,
+                WPARAM(0),
+                LPARAM(0),
+            );
+        }
+    }) {
+        Ok(revoker) => revoker,
+        Err(err) => {
+            crate::diagnostics::emit(&format!(
+                "island_reactor: UISettings ColorValuesChanged hookup failed: {err:?}\n"
+            ));
+            return None;
+        }
+    };
+    Some(SystemThemeSubscription { _revoker: revoker })
+}
+
+fn install_theme_changed_callback(render_host: RenderHost<WinUIBackend, WinUIDispatcher>) {
+    THEME_CHANGED_CALLBACK.with(|slot| {
+        *slot.borrow_mut() = Some(Rc::new(move || {
+            render_host.with_reconciler_mut(|r| r.notify_theme_changed());
+            render_host.request_render();
+        }));
+    });
+}
+
+fn notify_host_theme_changed() {
+    THEME_CHANGED_CALLBACK.with(|slot| {
+        if let Some(callback) = slot.borrow().as_ref() {
+            callback();
+        }
+    });
+}
+
+fn requested_theme() -> RequestedTheme {
+    REQUESTED_THEME.with(Cell::get)
+}
+
+fn apply_current_requested_theme() {
+    let theme = requested_theme();
+    ROOT_FRAMEWORK_ELEMENT.with(|cell| {
+        if let Some(fe) = cell.borrow().as_ref() {
+            apply_requested_theme(fe, theme);
+        } else {
+            update_window_theme_from_requested();
+        }
+    });
+}
+
+fn apply_requested_theme(fe: &FrameworkElement, theme: RequestedTheme) {
+    let element_theme = resolve_requested_theme(theme);
+    let _ = fe
+        .cast::<IFrameworkElement2>()
+        .and_then(|fe| fe.put_RequestedTheme(element_theme));
+    update_color_scheme(element_theme);
+}
+
+fn resolve_requested_theme(theme: RequestedTheme) -> ElementTheme {
+    match theme {
+        RequestedTheme::Light => ElementTheme::Light,
+        RequestedTheme::Dark => ElementTheme::Dark,
+        RequestedTheme::Default => system_element_theme(),
+    }
+}
+
+fn system_element_theme() -> ElementTheme {
+    if system_uses_light_theme() {
+        ElementTheme::Light
+    } else {
+        ElementTheme::Dark
+    }
+}
+
+fn system_uses_light_theme() -> bool {
+    UISettings::new()
+        .and_then(|settings| settings.cast::<IUISettings3>())
+        .and_then(|settings| settings.GetColorValue(UIColorType::Foreground))
+        .map(|foreground| !is_color_light(foreground))
+        .unwrap_or(true)
+}
+
+fn is_color_light(color: crate::bindings::Color) -> bool {
+    5 * color.G as u16 + 2 * color.R as u16 + color.B as u16 > 8 * 128
+}
+
+fn update_window_theme_from_requested() {
+    let raw_hwnd = ACTIVE_HOST_HWND.load(Ordering::Relaxed);
+    if raw_hwnd.is_null() {
+        return;
+    }
+    update_window_theme(HWND(raw_hwnd), resolve_requested_theme(requested_theme()));
+}
+
+fn update_window_theme(hwnd: HWND, theme: ElementTheme) {
+    set_window_dark_mode(hwnd, matches!(theme, ElementTheme::Dark));
+}
+
 fn apply_backdrop(hwnd: HWND, backdrop: Option<Backdrop>) {
+    update_window_theme(hwnd, resolve_requested_theme(requested_theme()));
+
     if backdrop.is_some() && !supports_system_backdrop() {
         crate::diagnostics::emit(
             "island_reactor: system backdrop requires Windows 11 22H2 or newer\n",
@@ -786,21 +925,42 @@ fn default_display_size() -> crate::core::Size {
     }
 }
 
+fn subscribe_actual_theme_changed(fe: &FrameworkElement) {
+    update_color_scheme_from(fe);
+
+    let _ = fe
+        .cast::<IFrameworkElement6>()
+        .and_then(|fe| {
+            fe.add_ActualThemeChanged(move |sender, _| {
+                if let Some(fe) = sender.as_ref() {
+                    update_color_scheme_from(fe);
+                }
+                notify_host_theme_changed();
+            })
+        })
+        .ok()
+        .map(|revoker| revoker.into_token());
+}
+
 fn update_color_scheme_from(fe: &FrameworkElement) {
     if let Ok(theme) = fe
         .cast::<IFrameworkElement6>()
         .and_then(|fe| fe.get_ActualTheme())
     {
-        let scheme = match theme {
-            ElementTheme::Dark => crate::core::theme::ColorScheme::Dark,
-            _ => crate::core::theme::ColorScheme::Light,
-        };
-        crate::core::theme::set_current_color_scheme(scheme);
+        update_color_scheme(theme);
+    }
+}
 
-        let raw_hwnd = ACTIVE_HOST_HWND.load(Ordering::Relaxed);
-        if !raw_hwnd.is_null() {
-            set_window_dark_mode(HWND(raw_hwnd), matches!(theme, ElementTheme::Dark));
-        }
+fn update_color_scheme(theme: ElementTheme) {
+    let scheme = match theme {
+        ElementTheme::Dark => crate::core::theme::ColorScheme::Dark,
+        _ => crate::core::theme::ColorScheme::Light,
+    };
+    crate::core::theme::set_current_color_scheme(scheme);
+
+    let raw_hwnd = ACTIVE_HOST_HWND.load(Ordering::Relaxed);
+    if !raw_hwnd.is_null() {
+        update_window_theme(HWND(raw_hwnd), theme);
     }
 }
 
