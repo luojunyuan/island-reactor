@@ -33,11 +33,6 @@ fn app(_cx: &mut RenderCx) -> Element {
     ];
     border(layout)
         .padding(16.0)
-        .background(Color {
-            a: 0,
-            r: 0,
-            g: 0,
-            b: 0,
-        })
+        .background(ThemeRef::custom("ApplicationPageBackgroundThemeBrush"))
         .into()
 }

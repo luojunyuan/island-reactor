@@ -1685,54 +1685,30 @@ fn xaml_brush(brush: &Brush) -> Result<Xaml::Brush> {
     }
 }
 
-fn solid_brush(color: Xaml::Color) -> Result<Xaml::Brush> {
-    let brush = Xaml::SolidColorBrush::new()?;
-    brush.put_Color(color)?;
-    brush.cast()
-}
-
 fn apply_button_style_variant(button: &Xaml::Button, variant: i32) -> Result<()> {
-    let control: Xaml::Control = button.cast()?;
-    match variant {
-        1 => {
-            control.put_Background(&solid_brush(Xaml::Color {
-                A: 255,
-                R: 0,
-                G: 120,
-                B: 212,
-            })?)?;
-            control.put_Foreground(&solid_brush(Xaml::Color {
-                A: 255,
-                R: 255,
-                G: 255,
-                B: 255,
-            })?)?;
-        }
-        2 => {
-            control.put_Background(&solid_brush(Xaml::Color {
-                A: 0,
-                R: 0,
-                G: 0,
-                B: 0,
-            })?)?;
-        }
-        3 => {
-            control.put_Background(&solid_brush(Xaml::Color {
-                A: 0,
-                R: 0,
-                G: 0,
-                B: 0,
-            })?)?;
-            control.put_Foreground(&solid_brush(Xaml::Color {
-                A: 255,
-                R: 0,
-                G: 102,
-                B: 204,
-            })?)?;
-        }
-        _ => {}
+    let fe: Xaml::IFrameworkElement = button.cast()?;
+    let style_key = match variant {
+        1 => Some("AccentButtonStyle"),
+        2 => Some("SubtleButtonStyle"),
+        3 => Some("TextBlockButtonStyle"),
+        _ => None,
+    };
+    if let Some(key) = style_key {
+        apply_resource_style(&fe, key)?;
+    } else {
+        fe.put_Style(None)?;
     }
     Ok(())
+}
+
+fn apply_resource_style(fe: &Xaml::IFrameworkElement, resource_key: &str) -> Result<()> {
+    let resources = Xaml::Application::get_Current().and_then(|app| app.get_Resources())?;
+    let key = windows_reference::IReference::from(windows_core::HSTRING::from(resource_key));
+    let map = resources
+        .cast::<windows_collections::IMap<windows_core::IInspectable, windows_core::IInspectable>>(
+        )?;
+    let style = map.Lookup(&key)?.cast::<Xaml::Style>()?;
+    fe.put_Style(&style)
 }
 
 fn hstring(s: &str) -> windows_core::HSTRING {
