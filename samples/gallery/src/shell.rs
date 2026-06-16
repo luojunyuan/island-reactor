@@ -138,23 +138,22 @@ pub fn gallery_shell(cx: &mut RenderCx) -> Element {
             .padding(0.0)
     };
 
-    let top_bar = border(
+    let title_bar: Element = TitleBar::new("Island Reactor Gallery")
+        .subtitle("XAML Islands + WinUI 2")
+        .content(text_block("Controls Gallery").opacity(0.72))
+        .into();
+
+    let command_bar = border(
         grid((
             pane_button.grid_column(0),
             back_button.grid_column(1),
-            text_block("Island Reactor Gallery")
-                .font_size(16.0)
-                .semibold()
-                .vertical_alignment(VerticalAlignment::Center)
-                .grid_column(2),
-            search_box.grid_column(3),
-            theme_button.grid_column(4),
+            search_box.grid_column(2),
+            theme_button.grid_column(3),
         ))
         .columns([
             GridLength::Auto,
             GridLength::Auto,
             GridLength::Star(1.0),
-            GridLength::Auto,
             GridLength::Auto,
         ])
         .column_spacing(8.0),
@@ -191,10 +190,14 @@ pub fn gallery_shell(cx: &mut RenderCx) -> Element {
         .back_button_visible(false)
         .font_family("Segoe UI Variable");
 
-    grid((top_bar.grid_row(0), nav_view.grid_row(1)))
-        .rows([GridLength::Auto, GridLength::Star(1.0)])
-        .columns([GridLength::Star(1.0)])
-        .into()
+    grid((
+        title_bar.grid_row(0),
+        command_bar.grid_row(1),
+        nav_view.grid_row(2),
+    ))
+    .rows([GridLength::Auto, GridLength::Auto, GridLength::Star(1.0)])
+    .columns([GridLength::Star(1.0)])
+    .into()
 }
 
 fn category_icon(category: &str) -> SymbolGlyph {

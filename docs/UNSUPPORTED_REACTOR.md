@@ -22,6 +22,7 @@ These upstream Reactor controls are now represented by wrappers backed by `Micro
 | `RadioButtons` | RadioButton page sample | Uses MUXC grouped `RadioButtons`; included as a sample on the RadioButton page. |
 | `TabView` | `tab-view` | Uses MUXC `TabView`/`TabViewItem`; supports selection, add-tab button, and close metadata. |
 | `TeachingTip` | `teaching-tip` | Uses MUXC `TeachingTip`; supports title, subtitle, open state, close/action buttons, and events. |
+| `TitleBar` | `title-bar`; gallery shell startup | Uses an island-local `Windows.UI.Xaml` composite control plus Xaml-Islands-Cpp-style Win32 non-client integration because WinUI 2 does not expose `Microsoft.UI.Xaml.Controls.TitleBar`. |
 | `App::backdrop`, `set_backdrop`, `Backdrop::Mica`, `Backdrop::MicaAlt`, `Backdrop::Acrylic` | `materials` | Uses the Xaml-Islands-Cpp-style Win32/DWM backdrop path on Windows 11 22H2 or newer. |
 
 ## Adapted Surface
@@ -36,7 +37,7 @@ These upstream Reactor controls are now represented by wrappers backed by `Micro
 | Upstream control/API | Omitted gallery page/tag | Reason | Possible future path |
 | --- | --- | --- | --- |
 | `SelectorBar` | `selector-bar` | Not exposed by the WinUI 2 AppX winmd used by this project. | Keep omitted or compose from `Pivot`, `RadioButtons`, or `ListView`. |
-| `TitleBar` | `title-bar`; gallery shell startup | Custom title bar APIs are outside the current XAML Islands wrapper surface. | Implement separate Win32 non-client/titlebar integration. |
+| WinUI 3 `TitleBar` drag-region/input fine details | None | XAML Islands require a native overlay HWND for custom non-client titlebar behavior. The current island implementation restores the public `TitleBar` API, gallery page, native drag, caption button hit-testing, and custom frame enable/disable path, but does not yet reproduce WinUI 3's full drag-region exclusion model for arbitrary interactive controls placed in the live top titlebar. | Add explicit drag-region calculation or pointer interop so top-level `TitleBar.content` / `footer` controls can coexist with native drag hit-testing exactly like WinUI 3. |
 | `SurfaceImageSource` | None | Direct2D surface interop interfaces are not generated for this crate. | Add hand-written COM bindings and lifetime management for the required native surface interfaces. |
 | `SwapChainPanel` native interop helpers | None; upstream swap-chain sample omitted | Swap-chain native interop interfaces and composition scale events are not exposed by the checked-in bindings. | Add hand-written COM bindings for swap-chain interop and a focused DirectX sample. |
 | `NavViewItem::child` / nested navigation menu items | Gallery shell nested navigation omitted | `NavigationViewItem.MenuItems` is not currently wrapped. | Add a typed wrapper over MUXC nested menu APIs or keep the gallery navigation flat. |

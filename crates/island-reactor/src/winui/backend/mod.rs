@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use rustc_hash::FxHashMap;
@@ -39,6 +39,19 @@ impl WinUIBackend {
             theme_brush_registry: RefCell::new(FxHashMap::default()),
             next_id: RefCell::new(0),
         }
+    }
+
+    pub(crate) fn root_titlebar_height_dips(&self, root_id: Option<ControlId>) -> Option<f64> {
+        let root_id = root_id?;
+        let controls = self.controls.borrow();
+        titlebar_height_from_handle(controls.get(&root_id)?).or_else(|| {
+            self.parent_children
+                .borrow()
+                .get(&root_id)
+                .into_iter()
+                .flat_map(|children| children.iter())
+                .find_map(|child_id| titlebar_height_from_handle(controls.get(child_id)?))
+        })
     }
 
     pub fn get_ui_element(&self, id: ControlId) -> Option<IInspectable> {
@@ -476,6 +489,9 @@ impl WinUIBackend {
             (Prop::IsPaneToggleButtonVisible, PropValue::Bool(v), Handle::NavigationView(nav)) => {
                 nav.put_IsPaneToggleButtonVisible(*v)?;
             }
+            (Prop::IsPaneToggleButtonVisible, PropValue::Bool(v), Handle::TitleBar(tb)) => {
+                tb.set_pane_toggle_button_visible(*v)?;
+            }
             (Prop::IsBackButtonVisible, PropValue::Bool(v), Handle::NavigationView(nav)) => {
                 nav.cast::<Muxc::INavigationView2>()?
                     .put_IsBackButtonVisible(if *v {
@@ -483,6 +499,12 @@ impl WinUIBackend {
                     } else {
                         Muxc::NavigationViewBackButtonVisible::Collapsed
                     })?;
+            }
+            (Prop::IsBackButtonVisible, PropValue::Bool(v), Handle::TitleBar(tb)) => {
+                tb.set_back_button_visible(*v)?;
+            }
+            (Prop::IsBackButtonEnabled, PropValue::Bool(v), Handle::TitleBar(tb)) => {
+                tb.set_back_button_enabled(*v)?;
             }
             (Prop::IsBackEnabled, PropValue::Bool(v), Handle::NavigationView(nav)) => {
                 nav.cast::<Muxc::INavigationView2>()?
@@ -493,6 +515,9 @@ impl WinUIBackend {
             }
             (Prop::Title, PropValue::Str(s), Handle::InfoBar(info)) => {
                 info.put_Title(s)?;
+            }
+            (Prop::Title, PropValue::Str(s), Handle::TitleBar(tb)) => {
+                tb.set_title(s)?;
             }
             (Prop::Message, PropValue::Str(s), Handle::InfoBar(info)) => {
                 info.put_Message(s)?;
@@ -511,6 +536,12 @@ impl WinUIBackend {
             }
             (Prop::Subtitle, PropValue::Str(s), Handle::TeachingTip(tip)) => {
                 tip.put_Subtitle(s)?;
+            }
+            (Prop::Subtitle, PropValue::Str(s), Handle::TitleBar(tb)) => {
+                tb.set_subtitle(s)?;
+            }
+            (Prop::Tall, PropValue::Bool(v), Handle::TitleBar(tb)) => {
+                tb.set_tall(*v)?;
             }
             (Prop::IsOpen, PropValue::Bool(v), Handle::TeachingTip(tip)) => {
                 tip.put_IsOpen(*v)?;
@@ -1143,6 +1174,16 @@ impl Backend for WinUIBackend {
                         .unwrap(),
                 );
             }
+            (Event::BackRequested, Handle::TitleBar(tb)) => {
+                if let Ok(subscription) = tb.add_back_requested(handler) {
+                    revokers.push(subscription);
+                }
+            }
+            (Event::PaneToggleRequested, Handle::TitleBar(tb)) => {
+                if let Ok(subscription) = tb.add_pane_toggle_requested(handler) {
+                    revokers.push(subscription);
+                }
+            }
             (Event::PasswordChanged, Handle::PasswordBox(pb)) => {
                 revokers.push(
                     pb.add_PasswordChanged(move |sender, _| {
@@ -1249,43 +1290,55 @@ impl Backend for WinUIBackend {
 
     fn set_header_element(&mut self, id: ControlId, header_id: Option<ControlId>) {
         let map = self.controls.borrow();
-        let Some(Handle::Expander(expander)) = map.get(&id) else {
+        let Some(handle) = map.get(&id) else {
             return;
         };
-        match header_id
+        let content = header_id
             .and_then(|hid| map.get(&hid))
             .and_then(|h| h.as_ui_element().ok())
-            .and_then(|ui| ui.cast::<IInspectable>().ok())
-        {
-            Some(header) => {
-                let _ = expander
-                    .cast::<Muxc::IExpander>()
-                    .and_then(|expander| expander.put_Header(&header));
+            .and_then(|ui| ui.cast::<IInspectable>().ok());
+        match handle {
+            Handle::Expander(expander) => match content {
+                Some(header) => {
+                    let _ = expander
+                        .cast::<Muxc::IExpander>()
+                        .and_then(|expander| expander.put_Header(&header));
+                }
+                None => {
+                    let _ = expander
+                        .cast::<Muxc::IExpander>()
+                        .and_then(|expander| expander.put_Header(None));
+                }
+            },
+            Handle::TitleBar(tb) => {
+                let _ = tb.set_content(content.as_ref());
             }
-            None => {
-                let _ = expander
-                    .cast::<Muxc::IExpander>()
-                    .and_then(|expander| expander.put_Header(None));
-            }
-        }
+            _ => {}
+        };
     }
 
     fn set_pane_element(&mut self, id: ControlId, pane_id: Option<ControlId>) {
         let map = self.controls.borrow();
-        let Some(Handle::SplitView(split)) = map.get(&id) else {
+        let Some(handle) = map.get(&id) else {
             return;
         };
-        match pane_id
+        let content = pane_id
             .and_then(|pid| map.get(&pid))
-            .and_then(|h| h.as_ui_element().ok())
-        {
-            Some(ui) => {
-                let _ = split.put_Pane(&ui);
+            .and_then(|h| h.as_ui_element().ok());
+        match handle {
+            Handle::SplitView(split) => match content {
+                Some(ui) => {
+                    let _ = split.put_Pane(&ui);
+                }
+                None => {
+                    let _ = split.put_Pane(None);
+                }
+            },
+            Handle::TitleBar(tb) => {
+                let _ = tb.set_footer(content.as_ref());
             }
-            None => {
-                let _ = split.put_Pane(None);
-            }
-        }
+            _ => {}
+        };
     }
 
     fn set_theme_bindings(
@@ -1448,6 +1501,7 @@ enum Handle {
     TeachingTip(Muxc::TeachingTip),
     TextBlock(Xaml::TextBlock),
     TextBox(Xaml::TextBox),
+    TitleBar(IslandTitleBar),
     TimePicker(Xaml::TimePicker),
     ToggleButton(Xaml::ToggleButton),
     ToggleSwitch(Xaml::ToggleSwitch),
@@ -1513,6 +1567,7 @@ impl Handle {
             ControlKind::TeachingTip => Self::TeachingTip(Muxc::TeachingTip::new()?),
             ControlKind::TextBlock => Self::TextBlock(Xaml::TextBlock::new()?),
             ControlKind::TextBox => Self::TextBox(Xaml::TextBox::new()?),
+            ControlKind::TitleBar => Self::TitleBar(IslandTitleBar::new()?),
             ControlKind::TimePicker => Self::TimePicker(Xaml::TimePicker::new()?),
             ControlKind::ToggleButton => Self::ToggleButton(Xaml::ToggleButton::new()?),
             ControlKind::ToggleSwitch => Self::ToggleSwitch(Xaml::ToggleSwitch::new()?),
@@ -1576,6 +1631,7 @@ impl Handle {
             Self::TeachingTip(v) => v.cast(),
             Self::TextBlock(v) => v.cast(),
             Self::TextBox(v) => v.cast(),
+            Self::TitleBar(v) => v.as_ui_element()?.cast(),
             Self::TimePicker(v) => v.cast(),
             Self::ToggleButton(v) => v.cast(),
             Self::ToggleSwitch(v) => v.cast(),
@@ -1599,6 +1655,302 @@ impl Handle {
 }
 
 type EventSubscription = windows_core::EventRevoker;
+
+fn titlebar_height_from_handle(handle: &Handle) -> Option<f64> {
+    if let Handle::TitleBar(titlebar) = handle {
+        Some(titlebar.height_dips())
+    } else {
+        None
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct IslandTitleBar {
+    root: Xaml::Grid,
+    back_button: Xaml::Button,
+    pane_button: Xaml::Button,
+    title_text: Xaml::TextBlock,
+    subtitle_text: Xaml::TextBlock,
+    content_slot: Xaml::ContentControl,
+    footer_slot: Xaml::ContentControl,
+    _caption_buttons: Xaml::Grid,
+    _caption_button_revokers: Rc<Vec<EventSubscription>>,
+    height_dips: Rc<Cell<f64>>,
+}
+
+impl IslandTitleBar {
+    const STANDARD_HEIGHT: f64 = 40.0;
+    const TALL_HEIGHT: f64 = 48.0;
+    const COMMAND_WIDTH: f64 = 40.0;
+    const CAPTION_BUTTON_WIDTH: f64 = 46.0;
+
+    fn new() -> Result<Self> {
+        let root = Xaml::Grid::new()?;
+        root.cast::<Xaml::IGrid3>()?.put_ColumnSpacing(0.0)?;
+        let root_fe: Xaml::IFrameworkElement = root.cast()?;
+        root_fe.put_Height(Self::STANDARD_HEIGHT)?;
+        root_fe.put_HorizontalAlignment(Xaml::HorizontalAlignment::Stretch)?;
+        root_fe.put_VerticalAlignment(Xaml::VerticalAlignment::Top)?;
+
+        append_grid_column(&root, grid_length_auto())?;
+        append_grid_column(&root, grid_length_auto())?;
+        append_grid_column(&root, grid_length_auto())?;
+        append_grid_column(&root, grid_length_star())?;
+        append_grid_column(&root, grid_length_auto())?;
+        append_grid_column(&root, grid_length_pixel(Self::CAPTION_BUTTON_WIDTH * 3.0))?;
+
+        let back_button = titlebar_glyph_button("\u{E72B}", Self::COMMAND_WIDTH)?;
+        place_in_grid(&back_button, 0)?;
+        append_to_panel(&root, &back_button)?;
+
+        let pane_button = titlebar_glyph_button("\u{E700}", Self::COMMAND_WIDTH)?;
+        place_in_grid(&pane_button, 1)?;
+        append_to_panel(&root, &pane_button)?;
+
+        let title_stack = Xaml::StackPanel::new()?;
+        title_stack.put_Orientation(Xaml::Orientation::Vertical)?;
+        if let Ok(spacing) = title_stack.cast::<Xaml::IStackPanel4>() {
+            let _ = spacing.put_Spacing(0.0);
+        }
+        let title_stack_fe: Xaml::IFrameworkElement = title_stack.cast()?;
+        title_stack_fe.put_VerticalAlignment(Xaml::VerticalAlignment::Center)?;
+        title_stack_fe.put_Margin(Xaml::Thickness {
+            Left: 12.0,
+            Top: 0.0,
+            Right: 12.0,
+            Bottom: 0.0,
+        })?;
+        place_in_grid(&title_stack, 2)?;
+
+        let title_text = Xaml::TextBlock::new()?;
+        title_text.put_FontSize(12.0)?;
+        title_text.put_FontWeight(Xaml::FontWeight { Weight: 600 })?;
+        title_text.put_TextWrapping(Xaml::TextWrapping::NoWrap)?;
+        append_to_panel(&title_stack, &title_text)?;
+
+        let subtitle_text = Xaml::TextBlock::new()?;
+        subtitle_text.put_FontSize(11.0)?;
+        subtitle_text.put_TextWrapping(Xaml::TextWrapping::NoWrap)?;
+        subtitle_text.cast::<Xaml::UIElement>()?.put_Opacity(0.65)?;
+        append_to_panel(&title_stack, &subtitle_text)?;
+        append_to_panel(&root, &title_stack)?;
+
+        let content_slot = new_content_control()?;
+        let content_fe: Xaml::IFrameworkElement = content_slot.cast()?;
+        content_fe.put_HorizontalAlignment(Xaml::HorizontalAlignment::Stretch)?;
+        content_fe.put_VerticalAlignment(Xaml::VerticalAlignment::Center)?;
+        place_in_grid(&content_slot, 3)?;
+        append_to_panel(&root, &content_slot)?;
+
+        let footer_slot = new_content_control()?;
+        let footer_fe: Xaml::IFrameworkElement = footer_slot.cast()?;
+        footer_fe.put_VerticalAlignment(Xaml::VerticalAlignment::Center)?;
+        place_in_grid(&footer_slot, 4)?;
+        append_to_panel(&root, &footer_slot)?;
+
+        let caption_buttons = Xaml::Grid::new()?;
+        for _ in 0..3 {
+            append_grid_column(
+                &caption_buttons,
+                grid_length_pixel(Self::CAPTION_BUTTON_WIDTH),
+            )?;
+        }
+        let caption_fe: Xaml::IFrameworkElement = caption_buttons.cast()?;
+        caption_fe.put_Height(32.0)?;
+        caption_fe.put_HorizontalAlignment(Xaml::HorizontalAlignment::Right)?;
+        caption_fe.put_VerticalAlignment(Xaml::VerticalAlignment::Top)?;
+        place_in_grid(&caption_buttons, 5)?;
+
+        let minimize = titlebar_glyph_button("\u{E921}", Self::CAPTION_BUTTON_WIDTH)?;
+        place_in_grid(&minimize, 0)?;
+        append_to_panel(&caption_buttons, &minimize)?;
+        let maximize = titlebar_glyph_button("\u{E922}", Self::CAPTION_BUTTON_WIDTH)?;
+        place_in_grid(&maximize, 1)?;
+        append_to_panel(&caption_buttons, &maximize)?;
+        let close = titlebar_glyph_button("\u{E8BB}", Self::CAPTION_BUTTON_WIDTH)?;
+        place_in_grid(&close, 2)?;
+        append_to_panel(&caption_buttons, &close)?;
+        append_to_panel(&root, &caption_buttons)?;
+
+        let caption_button_revokers = vec![
+            minimize
+                .cast::<Xaml::ButtonBase>()?
+                .add_Click(|_, _| super::host::minimize_active_window())?,
+            maximize
+                .cast::<Xaml::ButtonBase>()?
+                .add_Click(|_, _| super::host::toggle_active_window_maximize())?,
+            close
+                .cast::<Xaml::ButtonBase>()?
+                .add_Click(|_, _| super::host::close_active_window())?,
+        ];
+
+        let titlebar = Self {
+            root,
+            back_button,
+            pane_button,
+            title_text,
+            subtitle_text,
+            content_slot,
+            footer_slot,
+            _caption_buttons: caption_buttons,
+            _caption_button_revokers: Rc::new(caption_button_revokers),
+            height_dips: Rc::new(Cell::new(Self::STANDARD_HEIGHT)),
+        };
+        titlebar.set_back_button_visible(false)?;
+        titlebar.set_pane_toggle_button_visible(false)?;
+        Ok(titlebar)
+    }
+
+    fn as_ui_element(&self) -> Result<Xaml::UIElement> {
+        self.root.cast()
+    }
+
+    fn height_dips(&self) -> f64 {
+        self.height_dips.get()
+    }
+
+    fn set_title(&self, value: &str) -> Result<()> {
+        self.title_text.put_Text(value)
+    }
+
+    fn set_subtitle(&self, value: &str) -> Result<()> {
+        self.subtitle_text.put_Text(value)
+    }
+
+    fn set_tall(&self, value: bool) -> Result<()> {
+        let height = if value {
+            Self::TALL_HEIGHT
+        } else {
+            Self::STANDARD_HEIGHT
+        };
+        self.height_dips.set(height);
+        self.root
+            .cast::<Xaml::IFrameworkElement>()?
+            .put_Height(height)
+    }
+
+    fn set_back_button_visible(&self, value: bool) -> Result<()> {
+        set_button_visible(&self.back_button, value, Self::COMMAND_WIDTH)
+    }
+
+    fn set_back_button_enabled(&self, value: bool) -> Result<()> {
+        self.back_button
+            .cast::<Xaml::IControl>()?
+            .put_IsEnabled(value)
+    }
+
+    fn set_pane_toggle_button_visible(&self, value: bool) -> Result<()> {
+        set_button_visible(&self.pane_button, value, Self::COMMAND_WIDTH)
+    }
+
+    fn set_content(&self, content: Option<&IInspectable>) -> Result<()> {
+        match content {
+            Some(content) => self.content_slot.put_Content(content),
+            None => self.content_slot.put_Content(None),
+        }
+    }
+
+    fn set_footer(&self, content: Option<&Xaml::UIElement>) -> Result<()> {
+        match content.and_then(|content| content.cast::<IInspectable>().ok()) {
+            Some(content) => self.footer_slot.put_Content(&content),
+            None => self.footer_slot.put_Content(None),
+        }
+    }
+
+    fn add_back_requested(&self, handler: EventHandler) -> Result<EventSubscription> {
+        self.back_button
+            .cast::<Xaml::ButtonBase>()?
+            .add_Click(move |_, _| handler.invoke())
+    }
+
+    fn add_pane_toggle_requested(&self, handler: EventHandler) -> Result<EventSubscription> {
+        self.pane_button
+            .cast::<Xaml::ButtonBase>()?
+            .add_Click(move |_, _| handler.invoke())
+    }
+}
+
+fn grid_length_auto() -> Xaml::GridLength {
+    Xaml::GridLength {
+        Value: 0.0,
+        GridUnitType: Xaml::GridUnitType::Auto,
+    }
+}
+
+fn grid_length_pixel(value: f64) -> Xaml::GridLength {
+    Xaml::GridLength {
+        Value: value,
+        GridUnitType: Xaml::GridUnitType::Pixel,
+    }
+}
+
+fn grid_length_star() -> Xaml::GridLength {
+    Xaml::GridLength {
+        Value: 1.0,
+        GridUnitType: Xaml::GridUnitType::Star,
+    }
+}
+
+fn append_grid_column(grid: &Xaml::Grid, width: Xaml::GridLength) -> Result<()> {
+    let column = Xaml::ColumnDefinition::new()?;
+    column.put_Width(width)?;
+    grid.get_ColumnDefinitions()?.Append(&column)
+}
+
+fn new_content_control() -> Result<Xaml::ContentControl> {
+    Xaml::XamlReader::Load(
+        r#"<ContentControl
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    HorizontalContentAlignment="Stretch"
+    VerticalContentAlignment="Center" />"#,
+    )?
+    .cast()
+}
+
+fn place_in_grid<T: Interface>(element: &T, column: i32) -> Result<()> {
+    let fe: Xaml::FrameworkElement = element.cast()?;
+    Xaml::Grid::SetColumn(&fe, column)
+}
+
+fn append_to_panel<P: Interface, C: Interface>(parent: &P, child: &C) -> Result<()> {
+    let panel: Xaml::Panel = parent.cast()?;
+    let child: Xaml::UIElement = child.cast()?;
+    panel.get_Children()?.Append(&child)
+}
+
+fn titlebar_glyph_button(glyph: &str, width: f64) -> Result<Xaml::Button> {
+    let button = Xaml::Button::new()?;
+    let fe: Xaml::IFrameworkElement = button.cast()?;
+    fe.put_Width(width)?;
+    fe.put_Height(32.0)?;
+    fe.put_HorizontalAlignment(Xaml::HorizontalAlignment::Left)?;
+    fe.put_VerticalAlignment(Xaml::VerticalAlignment::Top)?;
+
+    let control: Xaml::IControl = button.cast()?;
+    control.put_Padding(xaml_thickness(Thickness::default()))?;
+    let _ = apply_button_style_variant(&button, 2);
+
+    let text = Xaml::TextBlock::new()?;
+    text.put_Text(glyph)?;
+    text.put_FontSize(10.0)?;
+    if let Ok(font) = Xaml::FontFamily::CreateInstanceWithName("Segoe MDL2 Assets") {
+        let _ = text.put_FontFamily(&font);
+    }
+    let text_fe: Xaml::IFrameworkElement = text.cast()?;
+    text_fe.put_HorizontalAlignment(Xaml::HorizontalAlignment::Center)?;
+    text_fe.put_VerticalAlignment(Xaml::VerticalAlignment::Center)?;
+
+    button.cast::<Xaml::ContentControl>()?.put_Content(&text)?;
+    Ok(button)
+}
+
+fn set_button_visible(button: &Xaml::Button, visible: bool, width: f64) -> Result<()> {
+    let fe: Xaml::IFrameworkElement = button.cast()?;
+    fe.put_Width(if visible { width } else { 0.0 })?;
+    let ui: Xaml::IUIElement = button.cast()?;
+    ui.put_Opacity(if visible { 1.0 } else { 0.0 })?;
+    button.cast::<Xaml::IControl>()?.put_IsEnabled(visible)
+}
 
 /// Build and apply a XAML Style with {ThemeResource} setters to an element.
 /// WinUI handles theme-reactive resolution natively.

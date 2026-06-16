@@ -87,6 +87,7 @@ pub enum ControlKind {
     TeachingTip,
     RichEditBox,
     RelativePanel,
+    TitleBar,
     ToggleButton,
 }
 

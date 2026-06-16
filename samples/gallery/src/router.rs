@@ -70,6 +70,7 @@ pub fn route(tag: &str) -> Element {
         "navigation-view" => component(navigation::navigation_view_page, ()),
         "pivot" => component(navigation::pivot_page, ()),
         "tab-view" => component(navigation::tab_view_page, ()),
+        "title-bar" => component(crate::pages::title_bar::title_bar_page, ()),
 
         // Status and Info
         "info-badge" => component(status::info_badge_page, ()),

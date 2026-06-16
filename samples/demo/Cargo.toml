@@ -1,0 +1,15 @@
+[package]
+name = "island-reactor-demo"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+island-reactor = { path = "../../crates/island-reactor" }
+
+[build-dependencies]
+island-reactor-setup = { path = "../../crates/island-reactor-setup" }
+
+[[bin]]
+name = "demo"
+path = "src/main.rs"

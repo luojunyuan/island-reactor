@@ -176,6 +176,7 @@ define_element! {
     TeachingTip,
     RichEditBox,
     RelativePanel,
+    TitleBar,
     ToggleButton,
 }
 

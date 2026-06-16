@@ -410,6 +410,13 @@ pub const ALL_CONTROLS: &[ControlInfo] = &[
         tag: "tab-view",
         image: "TabView.png",
     },
+    ControlInfo {
+        title: "TitleBar",
+        description: "A window title bar with app title, custom content, and navigation actions.",
+        category: "Navigation",
+        tag: "title-bar",
+        image: "",
+    },
     // ── Status and Info ─────────────────────────────────────────────
     ControlInfo {
         title: "InfoBadge",

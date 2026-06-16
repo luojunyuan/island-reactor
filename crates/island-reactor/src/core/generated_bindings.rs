@@ -675,6 +675,36 @@ pub(crate) fn time_picker_bindings(w: &TimePicker) -> PropBindings {
     ));
     out
 }
+pub(crate) fn title_bar_bindings(w: &TitleBar) -> PropBindings {
+    vec![
+        Binding::Event(
+            Event::BackRequested,
+            w.on_back_requested
+                .as_ref()
+                .map(|cb| EventHandler::Unit(cb.clone())),
+        ),
+        Binding::Event(
+            Event::PaneToggleRequested,
+            w.on_pane_toggle_requested
+                .as_ref()
+                .map(|cb| EventHandler::Unit(cb.clone())),
+        ),
+        Binding::Prop(
+            Prop::IsBackButtonEnabled,
+            PropValue::Bool(w.is_back_button_enabled),
+        ),
+        Binding::Prop(
+            Prop::IsBackButtonVisible,
+            PropValue::Bool(w.is_back_button_visible),
+        ),
+        Binding::Prop(
+            Prop::IsPaneToggleButtonVisible,
+            PropValue::Bool(w.is_pane_toggle_button_visible),
+        ),
+        Binding::Prop(Prop::Subtitle, PropValue::Str(w.subtitle.clone())),
+        Binding::Prop(Prop::Title, PropValue::Str(w.title.clone())),
+    ]
+}
 pub(crate) fn toggle_switch_bindings(w: &ToggleSwitch) -> PropBindings {
     let mut out = Vec::with_capacity(6usize);
     out.push(Binding::Event(

@@ -530,6 +530,7 @@ impl_element_ext!(
     TeachingTip,
     RichEditBox,
     RelativePanel,
+    TitleBar,
     ToggleButton,
 );
 
@@ -601,6 +602,7 @@ impl ElementExt for Element {
             Element::TeachingTip(v) => v.key = Some(key),
             Element::RichEditBox(v) => v.key = Some(key),
             Element::RelativePanel(v) => v.key = Some(key),
+            Element::TitleBar(v) => v.key = Some(key),
             Element::ToggleButton(v) => v.key = Some(key),
             Element::Component(c) => c.key = Some(key),
             Element::ErrorBoundary(eb) => eb.key = Some(key),

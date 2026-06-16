@@ -4,30 +4,40 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{
     OnceLock,
-    atomic::{AtomicPtr, Ordering},
+    atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering},
 };
 
 use windows::{
     Win32::{
-        Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM},
+        Foundation::{COLORREF, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
         Graphics::{
             Dwm::{
                 DWM_SYSTEMBACKDROP_TYPE, DWMSBT_AUTO, DWMSBT_MAINWINDOW, DWMSBT_TABBEDWINDOW,
                 DWMSBT_TRANSIENTWINDOW, DWMWA_SYSTEMBACKDROP_TYPE, DWMWA_USE_IMMERSIVE_DARK_MODE,
                 DwmSetWindowAttribute,
             },
-            Gdi::{GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow},
+            Gdi::{
+                ClientToScreen, GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO,
+                MonitorFromWindow,
+            },
         },
         System::LibraryLoader::{GetModuleHandleW, GetProcAddress},
         UI::{
-            HiDpi::GetDpiForWindow,
+            HiDpi::{GetDpiForWindow, GetSystemMetricsForDpi},
             WindowsAndMessaging::{
                 CREATESTRUCTW, CW_USEDEFAULT, CreateWindowExW, DefWindowProcW, DispatchMessageW,
-                GWLP_USERDATA, GetClientRect, GetMessageW, HMENU, IDC_ARROW, LoadCursorW, MSG,
-                PostMessageW, PostQuitMessage, RegisterClassW, SW_HIDE, SW_SHOW, SWP_NOACTIVATE,
-                SWP_NOZORDER, SWP_SHOWWINDOW, SendMessageW, SetWindowLongPtrW, SetWindowPos,
-                ShowWindow, TranslateMessage, WINDOW_EX_STYLE, WM_APP, WM_DESTROY, WM_NCCREATE,
-                WM_SIZE, WNDCLASSW, WS_EX_NOREDIRECTIONBITMAP, WS_OVERLAPPEDWINDOW,
+                GWLP_USERDATA, GetClientRect, GetMessageW, HMENU, HTCAPTION, HTCLIENT, HTCLOSE,
+                HTMAXBUTTON, HTMINBUTTON, HTTOP, HTTOPLEFT, HTTOPRIGHT, HWND_TOP, IDC_ARROW,
+                IsZoomed, LWA_ALPHA, LoadCursorW, MSG, NCCALCSIZE_PARAMS, PostMessageW,
+                PostQuitMessage, RegisterClassW, SC_CLOSE, SC_MAXIMIZE, SC_MINIMIZE, SC_RESTORE,
+                SM_CXPADDEDBORDER, SM_CYSIZEFRAME, SW_HIDE, SW_SHOW, SWP_FRAMECHANGED,
+                SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW, SendMessageW,
+                SetLayeredWindowAttributes, SetWindowLongPtrW, SetWindowPos, ShowWindow,
+                TranslateMessage, WINDOW_EX_STYLE, WM_APP, WM_DESTROY, WM_NCCALCSIZE, WM_NCCREATE,
+                WM_NCHITTEST, WM_NCLBUTTONDBLCLK, WM_NCLBUTTONDOWN, WM_NCLBUTTONUP,
+                WM_NCRBUTTONDBLCLK, WM_NCRBUTTONDOWN, WM_NCRBUTTONUP, WM_SIZE, WM_SYSCOMMAND,
+                WNDCLASSW, WS_CHILD, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_NOPARENTNOTIFY,
+                WS_EX_NOREDIRECTIONBITMAP, WS_OVERLAPPEDWINDOW,
             },
         },
     },
@@ -45,7 +55,13 @@ use super::{WinUIBackend, WinUIDispatcher};
 static XAML_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 static CORE_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 static ACTIVE_HOST_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
+static TITLEBAR_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
+static TITLEBAR_ENABLED: AtomicBool = AtomicBool::new(false);
+static TITLEBAR_HEIGHT_DIPS: AtomicU32 = AtomicU32::new(40);
 const WM_ISLAND_REACTOR_SYSTEM_THEME_CHANGED: u32 = WM_APP + 0x491;
+const CAPTION_BUTTONS_WIDTH_DIPS: f64 = 46.0 * 3.0;
+const CAPTION_BUTTON_WIDTH_DIPS: f64 = 46.0;
+const CAPTION_BUTTON_HEIGHT_DIPS: f64 = 32.0;
 
 thread_local! {
     static ROOT_FRAMEWORK_ELEMENT: RefCell<Option<FrameworkElement>> = const { RefCell::new(None) };
@@ -364,6 +380,10 @@ impl ReactorHost {
         let last_attached: Rc<Cell<Option<ControlId>>> = Rc::new(Cell::new(None));
         let last_for_hook = Rc::clone(&last_attached);
         render_host.set_post_render(move |new_id| {
+            sync_custom_titlebar(
+                hwnd,
+                render_for_post_render.with_backend(|b| b.root_titlebar_height_dips(new_id)),
+            );
             if last_for_hook.get() == new_id {
                 return;
             }
@@ -459,6 +479,9 @@ impl Drop for ReactorHost {
         XAML_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
         CORE_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
         ACTIVE_HOST_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
+        TITLEBAR_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
+        TITLEBAR_ENABLED.store(false, Ordering::Relaxed);
+        TITLEBAR_HEIGHT_DIPS.store(40, Ordering::Relaxed);
     }
 }
 
@@ -540,8 +563,30 @@ unsafe extern "system" fn wnd_proc(
             );
             DefWindowProcW(hwnd, message, wparam, lparam)
         },
+        WM_NCCALCSIZE if custom_titlebar_enabled() => {
+            if wparam.0 == 0 {
+                return LRESULT(0);
+            }
+            unsafe {
+                let params = lparam.0 as *mut NCCALCSIZE_PARAMS;
+                let original_top = (*params).rgrc[0].top;
+                let result = DefWindowProcW(hwnd, message, wparam, lparam);
+                if result.0 != 0 {
+                    return result;
+                }
+                (*params).rgrc[0].top = original_top;
+            }
+            LRESULT(0)
+        }
+        WM_NCHITTEST if custom_titlebar_enabled() => {
+            if let Some(hit) = try_hit_test_titlebar(hwnd, lparam) {
+                return LRESULT(hit as isize);
+            }
+            unsafe { DefWindowProcW(hwnd, message, wparam, lparam) }
+        }
         WM_SIZE => {
             resize_xaml_island(hwnd);
+            resize_titlebar_overlay(hwnd);
             send_size_to_core_window(wparam, lparam);
             set_synchronization_window(hwnd);
             LRESULT(0)
@@ -558,14 +603,327 @@ unsafe extern "system" fn wnd_proc(
             unsafe {
                 PostQuitMessage(0);
             }
+            TITLEBAR_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
+            TITLEBAR_ENABLED.store(false, Ordering::Relaxed);
+            TITLEBAR_HEIGHT_DIPS.store(40, Ordering::Relaxed);
             LRESULT(0)
         }
         _ => unsafe { DefWindowProcW(hwnd, message, wparam, lparam) },
     }
 }
 
+fn sync_custom_titlebar(hwnd: HWND, titlebar_height_dips: Option<f64>) {
+    let enabled = titlebar_height_dips.is_some();
+    let previous = TITLEBAR_ENABLED.swap(enabled, Ordering::Relaxed);
+
+    if enabled {
+        if let Some(height) = titlebar_height_dips {
+            TITLEBAR_HEIGHT_DIPS.store(height.max(1.0).ceil() as u32, Ordering::Relaxed);
+        }
+        if let Some(titlebar_hwnd) = ensure_titlebar_overlay(hwnd) {
+            unsafe {
+                let _ = ShowWindow(titlebar_hwnd, SW_SHOW);
+            }
+            resize_titlebar_overlay(hwnd);
+        }
+    } else {
+        let raw_titlebar = TITLEBAR_HWND.load(Ordering::Relaxed);
+        if !raw_titlebar.is_null() {
+            unsafe {
+                let _ = ShowWindow(HWND(raw_titlebar), SW_HIDE);
+            }
+        }
+        TITLEBAR_HEIGHT_DIPS.store(40, Ordering::Relaxed);
+    }
+
+    if previous != enabled {
+        unsafe {
+            let _ = SetWindowPos(
+                hwnd,
+                None,
+                0,
+                0,
+                0,
+                0,
+                SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+            );
+        }
+        resize_xaml_island(hwnd);
+        resize_titlebar_overlay(hwnd);
+    }
+}
+
+fn custom_titlebar_enabled() -> bool {
+    TITLEBAR_ENABLED.load(Ordering::Relaxed)
+}
+
+fn ensure_titlebar_overlay(parent: HWND) -> Option<HWND> {
+    let raw = TITLEBAR_HWND.load(Ordering::Relaxed);
+    if !raw.is_null() {
+        return Some(HWND(raw));
+    }
+
+    unsafe {
+        let instance: HINSTANCE = GetModuleHandleW(PCWSTR::null()).ok()?.into();
+        let class_name_buf = wide_null("IslandReactor_TitleBarOverlay");
+        let class_name = PCWSTR(class_name_buf.as_ptr());
+        let window_class = WNDCLASSW {
+            hCursor: LoadCursorW(None, IDC_ARROW).ok()?,
+            hInstance: instance,
+            lpszClassName: class_name,
+            lpfnWndProc: Some(titlebar_overlay_wnd_proc),
+            ..Default::default()
+        };
+        let _ = RegisterClassW(&window_class);
+
+        let hwnd = CreateWindowExW(
+            WS_EX_LAYERED | WS_EX_NOPARENTNOTIFY | WS_EX_NOREDIRECTIONBITMAP | WS_EX_NOACTIVATE,
+            class_name,
+            PCWSTR::null(),
+            WS_CHILD,
+            0,
+            0,
+            0,
+            0,
+            Some(parent),
+            None::<HMENU>,
+            Some(instance),
+            None,
+        )
+        .ok()?;
+        let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), 255, LWA_ALPHA);
+        TITLEBAR_HWND.store(hwnd.0, Ordering::Relaxed);
+        Some(hwnd)
+    }
+}
+
+fn resize_titlebar_overlay(parent: HWND) {
+    let raw_titlebar = TITLEBAR_HWND.load(Ordering::Relaxed);
+    if raw_titlebar.is_null() || !custom_titlebar_enabled() {
+        return;
+    }
+
+    unsafe {
+        if let Some(bounds) = titlebar_overlay_bounds_px(parent) {
+            let _ = SetWindowPos(
+                HWND(raw_titlebar),
+                Some(HWND_TOP),
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                bounds.height,
+                SWP_NOACTIVATE | SWP_SHOWWINDOW,
+            );
+        }
+    }
+}
+
+fn titlebar_overlay_height_px(parent: HWND) -> i32 {
+    let dips = TITLEBAR_HEIGHT_DIPS.load(Ordering::Relaxed).max(1) as f64;
+    (dips * current_dpi(parent) as f64 / 96.0).ceil() as i32
+}
+
+fn titlebar_overlay_bounds_px(parent: HWND) -> Option<PixelRect> {
+    let mut rect = RECT::default();
+    let width = unsafe {
+        if GetClientRect(parent, &mut rect).is_ok() {
+            rect.right - rect.left
+        } else {
+            return None;
+        }
+    };
+    let caption_width =
+        (CAPTION_BUTTONS_WIDTH_DIPS * current_dpi(parent) as f64 / 96.0).ceil() as i32;
+    Some(PixelRect {
+        x: 0,
+        y: 0,
+        width: (width - caption_width).max(1),
+        height: titlebar_overlay_height_px(parent) + 1,
+    })
+}
+
+unsafe extern "system" fn titlebar_overlay_wnd_proc(
+    hwnd: HWND,
+    message: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    match message {
+        WM_NCHITTEST => LRESULT(
+            try_hit_test_titlebar(parent_hwnd(), lparam).unwrap_or(HTCLIENT as i32) as isize,
+        ),
+        WM_NCLBUTTONDOWN | WM_NCLBUTTONDBLCLK | WM_NCLBUTTONUP | WM_NCRBUTTONDOWN
+        | WM_NCRBUTTONDBLCLK | WM_NCRBUTTONUP => {
+            forward_titlebar_nc_message(message, wparam, lparam)
+        }
+        _ => unsafe { DefWindowProcW(hwnd, message, wparam, lparam) },
+    }
+}
+
+fn try_hit_test_titlebar(hwnd: HWND, lparam: LPARAM) -> Option<i32> {
+    let screen_point = POINT {
+        x: lparam_x(lparam),
+        y: lparam_y(lparam),
+    };
+    let client_rect = client_rect_in_screen(hwnd)?;
+
+    if !contains_point(client_rect, screen_point) {
+        return None;
+    }
+
+    if !unsafe { IsZoomed(hwnd).as_bool() } {
+        let resize = resize_handle_height_px(hwnd);
+        if screen_point.y < client_rect.top + resize {
+            if screen_point.x < client_rect.left + resize {
+                return Some(HTTOPLEFT as i32);
+            }
+            if screen_point.x >= client_rect.right - resize {
+                return Some(HTTOPRIGHT as i32);
+            }
+            return Some(HTTOP as i32);
+        }
+    }
+
+    if let Some(hit) = caption_button_hit_test(hwnd, client_rect, screen_point) {
+        return Some(hit);
+    }
+
+    let titlebar_rect = offset_pixel_rect(
+        titlebar_overlay_bounds_px(hwnd)?,
+        client_rect.left,
+        client_rect.top,
+    );
+    if contains_point(titlebar_rect, screen_point) {
+        Some(HTCAPTION as i32)
+    } else {
+        Some(HTCLIENT as i32)
+    }
+}
+
+fn caption_button_hit_test(hwnd: HWND, client_rect: RECT, screen_point: POINT) -> Option<i32> {
+    let scale = current_dpi(hwnd) as f64 / 96.0;
+    let button_width = (CAPTION_BUTTON_WIDTH_DIPS * scale).ceil() as i32;
+    let button_height = (CAPTION_BUTTON_HEIGHT_DIPS * scale).ceil() as i32;
+    let caption_left = client_rect.right - button_width * 3;
+
+    if screen_point.y < client_rect.top
+        || screen_point.y >= client_rect.top + button_height
+        || screen_point.x < caption_left
+        || screen_point.x >= client_rect.right
+    {
+        return None;
+    }
+
+    if screen_point.x < caption_left + button_width {
+        Some(HTMINBUTTON as i32)
+    } else if screen_point.x < caption_left + button_width * 2 {
+        Some(HTMAXBUTTON as i32)
+    } else {
+        Some(HTCLOSE as i32)
+    }
+}
+
+fn client_rect_in_screen(hwnd: HWND) -> Option<RECT> {
+    unsafe {
+        let mut rect = RECT::default();
+        if GetClientRect(hwnd, &mut rect).is_err() {
+            return None;
+        }
+        let mut top_left = POINT { x: 0, y: 0 };
+        let _ = ClientToScreen(hwnd, &mut top_left);
+        rect.left += top_left.x;
+        rect.right += top_left.x;
+        rect.top += top_left.y;
+        rect.bottom += top_left.y;
+        Some(rect)
+    }
+}
+
+fn offset_pixel_rect(rect: PixelRect, x: i32, y: i32) -> RECT {
+    RECT {
+        left: rect.x + x,
+        top: rect.y + y,
+        right: rect.x + x + rect.width,
+        bottom: rect.y + y + rect.height,
+    }
+}
+
+fn contains_point(rect: RECT, point: POINT) -> bool {
+    point.x >= rect.left && point.x < rect.right && point.y >= rect.top && point.y < rect.bottom
+}
+
+fn resize_handle_height_px(hwnd: HWND) -> i32 {
+    let dpi = current_dpi(hwnd);
+    unsafe {
+        GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi) + GetSystemMetricsForDpi(SM_CYSIZEFRAME, dpi)
+    }
+}
+
+pub(crate) fn minimize_active_window() {
+    send_titlebar_syscommand(SC_MINIMIZE, LPARAM(0));
+}
+
+pub(crate) fn toggle_active_window_maximize() {
+    send_titlebar_syscommand(toggle_maximize_command(parent_hwnd()), LPARAM(0));
+}
+
+pub(crate) fn close_active_window() {
+    send_titlebar_syscommand(SC_CLOSE, LPARAM(0));
+}
+
+fn toggle_maximize_command(parent: HWND) -> u32 {
+    if unsafe { IsZoomed(parent).as_bool() } {
+        SC_RESTORE
+    } else {
+        SC_MAXIMIZE
+    }
+}
+
+fn send_titlebar_syscommand(command: u32, _lparam: LPARAM) {
+    let parent = parent_hwnd();
+    if parent.0.is_null() {
+        return;
+    }
+    unsafe {
+        let _ = PostMessageW(
+            Some(parent),
+            WM_SYSCOMMAND,
+            WPARAM(command as usize),
+            LPARAM(0),
+        );
+    }
+}
+
+fn forward_titlebar_nc_message(message: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    let parent = parent_hwnd();
+    if parent.0.is_null() {
+        return LRESULT(0);
+    }
+    unsafe { SendMessageW(parent, message, Some(wparam), Some(lparam)) }
+}
+
+fn parent_hwnd() -> HWND {
+    HWND(ACTIVE_HOST_HWND.load(Ordering::Relaxed))
+}
+
+fn lparam_x(lparam: LPARAM) -> i32 {
+    (lparam.0 as u32 as u16 as i16) as i32
+}
+
+fn lparam_y(lparam: LPARAM) -> i32 {
+    ((lparam.0 as u32 >> 16) as u16 as i16) as i32
+}
+
 fn window_ex_style(_backdrop: Option<Backdrop>) -> WINDOW_EX_STYLE {
     WS_EX_NOREDIRECTIONBITMAP
+}
+
+#[derive(Copy, Clone)]
+struct PixelRect {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
 }
 
 fn subscribe_system_theme_changed(hwnd: HWND) -> Option<SystemThemeSubscription> {
