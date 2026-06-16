@@ -1,8 +1,12 @@
 # Reactor Surface Status
 
-This crate targets `Windows.UI.Xaml` XAML Islands plus the WinUI 2 (`Microsoft.UI.Xaml`) AppX metadata/runtime from `microsoft.ui.xaml` 2.8.7.
+This crate is an upstream Reactor port whose kernel has been swapped from
+WinAppSDK / WinUI 3 to `Windows.UI.Xaml` XAML Islands plus WinUI 2
+(`Microsoft.UI.Xaml`) AppX metadata/runtime from `microsoft.ui.xaml` 2.8.7.
 
-The public surface should be the `island-reactor` wrapper API. The checked-in XAML and MUXC bindings are private modules inside `crates/island-reactor/src` and are not exposed as standalone crates.
+The intended user experience is migration by rename: application code written
+for upstream Reactor should ideally change only its package/import from Reactor
+to `island-reactor` / `island_reactor` and then run on XAML Islands. The checked-in XAML and MUXC bindings are private modules inside `crates/island-reactor/src` and are not exposed as standalone crates.
 
 ## Filled With WinUI 2 MUXC
 

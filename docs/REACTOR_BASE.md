@@ -1,7 +1,8 @@
 # Reactor Base
 
-This crate is being built against the public API shape of the upstream
-`windows-rs` reactor crate at this reference point:
+This crate is a port of the upstream `windows-rs` Reactor crate at this
+reference point. The target is broad behavioral and structural parity, not just
+matching a handful of public functions:
 
 - Repository path: `C:\Users\kimika\Desktop\rs-projects\references\windows-rs`
 - Reactor crate path: `crates\libs\reactor`
@@ -12,6 +13,9 @@ This crate is being built against the public API shape of the upstream
 - Reference worktree status when recorded: clean
 - Recorded date: `2026-06-15`
 
-Current scope is the hello-compatible reactor API surface on top of
-`Windows.UI.Xaml` XAML Islands. It intentionally does not copy the upstream
-Windows.UI.Xaml Islands backend.
+`island-reactor` should preserve Reactor's public API, internal module shape,
+folder layout, generated binding model, and runtime behavior wherever that is
+practical. The core porting work is replacing Reactor's WinAppSDK / WinUI 3
+kernel with `Windows.UI.Xaml` XAML Islands plus WinUI 2 (`Microsoft.UI.Xaml`
+/ MUXC), then filling the behavioral gaps until existing Reactor applications
+can run after changing the package/import name.

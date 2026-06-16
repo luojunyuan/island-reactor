@@ -4,7 +4,24 @@ Use this file as the starting context for a fresh agent conversation.
 
 ## Project Goal
 
-`island-reactor` is a Rust UI library that follows the public API shape of upstream `windows-rs` Reactor while hosting `Windows.UI.Xaml` XAML Islands and WinUI 2 (`Microsoft.UI.Xaml.Controls`) runtime assets. The goal is not to invent a new UI framework surface. The goal is to keep the public wrapper API aligned with upstream Reactor wherever practical, and document every intentional difference.
+`island-reactor` is intended to be a port of upstream `windows-rs` Reactor, not
+a new framework inspired by Reactor. The north star is that an application using
+upstream Reactor can switch dependency/import names from Reactor to
+`island-reactor` / `island_reactor` and keep running with little or no business
+code change.
+
+That means parity is larger than the public API. Preserve upstream Reactor's
+public surface, internal module boundaries, folder structure, generated binding
+style, event/prop semantics, gallery coverage, and runtime behavior wherever it
+is technically possible.
+
+The necessary divergence is the rendering/runtime kernel:
+
+- Upstream Reactor is built around WinAppSDK / WinUI 3.
+- `island-reactor` replaces that kernel with `Windows.UI.Xaml` XAML Islands plus
+  WinUI 2 (`Microsoft.UI.Xaml.Controls`, MUXC).
+- Missing WinUI 3 behavior should be recreated on top of XAML Islands + WinUI 2
+  when feasible, then documented when it cannot be made equivalent.
 
 ## Reference Repositories
 
@@ -13,7 +30,8 @@ Use this file as the starting context for a fresh agent conversation.
 - CoreIsland PRI/build reference: `C:\Users\kimika\Desktop\cs-projects\CoreIsland\CoreIsland\buildTransitive`
 - XAML Islands backdrop reference: `C:\Users\kimika\Desktop\rs-projects\references\Xaml-Islands-Cpp\src\XamlIslandsCpp`
 
-Read `docs/REACTOR_BASE.md` and `docs/UNSUPPORTED_REACTOR.md` before making larger design changes.
+Read `docs/REACTOR_BASE.md` and `docs/UNSUPPORTED_REACTOR.md` before making
+larger design changes.
 
 ## Workspace Shape
 
@@ -51,15 +69,32 @@ If a binding change is needed, update `crates/tools/island-reactor-codegen/src/m
 
 The MUXC metadata source is the `Microsoft.UI.Xaml.winmd` extracted from the WinUI 2 AppX beside the runtime DLL, not the `uap` folder metadata and not the .NET projection metadata.
 
-## API Alignment Rules
+## Porting Contract
 
-- Prefer the upstream Reactor public API exactly when it exists.
-- Do not add convenience APIs that upstream Reactor does not have unless the user explicitly asks to intentionally diverge.
-- When adapting behavior because this project uses XAML Islands + WinUI 2 rather than WinUI 3/Windows App SDK, document the difference in `docs/UNSUPPORTED_REACTOR.md`.
-- Keep XAML/MUXC bindings private implementation details. Users should consume `island-reactor`, not raw binding crates or modules.
-- If a feature can be implemented by wrapping MUXC while preserving Reactor's API shape, do that.
+For any feature, first inspect the upstream Reactor implementation in
+`references/windows-rs/crates/libs/reactor`. Port the same Rust-facing API,
+state shape, prop/event names, generated binding behavior, and file placement
+where possible. Then replace only the platform-specific pieces needed to make it
+work on XAML Islands + WinUI 2.
 
-Example: upstream Reactor supports `button(...).accent()`, not `.style(ThemeRef::custom("AccentButtonStyle"))`. The backend may map `ButtonStyle::Accent` to the `AccentButtonStyle` resource internally, but the public API should remain `.accent()`.
+Prefer a faithful port with an Island-specific backend adapter over a
+"similar-looking" wrapper. If upstream has a widget module, local code should
+usually have the corresponding module. If upstream has generated prop/event
+bindings, local code should preserve that model unless a clear technical blocker
+exists. If upstream gallery has a page, local gallery should try to carry the
+same page and behavior.
+
+When the WinAppSDK / WinUI 3 implementation cannot be reproduced directly:
+
+- Use `Windows.UI.Xaml` controls first when they match behavior.
+- Use WinUI 2 MUXC controls when they fill a WinUI 3 control/API gap.
+- Emulate behavior in the backend when neither WUX nor MUXC exposes it cleanly.
+- Record remaining gaps in `docs/UNSUPPORTED_REACTOR.md`.
+
+Concrete example: upstream Reactor exposes `button(...).accent()`. User code
+should keep using `.accent()`. Internally, `island-reactor` may map that variant
+to the XAML resource `AccentButtonStyle`, but it should not make users write
+`AccentButtonStyle` unless upstream Reactor also exposes that style-level API.
 
 ## Current Important Implementation Notes
 
@@ -77,6 +112,27 @@ border(content)
 - Backdrop support follows the Xaml-Islands-Cpp DWM path, not CoreIsland and not upstream WinAppSDK `SystemBackdrop`.
 - Host windows use `WS_EX_NOREDIRECTIONBITMAP`.
 - For Mica/Acrylic to show through a XAML Island, root backgrounds often need transparent or theme-resource-aware handling.
+
+## Migration Target
+
+The ideal downstream migration should look like this:
+
+```toml
+[dependencies]
+island-reactor = { path = "..." }
+```
+
+```rust
+// before
+use reactor::*;
+
+// after
+use island_reactor::*;
+```
+
+The rest of the application code should stay as close as possible to the
+upstream Reactor version. When that is not true, treat it as a parity bug or a
+documented compatibility gap.
 
 ## Verification Commands
 
@@ -99,11 +155,14 @@ git diff --check
 
 After regeneration, rerunning the codegen command should produce no meaningful diff.
 
-## Communication Notes For The Next Agent
+## Working Notes For The Next Agent
 
-- The user strongly prefers upstream Reactor compatibility over ad hoc APIs.
-- The project is still private and fast-moving, so clean design beats backward compatibility.
+- Treat upstream Reactor as the blueprint for public API and internal structure.
+- Before adding or changing an API, inspect upstream Reactor and port its shape.
+- The project is private and fast-moving, so do not preserve local mistakes just
+  for compatibility. Prefer getting closer to upstream Reactor.
 - Avoid expensive binding regeneration unless the task actually needs it.
-- If generated bindings must change, explain why, update codegen first, then regenerate.
+- If generated bindings must change, update codegen first, then regenerate.
 - Keep commits focused and commit at natural checkpoints when asked.
-- When unsure whether an API exists upstream, inspect `references/windows-rs` before adding anything.
+- Keep XAML/MUXC bindings private implementation details. Users should consume
+  `island-reactor`, not raw binding modules.
