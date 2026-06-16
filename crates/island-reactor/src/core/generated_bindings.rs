@@ -550,6 +550,14 @@ pub(crate) fn scroll_viewer_bindings(w: &ScrollViewer) -> PropBindings {
         ),
     ]
 }
+pub(crate) fn selector_bar_bindings(w: &SelectorBar) -> PropBindings {
+    vec![Binding::Event(
+        Event::SelectionChanged,
+        w.on_selection_changed
+            .as_ref()
+            .map(|cb| EventHandler::Str(cb.clone())),
+    )]
+}
 pub(crate) fn slider_bindings(w: &Slider) -> PropBindings {
     let mut out = Vec::with_capacity(7usize);
     out.push(Binding::Event(

@@ -64,13 +64,14 @@ pub fn route(tag: &str) -> Element {
         // Menus and Toolbars
         "command-bar" => component(menus::command_bar_page, ()),
         "menu-bar" => component(menus::menu_bar_page, ()),
+        "selector-bar" => component(menus::selector_bar_page, ()),
 
         // Navigation
         "breadcrumb-bar" => component(navigation::breadcrumb_bar_page, ()),
         "navigation-view" => component(navigation::navigation_view_page, ()),
         "pivot" => component(navigation::pivot_page, ()),
         "tab-view" => component(navigation::tab_view_page, ()),
-        "title-bar" => component(crate::pages::title_bar::title_bar_page, ()),
+        "title-bar" => component(navigation::title_bar_page, ()),
 
         // Status and Info
         "info-badge" => component(status::info_badge_page, ()),

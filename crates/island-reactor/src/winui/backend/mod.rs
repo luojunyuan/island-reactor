@@ -41,16 +41,19 @@ impl WinUIBackend {
         }
     }
 
-    pub(crate) fn root_titlebar_height_dips(&self, root_id: Option<ControlId>) -> Option<f64> {
+    pub(crate) fn root_titlebar_metrics(
+        &self,
+        root_id: Option<ControlId>,
+    ) -> Option<TitleBarMetrics> {
         let root_id = root_id?;
         let controls = self.controls.borrow();
-        titlebar_height_from_handle(controls.get(&root_id)?).or_else(|| {
+        titlebar_metrics_from_handle(controls.get(&root_id)?).or_else(|| {
             self.parent_children
                 .borrow()
                 .get(&root_id)
                 .into_iter()
                 .flat_map(|children| children.iter())
-                .find_map(|child_id| titlebar_height_from_handle(controls.get(child_id)?))
+                .find_map(|child_id| titlebar_metrics_from_handle(controls.get(child_id)?))
         })
     }
 
@@ -96,6 +99,11 @@ impl WinUIBackend {
             (Prop::Text, PropValue::Str(s), Handle::TextBox(tb)) => {
                 if tb.get_Text().ok() != Some(s.clone()) {
                     tb.put_Text(s)?;
+                }
+            }
+            (Prop::Text, PropValue::Str(s), Handle::AutoSuggestBox(asb)) => {
+                if asb.get_Text().ok().as_deref() != Some(s.as_str()) {
+                    asb.put_Text(s)?;
                 }
             }
             (
@@ -456,12 +464,17 @@ impl WinUIBackend {
                     set_radio_buttons_items(&radio, items)?;
                 } else if let Ok(breadcrumb) = h.cast_inner::<Muxc::BreadcrumbBar>() {
                     set_breadcrumb_items(&breadcrumb, items)?;
+                } else if let Ok(asb) = h.cast_inner::<Xaml::AutoSuggestBox>() {
+                    set_auto_suggest_items(&asb, items)?;
                 } else {
                     set_string_items(h, items)?;
                 }
             }
+            (Prop::Items, PropValue::SelectorBarItems(items), Handle::SelectorBar(selector)) => {
+                selector.set_items(items, None)?;
+            }
             (Prop::AutoSuggestItems, PropValue::StrList(items), Handle::AutoSuggestBox(asb)) => {
-                set_string_items_for_items_control(asb, items)?;
+                set_auto_suggest_items(asb, items)?;
             }
             (Prop::AutoSuggestPlaceholder, PropValue::Str(s), Handle::AutoSuggestBox(asb)) => {
                 asb.put_PlaceholderText(s)?;
@@ -997,12 +1010,20 @@ impl Backend for WinUIBackend {
             }
             (Event::TextChanged, Handle::AutoSuggestBox(asb)) => {
                 revokers.push(
-                    asb.add_TextChanged(move |sender, _| {
-                        let text = sender
+                    asb.add_TextChanged(move |sender, args| {
+                        let is_user_input = args
                             .as_ref()
-                            .and_then(|t| t.get_Text().ok())
-                            .unwrap_or_default();
-                        handler.invoke_string(text);
+                            .and_then(|a| a.get_Reason().ok())
+                            .is_some_and(|reason| {
+                                reason == Xaml::AutoSuggestionBoxTextChangeReason::UserInput
+                            });
+                        if is_user_input {
+                            let text = sender
+                                .as_ref()
+                                .and_then(|t| t.get_Text().ok())
+                                .unwrap_or_default();
+                            handler.invoke_string(text);
+                        }
                     })
                     .unwrap(),
                 );
@@ -1076,6 +1097,8 @@ impl Backend for WinUIBackend {
                         })
                         .unwrap(),
                     );
+                } else if let Handle::SelectorBar(selector) = h {
+                    let _ = selector.set_selection_changed_handler(Some(handler));
                 }
             }
             (Event::ValueChanged, h) => {
@@ -1209,6 +1232,11 @@ impl Backend for WinUIBackend {
 
     fn detach_event(&mut self, id: ControlId, event: Event) {
         self.event_revokers.borrow_mut().remove(&(id, event));
+        if event == Event::SelectionChanged {
+            if let Some(Handle::SelectorBar(selector)) = self.controls.borrow().get(&id) {
+                let _ = selector.set_selection_changed_handler(None);
+            }
+        }
     }
 
     fn set_templated_item_count(&mut self, id: ControlId, count: usize) {
@@ -1512,6 +1540,7 @@ enum Handle {
     ListView(Xaml::ListView),
     GridView(Xaml::GridView),
     FlipView(Xaml::FlipView),
+    SelectorBar(IslandSelectorBar),
 }
 
 impl Handle {
@@ -1578,6 +1607,7 @@ impl Handle {
             ControlKind::ListView => Self::ListView(Xaml::ListView::new()?),
             ControlKind::GridView => Self::GridView(Xaml::GridView::new()?),
             ControlKind::FlipView => Self::FlipView(Xaml::FlipView::new()?),
+            ControlKind::SelectorBar => Self::SelectorBar(IslandSelectorBar::new()?),
         })
     }
 
@@ -1642,6 +1672,7 @@ impl Handle {
             Self::ListView(v) => v.cast(),
             Self::GridView(v) => v.cast(),
             Self::FlipView(v) => v.cast(),
+            Self::SelectorBar(v) => v.as_ui_element()?.cast(),
         }
     }
 
@@ -1656,9 +1687,150 @@ impl Handle {
 
 type EventSubscription = windows_core::EventRevoker;
 
-fn titlebar_height_from_handle(handle: &Handle) -> Option<f64> {
+#[derive(Clone)]
+pub(crate) struct IslandSelectorBar {
+    root: Xaml::StackPanel,
+    items: Rc<RefCell<Vec<SelectorBarItemDef>>>,
+    buttons: Rc<RefCell<Vec<Xaml::ToggleButton>>>,
+    selected_index: Rc<Cell<Option<usize>>>,
+    handler: Rc<RefCell<Option<EventHandler>>>,
+    item_revokers: Rc<RefCell<Vec<EventSubscription>>>,
+}
+
+impl IslandSelectorBar {
+    fn new() -> Result<Self> {
+        let root = Xaml::StackPanel::new()?;
+        root.put_Orientation(Xaml::Orientation::Horizontal)?;
+        if let Ok(spacing) = root.cast::<Xaml::IStackPanel4>() {
+            let _ = spacing.put_Spacing(4.0);
+        }
+        Ok(Self {
+            root,
+            items: Rc::default(),
+            buttons: Rc::default(),
+            selected_index: Rc::default(),
+            handler: Rc::default(),
+            item_revokers: Rc::default(),
+        })
+    }
+
+    fn as_ui_element(&self) -> Result<Xaml::UIElement> {
+        self.root.cast()
+    }
+
+    fn set_items(&self, items: &[SelectorBarItemDef], handler: Option<EventHandler>) -> Result<()> {
+        if let Some(handler) = handler {
+            self.handler.replace(Some(handler));
+        }
+        self.items.replace(items.to_vec());
+        self.selected_index.set((!items.is_empty()).then_some(0));
+        self.item_revokers.borrow_mut().clear();
+        self.buttons.borrow_mut().clear();
+
+        let panel = self.root.cast::<Xaml::Panel>()?;
+        let children = panel.get_Children()?;
+        children.Clear()?;
+
+        let mut buttons = Vec::with_capacity(items.len());
+        for (index, item) in items.iter().enumerate() {
+            let button = self.build_button(item, index == 0)?;
+            let ui: Xaml::UIElement = button.cast()?;
+            children.Append(&ui)?;
+            buttons.push(button);
+        }
+        self.buttons.replace(buttons);
+        self.wire_selection_changed()
+    }
+
+    fn set_selection_changed_handler(&self, handler: Option<EventHandler>) -> Result<()> {
+        self.handler.replace(handler);
+        self.wire_selection_changed()
+    }
+
+    fn build_button(
+        &self,
+        item: &SelectorBarItemDef,
+        selected: bool,
+    ) -> Result<Xaml::ToggleButton> {
+        let button = Xaml::ToggleButton::new()?;
+        button.put_IsChecked(Some(selected))?;
+        let _ = button
+            .cast::<Xaml::IControl>()?
+            .put_Padding(xaml_thickness(Thickness::xy(12.0, 6.0)));
+
+        let content: IInspectable = if let Some(icon) = item.icon {
+            let panel = Xaml::StackPanel::new()?;
+            panel.put_Orientation(Xaml::Orientation::Horizontal)?;
+            if let Ok(spacing) = panel.cast::<Xaml::IStackPanel4>() {
+                let _ = spacing.put_Spacing(6.0);
+            }
+            let icon = Xaml::SymbolIcon::CreateInstanceWithSymbol(Xaml::Symbol(icon.0))?;
+            append_to_panel(&panel, &icon)?;
+            let text = Xaml::TextBlock::new()?;
+            text.put_Text(&item.text)?;
+            append_to_panel(&panel, &text)?;
+            panel.cast()?
+        } else {
+            string_reference(&item.text)
+        };
+        button
+            .cast::<Xaml::ContentControl>()?
+            .put_Content(&content)?;
+        Ok(button)
+    }
+
+    fn wire_selection_changed(&self) -> Result<()> {
+        self.item_revokers.borrow_mut().clear();
+        let Some(handler) = self.handler.borrow().clone() else {
+            return Ok(());
+        };
+
+        let mut revokers = Vec::new();
+        let buttons = self.buttons.borrow().clone();
+        let items = self.items.borrow().clone();
+        for (index, button) in buttons.iter().cloned().enumerate() {
+            let buttons_for_cb = buttons.clone();
+            let selected_index = self.selected_index.clone();
+            let selected_text = items
+                .get(index)
+                .map(|item| item.text.clone())
+                .unwrap_or_default();
+            let handler = handler.clone();
+            let revoker = button.add_Checked(move |_, _| {
+                selected_index.set(Some(index));
+                for (other_index, other) in buttons_for_cb.iter().enumerate() {
+                    if other_index != index {
+                        let _ = other.put_IsChecked(Some(false));
+                    }
+                }
+                handler.invoke_string(selected_text.clone());
+            })?;
+            revokers.push(revoker);
+
+            let selected_index = self.selected_index.clone();
+            let button = button.clone();
+            let revoker = button.clone().add_Unchecked(move |_, _| {
+                if selected_index.get() == Some(index) {
+                    let _ = button.put_IsChecked(Some(true));
+                }
+            })?;
+            revokers.push(revoker);
+        }
+        self.item_revokers.replace(revokers);
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TitleBarMetrics {
+    pub height_dips: f64,
+    pub drag_left_dips: f64,
+    pub drag_width_dips: f64,
+}
+
+fn titlebar_metrics_from_handle(handle: &Handle) -> Option<TitleBarMetrics> {
     if let Handle::TitleBar(titlebar) = handle {
-        Some(titlebar.height_dips())
+        Some(titlebar.metrics())
     } else {
         None
     }
@@ -1676,12 +1848,15 @@ pub(crate) struct IslandTitleBar {
     _caption_buttons: Xaml::Grid,
     _caption_button_revokers: Rc<Vec<EventSubscription>>,
     height_dips: Rc<Cell<f64>>,
+    back_button_visible: Rc<Cell<bool>>,
+    pane_button_visible: Rc<Cell<bool>>,
 }
 
 impl IslandTitleBar {
     const STANDARD_HEIGHT: f64 = 40.0;
     const TALL_HEIGHT: f64 = 48.0;
     const COMMAND_WIDTH: f64 = 40.0;
+    const TITLE_AREA_WIDTH: f64 = 180.0;
     const CAPTION_BUTTON_WIDTH: f64 = 46.0;
 
     fn new() -> Result<Self> {
@@ -1692,7 +1867,7 @@ impl IslandTitleBar {
         root_fe.put_HorizontalAlignment(Xaml::HorizontalAlignment::Stretch)?;
         root_fe.put_VerticalAlignment(Xaml::VerticalAlignment::Top)?;
 
-        append_grid_column(&root, grid_length_auto())?;
+        append_grid_column(&root, grid_length_pixel(Self::TITLE_AREA_WIDTH))?;
         append_grid_column(&root, grid_length_auto())?;
         append_grid_column(&root, grid_length_auto())?;
         append_grid_column(&root, grid_length_star())?;
@@ -1795,6 +1970,8 @@ impl IslandTitleBar {
             _caption_buttons: caption_buttons,
             _caption_button_revokers: Rc::new(caption_button_revokers),
             height_dips: Rc::new(Cell::new(Self::STANDARD_HEIGHT)),
+            back_button_visible: Rc::new(Cell::new(false)),
+            pane_button_visible: Rc::new(Cell::new(false)),
         };
         titlebar.set_back_button_visible(false)?;
         titlebar.set_pane_toggle_button_visible(false)?;
@@ -1805,8 +1982,22 @@ impl IslandTitleBar {
         self.root.cast()
     }
 
-    fn height_dips(&self) -> f64 {
-        self.height_dips.get()
+    fn metrics(&self) -> TitleBarMetrics {
+        let command_width = Self::COMMAND_WIDTH;
+        let left = (if self.back_button_visible.get() {
+            command_width
+        } else {
+            0.0
+        }) + (if self.pane_button_visible.get() {
+            command_width
+        } else {
+            0.0
+        });
+        TitleBarMetrics {
+            height_dips: self.height_dips.get(),
+            drag_left_dips: left,
+            drag_width_dips: Self::TITLE_AREA_WIDTH,
+        }
     }
 
     fn set_title(&self, value: &str) -> Result<()> {
@@ -1830,6 +2021,7 @@ impl IslandTitleBar {
     }
 
     fn set_back_button_visible(&self, value: bool) -> Result<()> {
+        self.back_button_visible.set(value);
         set_button_visible(&self.back_button, value, Self::COMMAND_WIDTH)
     }
 
@@ -1840,6 +2032,7 @@ impl IslandTitleBar {
     }
 
     fn set_pane_toggle_button_visible(&self, value: bool) -> Result<()> {
+        self.pane_button_visible.set(value);
         set_button_visible(&self.pane_button, value, Self::COMMAND_WIDTH)
     }
 
@@ -2148,14 +2341,13 @@ fn set_breadcrumb_items(breadcrumb: &Muxc::BreadcrumbBar, items: &[String]) -> R
     breadcrumb.put_ItemsSource(&vec)
 }
 
-fn set_string_items_for_items_control<T: Interface>(control: &T, items: &[String]) -> Result<()> {
-    let items_control: Xaml::ItemsControl = control.cast()?;
-    let vec: windows_collections::IVector<IInspectable> = items_control.get_Items()?.cast()?;
-    vec.Clear()?;
-    for item in items {
-        vec.Append(&string_reference(item))?;
-    }
-    Ok(())
+fn set_auto_suggest_items(asb: &Xaml::AutoSuggestBox, items: &[String]) -> Result<()> {
+    let vec: Vec<Option<IInspectable>> = items
+        .iter()
+        .map(|item| Some(string_reference(item)))
+        .collect();
+    let vec: windows_collections::IVector<IInspectable> = vec.into();
+    asb.cast::<Xaml::IItemsControl>()?.put_ItemsSource(&vec)
 }
 
 fn set_grid_rows(grid: &Xaml::Grid, rows: &[GridLength]) -> Result<()> {
@@ -2240,6 +2432,14 @@ fn build_nav_item(item: &NavViewItem) -> Result<Muxc::NavigationViewItemBase> {
         let icon = Xaml::SymbolIcon::CreateInstanceWithSymbol(Xaml::Symbol(icon.0))?;
         nav_item.put_Icon(&icon.cast::<Xaml::IconElement>()?)?;
     }
+    if !item.children.is_empty() {
+        let children = nav_item.cast::<Xaml::ItemsControl>()?.get_Items()?;
+        for child in &item.children {
+            let child = build_nav_item(child)?;
+            let child: IInspectable = child.cast()?;
+            children.Append(&child)?;
+        }
+    }
     nav_item.cast()
 }
 
@@ -2247,20 +2447,29 @@ fn select_nav_tag(nav: &Muxc::NavigationView, tag: &str) -> Result<()> {
     let items = nav.get_MenuItems()?;
     for i in 0..items.Size()? {
         let item = items.GetAt(i)?;
-        if nav_item_has_tag(&item, tag)? {
-            nav.put_SelectedItem(&item)?;
+        if let Some(found) = find_nav_item_by_tag(&item, tag)? {
+            nav.put_SelectedItem(&found)?;
             break;
         }
     }
     Ok(())
 }
 
-fn nav_item_has_tag(item: &IInspectable, tag: &str) -> Result<bool> {
+fn find_nav_item_by_tag(item: &IInspectable, tag: &str) -> Result<Option<IInspectable>> {
     if let Ok(fe) = item.cast::<Xaml::FrameworkElement>()
         && let Ok(value) = fe.get_Tag()
         && inspectable_to_string(value).as_deref() == Some(tag)
     {
-        return Ok(true);
+        return Ok(Some(item.clone()));
     }
-    Ok(false)
+    if let Ok(items_control) = item.cast::<Xaml::ItemsControl>() {
+        let items = items_control.get_Items()?;
+        for i in 0..items.Size()? {
+            let child = items.GetAt(i)?;
+            if let Some(found) = find_nav_item_by_tag(&child, tag)? {
+                return Ok(Some(found));
+            }
+        }
+    }
+    Ok(None)
 }

@@ -11,4 +11,3 @@ pub mod navigation;
 pub mod settings;
 pub mod status;
 pub mod text;
-pub mod title_bar;

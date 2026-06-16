@@ -50,7 +50,7 @@ use crate::bindings_muxc as Muxc;
 use crate::core::*;
 
 use super::app_shim::create_island_application;
-use super::{WinUIBackend, WinUIDispatcher};
+use super::{WinUIBackend, WinUIDispatcher, backend::TitleBarMetrics};
 
 static XAML_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 static CORE_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
@@ -58,8 +58,9 @@ static ACTIVE_HOST_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut()
 static TITLEBAR_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 static TITLEBAR_ENABLED: AtomicBool = AtomicBool::new(false);
 static TITLEBAR_HEIGHT_DIPS: AtomicU32 = AtomicU32::new(40);
+static TITLEBAR_DRAG_LEFT_DIPS: AtomicU32 = AtomicU32::new(0);
+static TITLEBAR_DRAG_WIDTH_DIPS: AtomicU32 = AtomicU32::new(1);
 const WM_ISLAND_REACTOR_SYSTEM_THEME_CHANGED: u32 = WM_APP + 0x491;
-const CAPTION_BUTTONS_WIDTH_DIPS: f64 = 46.0 * 3.0;
 const CAPTION_BUTTON_WIDTH_DIPS: f64 = 46.0;
 const CAPTION_BUTTON_HEIGHT_DIPS: f64 = 32.0;
 
@@ -382,7 +383,7 @@ impl ReactorHost {
         render_host.set_post_render(move |new_id| {
             sync_custom_titlebar(
                 hwnd,
-                render_for_post_render.with_backend(|b| b.root_titlebar_height_dips(new_id)),
+                render_for_post_render.with_backend(|b| b.root_titlebar_metrics(new_id)),
             );
             if last_for_hook.get() == new_id {
                 return;
@@ -606,19 +607,32 @@ unsafe extern "system" fn wnd_proc(
             TITLEBAR_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
             TITLEBAR_ENABLED.store(false, Ordering::Relaxed);
             TITLEBAR_HEIGHT_DIPS.store(40, Ordering::Relaxed);
+            TITLEBAR_DRAG_LEFT_DIPS.store(0, Ordering::Relaxed);
+            TITLEBAR_DRAG_WIDTH_DIPS.store(1, Ordering::Relaxed);
             LRESULT(0)
         }
         _ => unsafe { DefWindowProcW(hwnd, message, wparam, lparam) },
     }
 }
 
-fn sync_custom_titlebar(hwnd: HWND, titlebar_height_dips: Option<f64>) {
-    let enabled = titlebar_height_dips.is_some();
+fn sync_custom_titlebar(hwnd: HWND, titlebar_metrics: Option<TitleBarMetrics>) {
+    let enabled = titlebar_metrics.is_some();
     let previous = TITLEBAR_ENABLED.swap(enabled, Ordering::Relaxed);
 
     if enabled {
-        if let Some(height) = titlebar_height_dips {
-            TITLEBAR_HEIGHT_DIPS.store(height.max(1.0).ceil() as u32, Ordering::Relaxed);
+        if let Some(metrics) = titlebar_metrics {
+            TITLEBAR_HEIGHT_DIPS.store(
+                metrics.height_dips.max(1.0).ceil() as u32,
+                Ordering::Relaxed,
+            );
+            TITLEBAR_DRAG_LEFT_DIPS.store(
+                metrics.drag_left_dips.max(0.0).floor() as u32,
+                Ordering::Relaxed,
+            );
+            TITLEBAR_DRAG_WIDTH_DIPS.store(
+                metrics.drag_width_dips.max(1.0).ceil() as u32,
+                Ordering::Relaxed,
+            );
         }
         if let Some(titlebar_hwnd) = ensure_titlebar_overlay(hwnd) {
             unsafe {
@@ -634,6 +648,8 @@ fn sync_custom_titlebar(hwnd: HWND, titlebar_height_dips: Option<f64>) {
             }
         }
         TITLEBAR_HEIGHT_DIPS.store(40, Ordering::Relaxed);
+        TITLEBAR_DRAG_LEFT_DIPS.store(0, Ordering::Relaxed);
+        TITLEBAR_DRAG_WIDTH_DIPS.store(1, Ordering::Relaxed);
     }
 
     if previous != enabled {
@@ -725,19 +741,22 @@ fn titlebar_overlay_height_px(parent: HWND) -> i32 {
 
 fn titlebar_overlay_bounds_px(parent: HWND) -> Option<PixelRect> {
     let mut rect = RECT::default();
-    let width = unsafe {
+    let client_width = unsafe {
         if GetClientRect(parent, &mut rect).is_ok() {
             rect.right - rect.left
         } else {
             return None;
         }
     };
-    let caption_width =
-        (CAPTION_BUTTONS_WIDTH_DIPS * current_dpi(parent) as f64 / 96.0).ceil() as i32;
+    let scale = current_dpi(parent) as f64 / 96.0;
+    let left = (TITLEBAR_DRAG_LEFT_DIPS.load(Ordering::Relaxed) as f64 * scale).floor() as i32;
+    let requested_width =
+        (TITLEBAR_DRAG_WIDTH_DIPS.load(Ordering::Relaxed).max(1) as f64 * scale).ceil() as i32;
+    let width = requested_width.min((client_width - left).max(1)).max(1);
     Some(PixelRect {
-        x: 0,
+        x: left,
         y: 0,
-        width: (width - caption_width).max(1),
+        width,
         height: titlebar_overlay_height_px(parent) + 1,
     })
 }

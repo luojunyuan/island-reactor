@@ -381,6 +381,13 @@ pub const ALL_CONTROLS: &[ControlInfo] = &[
         tag: "menu-bar",
         image: "MenuBar.png",
     },
+    ControlInfo {
+        title: "SelectorBar",
+        description: "Switch between different views or modes.",
+        category: "Menus and Toolbars",
+        tag: "selector-bar",
+        image: "",
+    },
     // ── Navigation ──────────────────────────────────────────────────
     ControlInfo {
         title: "BreadcrumbBar",
@@ -412,10 +419,10 @@ pub const ALL_CONTROLS: &[ControlInfo] = &[
     },
     ControlInfo {
         title: "TitleBar",
-        description: "A window title bar with app title, custom content, and navigation actions.",
+        description: "A customizable application title bar.",
         category: "Navigation",
         tag: "title-bar",
-        image: "",
+        image: "TitleBar.png",
     },
     // ── Status and Info ─────────────────────────────────────────────
     ControlInfo {

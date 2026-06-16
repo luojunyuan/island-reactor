@@ -30,17 +30,16 @@ These upstream Reactor controls are now represented by wrappers backed by `Micro
 | Upstream control/API | Gallery tag/page | Local behavior | Reason |
 | --- | --- | --- | --- |
 | `ScrollView` | `scroll-view` | Gallery page is backed by `Windows.UI.Xaml.Controls.ScrollViewer`. | The WinUI 2 AppX winmd used for checked-in bindings does not expose `Microsoft.UI.Xaml.Controls.ScrollView`. The runtime DLL and .NET projection contain ScrollView symbols, but `windows-bindgen` currently fails on the projection metadata, so the binding source stays AppX-winmd-only. |
+| `SelectorBar` | `selector-bar` | Public API and gallery page are present; backend uses an island-local horizontal `ToggleButton` composition that preserves single-selection and `on_selection_changed(String)`. | The WinUI 2 AppX winmd used for checked-in bindings does not expose `Microsoft.UI.Xaml.Controls.SelectorBar`. |
 | Reactor `Backdrop` implementation | `materials` | All host windows use `WS_EX_NOREDIRECTIONBITMAP`; backdrop windows also use `DWMWA_SYSTEMBACKDROP_TYPE`, matching the `Xaml-Islands-Cpp` DWM path instead of upstream Reactor's WinAppSDK `SystemBackdrop` objects. | This project hosts `Windows.UI.Xaml` Islands with WinUI 2 runtime assets, not WinUI 3/Windows App SDK `Window`. Use `App::backdrop(...)` for windows that need Mica/Acrylic root material from startup; `set_backdrop` switches the installed DWM backdrop at runtime. |
 
 ## Still Unsupported Or Intentionally Different
 
 | Upstream control/API | Omitted gallery page/tag | Reason | Possible future path |
 | --- | --- | --- | --- |
-| `SelectorBar` | `selector-bar` | Not exposed by the WinUI 2 AppX winmd used by this project. | Keep omitted or compose from `Pivot`, `RadioButtons`, or `ListView`. |
 | WinUI 3 `TitleBar` drag-region/input fine details | None | XAML Islands require a native overlay HWND for custom non-client titlebar behavior. The current island implementation restores the public `TitleBar` API, gallery page, native drag, caption button hit-testing, and custom frame enable/disable path, but does not yet reproduce WinUI 3's full drag-region exclusion model for arbitrary interactive controls placed in the live top titlebar. | Add explicit drag-region calculation or pointer interop so top-level `TitleBar.content` / `footer` controls can coexist with native drag hit-testing exactly like WinUI 3. |
 | `SurfaceImageSource` | None | Direct2D surface interop interfaces are not generated for this crate. | Add hand-written COM bindings and lifetime management for the required native surface interfaces. |
 | `SwapChainPanel` native interop helpers | None; upstream swap-chain sample omitted | Swap-chain native interop interfaces and composition scale events are not exposed by the checked-in bindings. | Add hand-written COM bindings for swap-chain interop and a focused DirectX sample. |
-| `NavViewItem::child` / nested navigation menu items | Gallery shell nested navigation omitted | `NavigationViewItem.MenuItems` is not currently wrapped. | Add a typed wrapper over MUXC nested menu APIs or keep the gallery navigation flat. |
 | `ProgressRing` determinate value/range APIs | ProgressRing page adapted | `Windows.UI.Xaml.Controls.ProgressRing` exposes active indeterminate display, not determinate value/range properties. | Use MUXC `ProgressRing` range members if needed, or compose a custom determinate circular progress visual. |
 
 ## Binding Policy

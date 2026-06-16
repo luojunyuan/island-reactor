@@ -6,6 +6,7 @@ pub struct NavViewItem {
     pub tag: Option<String>,
     pub icon: Option<SymbolGlyph>,
     pub is_header: bool,
+    pub children: Vec<NavViewItem>,
 }
 impl NavViewItem {
     pub fn new(content: impl Into<String>) -> Self {
@@ -27,6 +28,10 @@ impl NavViewItem {
     }
     pub fn icon(mut self, s: SymbolGlyph) -> Self {
         self.icon = Some(s);
+        self
+    }
+    pub fn child(mut self, item: NavViewItem) -> Self {
+        self.children.push(item);
         self
     }
 }
@@ -192,5 +197,30 @@ impl Widget for NavigationView {
     }
     fn children(&self) -> Children<'_> {
         Children::PositionalSingle(&self.content)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bindings_include_nested_nav_items() {
+        let view = NavigationView::new(
+            vec![NavViewItem::new("Parent")
+                .tag("parent")
+                .child(NavViewItem::new("Child").tag("child"))],
+            Element::Empty,
+        );
+
+        let bindings = view.bindings();
+        let items = bindings.iter().find_map(|binding| match binding {
+            Binding::Prop(Prop::MenuItems, PropValue::NavMenuItems(items)) => Some(items),
+            _ => None,
+        });
+
+        let items = items.expect("NavigationView should emit MenuItems");
+        assert_eq!(items[0].children[0].content, "Child");
+        assert_eq!(items[0].children[0].tag.as_deref(), Some("child"));
     }
 }

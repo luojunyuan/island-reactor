@@ -65,6 +65,7 @@ widget_modules! {
     repeat_button,
     rich_edit_box,
     scroll_viewer,
+    selector_bar,
     shape,
     slider,
     split_button,

@@ -89,6 +89,7 @@ pub enum ControlKind {
     RelativePanel,
     TitleBar,
     ToggleButton,
+    SelectorBar,
 }
 
 /// Closed enum of every property that can be set on a control. Each
@@ -279,6 +280,7 @@ pub enum PropValue {
         primary: Vec<CommandBarCommandDef>,
         secondary: Vec<CommandBarCommandDef>,
     },
+    SelectorBarItems(Vec<SelectorBarItemDef>),
     Resources(HashMap<String, String>),
 }
 

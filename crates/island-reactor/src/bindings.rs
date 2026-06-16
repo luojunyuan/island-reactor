@@ -305,6 +305,22 @@ impl windows_core::RuntimeName for AutoSuggestBoxTextChangedEventArgs {
 unsafe impl Send for AutoSuggestBoxTextChangedEventArgs {}
 unsafe impl Sync for AutoSuggestBoxTextChangedEventArgs {}
 #[repr(transparent)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutoSuggestionBoxTextChangeReason(pub i32);
+impl AutoSuggestionBoxTextChangeReason {
+    pub const UserInput: Self = Self(0);
+    pub const ProgrammaticChange: Self = Self(1);
+    pub const SuggestionChosen: Self = Self(2);
+}
+impl windows_core::TypeKind for AutoSuggestionBoxTextChangeReason {
+    type TypeKind = windows_core::CopyType;
+}
+impl windows_core::RuntimeType for AutoSuggestionBoxTextChangeReason {
+    const SIGNATURE: windows_core::imp::ConstBuffer = windows_core::imp::ConstBuffer::from_slice(
+        b"enum(Windows.UI.Xaml.Controls.AutoSuggestionBoxTextChangeReason;i4)",
+    );
+}
+#[repr(transparent)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BitmapImage(windows_core::IUnknown);
 windows_core::imp::interface_hierarchy!(
@@ -3211,6 +3227,15 @@ impl IAutoSuggestBox {
             })
         }
     }
+    pub fn put_Text(&self, value: &str) -> windows_core::Result<()> {
+        unsafe {
+            (windows_core::Interface::vtable(self).put_Text)(
+                windows_core::Interface::as_raw(self),
+                core::mem::transmute_copy(&windows_core::HSTRING::from(value)),
+            )
+            .ok()
+        }
+    }
     pub fn put_PlaceholderText(&self, value: &str) -> windows_core::Result<()> {
         unsafe {
             (windows_core::Interface::vtable(self).put_PlaceholderText)(
@@ -3309,7 +3334,10 @@ pub struct IAutoSuggestBox_Vtbl {
         *mut core::ffi::c_void,
         *mut *mut core::ffi::c_void,
     ) -> windows_core::HRESULT,
-    put_Text: usize,
+    pub put_Text: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
     get_UpdateTextOnSelect: usize,
     put_UpdateTextOnSelect: usize,
     get_PlaceholderText: usize,
@@ -3469,10 +3497,25 @@ impl windows_core::RuntimeType for IAutoSuggestBoxTextChangedEventArgs {
     const SIGNATURE: windows_core::imp::ConstBuffer =
         windows_core::imp::ConstBuffer::for_interface::<Self>();
 }
+impl IAutoSuggestBoxTextChangedEventArgs {
+    pub fn get_Reason(&self) -> windows_core::Result<AutoSuggestionBoxTextChangeReason> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).get_Reason)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+            )
+            .map(|| result__)
+        }
+    }
+}
 #[repr(C)]
 pub struct IAutoSuggestBoxTextChangedEventArgs_Vtbl {
     pub base__: windows_core::IInspectable_Vtbl,
-    get_Reason: usize,
+    pub get_Reason: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut AutoSuggestionBoxTextChangeReason,
+    ) -> windows_core::HRESULT,
     put_Reason: usize,
     CheckCurrent: usize,
 }
@@ -5875,6 +5918,18 @@ impl windows_core::RuntimeType for IItemsControl {
         windows_core::imp::ConstBuffer::for_interface::<Self>();
 }
 impl IItemsControl {
+    pub fn put_ItemsSource<P0>(&self, value: P0) -> windows_core::Result<()>
+    where
+        P0: windows_core::Param<windows_core::IInspectable>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).put_ItemsSource)(
+                windows_core::Interface::as_raw(self),
+                value.param().abi(),
+            )
+            .ok()
+        }
+    }
     pub fn get_Items(&self) -> windows_core::Result<ItemCollection> {
         unsafe {
             let mut result__ = core::mem::zeroed();
@@ -5890,7 +5945,10 @@ impl IItemsControl {
 pub struct IItemsControl_Vtbl {
     pub base__: windows_core::IInspectable_Vtbl,
     get_ItemsSource: usize,
-    put_ItemsSource: usize,
+    pub put_ItemsSource: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
     pub get_Items: unsafe extern "system" fn(
         *mut core::ffi::c_void,
         *mut *mut core::ffi::c_void,

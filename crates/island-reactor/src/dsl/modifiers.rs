@@ -532,6 +532,7 @@ impl_element_ext!(
     RelativePanel,
     TitleBar,
     ToggleButton,
+    SelectorBar,
 );
 
 impl ElementExt for crate::core::rich_text::RichTextBlock {
@@ -604,6 +605,7 @@ impl ElementExt for Element {
             Element::RelativePanel(v) => v.key = Some(key),
             Element::TitleBar(v) => v.key = Some(key),
             Element::ToggleButton(v) => v.key = Some(key),
+            Element::SelectorBar(v) => v.key = Some(key),
             Element::Component(c) => c.key = Some(key),
             Element::ErrorBoundary(eb) => eb.key = Some(key),
             Element::Provider(pe) => pe.key = Some(key),

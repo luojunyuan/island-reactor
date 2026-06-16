@@ -28,9 +28,14 @@ pub fn gallery_shell(cx: &mut RenderCx) -> Element {
 
     let mut nav_items = vec![NavViewItem::new("Home").tag("home").icon(SymbolGlyph::Home)];
     for &cat in CATEGORIES {
+        let controls = registry::controls_in_category(cat);
         let item = NavViewItem::new(cat)
             .tag(registry::category_tag(cat))
             .icon(category_icon(cat));
+        let mut item = item;
+        for c in &controls {
+            item = item.child(NavViewItem::new(c.title).tag(c.tag));
+        }
         nav_items.push(item);
     }
 
@@ -96,17 +101,11 @@ pub fn gallery_shell(cx: &mut RenderCx) -> Element {
         .into();
     let search_box = search_box.width(320.0);
 
-    let pane_button = button("\u{E700}")
-        .on_click(move || set_pane_open.call(!is_pane_open))
-        .font_family("Segoe MDL2 Assets")
-        .font_size(14.0)
-        .width(40.0)
-        .height(36.0)
-        .padding(0.0);
-
-    let back_button = button("\u{E72B}")
-        .enabled(!history.is_empty())
-        .on_click({
+    let title_bar = TitleBar::new("Island Reactor Gallery")
+        .pane_toggle_button_visible(true)
+        .back_button_visible(true)
+        .back_button_enabled(!history.is_empty())
+        .on_back_requested({
             let (set_nav, hist) = (set_nav.clone(), history.clone());
             move || {
                 let mut h = hist.clone();
@@ -115,56 +114,25 @@ pub fn gallery_shell(cx: &mut RenderCx) -> Element {
                 }
             }
         })
-        .font_family("Segoe MDL2 Assets")
-        .font_size(14.0)
-        .width(40.0)
-        .height(36.0)
-        .padding(0.0);
-
-    let theme_button = {
-        let glyph = if is_dark { "\u{E706}" } else { "\u{E708}" };
-        button(glyph)
-            .on_click(move || {
-                set_requested_theme(if is_dark {
-                    RequestedTheme::Light
-                } else {
-                    RequestedTheme::Dark
-                });
-            })
-            .font_family("Segoe MDL2 Assets")
-            .font_size(14.0)
-            .width(40.0)
-            .height(36.0)
-            .padding(0.0)
-    };
-
-    let title_bar: Element = TitleBar::new("Island Reactor Gallery")
-        .subtitle("XAML Islands + WinUI 2")
-        .content(text_block("Controls Gallery").opacity(0.72))
-        .into();
-
-    let command_bar = border(
-        grid((
-            pane_button.grid_column(0),
-            back_button.grid_column(1),
-            search_box.grid_column(2),
-            theme_button.grid_column(3),
-        ))
-        .columns([
-            GridLength::Auto,
-            GridLength::Auto,
-            GridLength::Star(1.0),
-            GridLength::Auto,
-        ])
-        .column_spacing(8.0),
-    )
-    .padding(Thickness {
-        left: 8.0,
-        top: 8.0,
-        right: 8.0,
-        bottom: 8.0,
-    })
-    .background(ThemeRef::CardBackground);
+        .on_pane_toggle_requested(move || set_pane_open.call(!is_pane_open))
+        .content(search_box)
+        .footer({
+            let glyph = if is_dark { "\u{E706}" } else { "\u{E708}" };
+            button(glyph)
+                .on_click(move || {
+                    set_requested_theme(if is_dark {
+                        RequestedTheme::Light
+                    } else {
+                        RequestedTheme::Dark
+                    });
+                })
+                .font_family("Segoe MDL2 Assets")
+                .font_size(14.0)
+                .width(40.0)
+                .height(36.0)
+                .padding(0.0)
+        })
+        .tall(true);
 
     let nav_view = NavigationView::new(nav_items, content)
         .selected_tag(&selected_tag)
@@ -190,14 +158,10 @@ pub fn gallery_shell(cx: &mut RenderCx) -> Element {
         .back_button_visible(false)
         .font_family("Segoe UI Variable");
 
-    grid((
-        title_bar.grid_row(0),
-        command_bar.grid_row(1),
-        nav_view.grid_row(2),
-    ))
-    .rows([GridLength::Auto, GridLength::Auto, GridLength::Star(1.0)])
-    .columns([GridLength::Star(1.0)])
-    .into()
+    grid((title_bar.grid_row(0), nav_view.grid_row(1)))
+        .rows([GridLength::Auto, GridLength::Star(1.0)])
+        .columns([GridLength::Star(1.0)])
+        .into()
 }
 
 fn category_icon(category: &str) -> SymbolGlyph {

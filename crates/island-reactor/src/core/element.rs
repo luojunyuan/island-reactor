@@ -178,6 +178,7 @@ define_element! {
     RelativePanel,
     TitleBar,
     ToggleButton,
+    SelectorBar,
 }
 
 macro_rules! non_widget_from_table {
