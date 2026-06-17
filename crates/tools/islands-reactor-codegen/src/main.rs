@@ -255,6 +255,7 @@ const MUXC_MINIMAL_FILTERS: &[&str] = &[
     "Microsoft.UI.Xaml.Controls.INavigationView::{get_MenuItems, put_SelectedItem, put_Header, put_IsPaneOpen, put_IsSettingsVisible, put_IsPaneToggleButtonVisible, add_SelectionChanged}",
     "Microsoft.UI.Xaml.Controls.INavigationView2::{put_PaneDisplayMode, put_IsBackButtonVisible, put_IsBackEnabled, put_PaneTitle, add_BackRequested}",
     "Microsoft.UI.Xaml.Controls.INavigationViewItem::{put_Icon}",
+    "Microsoft.UI.Xaml.Controls.INavigationViewItem2::{get_MenuItems}",
     "Microsoft.UI.Xaml.Controls.INavigationViewSelectionChangedEventArgs::{get_SelectedItem}",
     "Microsoft.UI.Xaml.Controls.NavigationViewItem::{CreateInstance}",
     "Microsoft.UI.Xaml.Controls.NavigationViewItemBase",

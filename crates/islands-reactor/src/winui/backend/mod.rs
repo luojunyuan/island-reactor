@@ -2508,7 +2508,9 @@ fn build_nav_item(item: &NavViewItem) -> Result<Muxc::NavigationViewItemBase> {
         nav_item.put_Icon(&icon.cast::<Xaml::IconElement>()?)?;
     }
     if !item.children.is_empty() {
-        let children = nav_item.cast::<Xaml::ItemsControl>()?.get_Items()?;
+        let children = nav_item
+            .cast::<Muxc::INavigationViewItem2>()?
+            .get_MenuItems()?;
         for child in &item.children {
             let child = build_nav_item(child)?;
             let child: IInspectable = child.cast()?;
@@ -2537,8 +2539,11 @@ fn find_nav_item_by_tag(item: &IInspectable, tag: &str) -> Result<Option<IInspec
     {
         return Ok(Some(item.clone()));
     }
-    if let Ok(items_control) = item.cast::<Xaml::ItemsControl>() {
-        let items = items_control.get_Items()?;
+    if let Ok(nav_item) = item.cast::<Muxc::NavigationViewItem>()
+        && let Ok(items) = nav_item
+            .cast::<Muxc::INavigationViewItem2>()?
+            .get_MenuItems()
+    {
         for i in 0..items.Size()? {
             let child = items.GetAt(i)?;
             if let Some(found) = find_nav_item_by_tag(&child, tag)? {

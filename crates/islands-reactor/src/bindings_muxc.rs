@@ -1144,6 +1144,47 @@ pub struct INavigationViewItem_Vtbl {
     get_CompactPaneLength: usize,
 }
 windows_core::imp::define_interface!(
+    INavigationViewItem2,
+    INavigationViewItem2_Vtbl,
+    0x2d5bd889_9dac_5675_b254_68226f077a61
+);
+impl windows_core::RuntimeType for INavigationViewItem2 {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_interface::<Self>();
+}
+impl INavigationViewItem2 {
+    pub fn get_MenuItems(
+        &self,
+    ) -> windows_core::Result<windows_collections::IVector<windows_core::IInspectable>> {
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(self).get_MenuItems)(
+                windows_core::Interface::as_raw(self),
+                &mut result__,
+            )
+            .and_then(|| windows_core::Type::from_abi(result__))
+        }
+    }
+}
+#[repr(C)]
+pub struct INavigationViewItem2_Vtbl {
+    pub base__: windows_core::IInspectable_Vtbl,
+    get_SelectsOnInvoked: usize,
+    put_SelectsOnInvoked: usize,
+    get_IsExpanded: usize,
+    put_IsExpanded: usize,
+    get_HasUnrealizedChildren: usize,
+    put_HasUnrealizedChildren: usize,
+    get_IsChildSelected: usize,
+    put_IsChildSelected: usize,
+    pub get_MenuItems: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+    get_MenuItemsSource: usize,
+    put_MenuItemsSource: usize,
+}
+windows_core::imp::define_interface!(
     INavigationViewItemBase,
     INavigationViewItemBase_Vtbl,
     0x33586494_af48_513f_be4d_f645e8c89005
