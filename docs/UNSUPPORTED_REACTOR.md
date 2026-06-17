@@ -41,6 +41,7 @@ These upstream Reactor controls are now represented by wrappers backed by `Micro
 | `SurfaceImageSource` | None | Direct2D surface interop interfaces are not generated for this crate. | Add hand-written COM bindings and lifetime management for the required native surface interfaces. |
 | `SwapChainPanel` native interop helpers | None; upstream swap-chain sample omitted | Swap-chain native interop interfaces and composition scale events are not exposed by the checked-in bindings. | Add hand-written COM bindings for swap-chain interop and a focused DirectX sample. |
 | `ProgressRing` determinate value/range APIs | ProgressRing page adapted | `Windows.UI.Xaml.Controls.ProgressRing` exposes active indeterminate display, not determinate value/range properties. | Use MUXC `ProgressRing` range members if needed, or compose a custom determinate circular progress visual. |
+| `Button::command_bar_flyout*` / `CommandBarFlyoutClick` | None | Upstream uses WinUI 3 `CommandBarFlyout` command materialization. The current Island backend has not yet implemented the WinUI 2 equivalent flyout/command tree or click handler storage. | Add MUXC `CommandBarFlyout`/`AppBarButton` bindings and port upstream command materialization plus click rewiring into the hand-written backend fallback. |
 
 ## Binding Policy
 

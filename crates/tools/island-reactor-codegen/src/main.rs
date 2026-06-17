@@ -7,7 +7,16 @@ use std::{
 
 use xmltree::{Element, EmitterConfig, XMLNode};
 
+mod gen_attach;
+mod gen_bindings;
+mod gen_set_prop;
+mod helpers;
+mod metadata;
+mod schema;
+mod toml_parser;
+
 const WINUI2_VERSION: &str = "2.8.7";
+const REACTOR_WIDGETS_TOML: &str = include_str!("reactor_widgets.toml");
 
 const XAML_MINIMAL_FILTERS: &[&str] = &[
     "Windows.ApplicationModel.Resources.Core.ResourceManager::{get_Current}",
@@ -38,27 +47,32 @@ const XAML_MINIMAL_FILTERS: &[&str] = &[
     "Windows.UI.Xaml.Controls.CalendarDatePicker::{CreateInstance}",
     "Windows.UI.Xaml.Controls.ICalendarDatePicker::{put_Header, put_PlaceholderText, put_IsCalendarOpen, put_IsTodayHighlighted}",
     "Windows.UI.Xaml.Controls.CalendarView::{CreateInstance}",
-    "Windows.UI.Xaml.Controls.ICalendarView::{put_IsTodayHighlighted, put_IsGroupLabelVisible}",
+    "Windows.UI.Xaml.Controls.ICalendarView::{put_IsTodayHighlighted, put_IsGroupLabelVisible, add_SelectedDatesChanged}",
     "Windows.UI.Xaml.Controls.Canvas::{CreateInstance, SetLeft, SetTop, SetZIndex}",
     "Windows.UI.Xaml.Controls.CheckBox::{CreateInstance}",
     "Windows.UI.Xaml.Controls.ColorChangedEventArgs",
     "Windows.UI.Xaml.Controls.ColorPicker::{CreateInstance}",
     "Windows.UI.Xaml.Controls.IColorChangedEventArgs::{get_NewColor}",
-    "Windows.UI.Xaml.Controls.IColorPicker::{put_Color, add_ColorChanged}",
+    "Windows.UI.Xaml.Controls.IColorPicker::{put_Color, put_IsAlphaEnabled, put_IsHexInputVisible, put_IsColorSliderVisible, put_IsColorChannelTextInputVisible, add_ColorChanged}",
     "Windows.UI.Xaml.Controls.ColumnDefinition::{CreateInstance}",
     "Windows.UI.Xaml.Controls.IColumnDefinition::{put_Width}",
     "Windows.UI.Xaml.Controls.ColumnDefinitionCollection",
     "Windows.UI.Xaml.Controls.ComboBox::{CreateInstance}",
     "Windows.UI.Xaml.Controls.IComboBox2::{put_Header, put_PlaceholderText}",
+    "Windows.UI.Xaml.Controls.IComboBox6::{put_IsEditable}",
     "Windows.UI.Xaml.Controls.CommandBar::{CreateInstance}",
     "Windows.UI.Xaml.Controls.CommandBarDefaultLabelPosition",
+    "Windows.UI.Xaml.Controls.ICommandBar3::{put_DefaultLabelPosition}",
     "Windows.UI.Xaml.Controls.ContentControl",
     "Windows.UI.Xaml.Controls.IContentControl::{put_Content}",
     "Windows.UI.Xaml.Controls.ContentDialog::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IContentDialog::{put_Title, put_PrimaryButtonText, put_SecondaryButtonText, put_IsPrimaryButtonEnabled, put_IsSecondaryButtonEnabled}",
+    "Windows.UI.Xaml.Controls.IContentDialog2::{put_CloseButtonText}",
     "Windows.UI.Xaml.Controls.Control",
     "Windows.UI.Xaml.Controls.IControl::{put_IsEnabled, put_Padding, put_Background, put_Foreground, put_FontSize, put_FontWeight, put_FontFamily}",
     "Windows.UI.Xaml.Controls.DatePicker::{CreateInstance}",
-    "Windows.UI.Xaml.Controls.IDatePicker::{put_Header, put_DayVisible, put_MonthVisible, put_YearVisible}",
+    "Windows.UI.Xaml.Controls.IDatePicker::{put_Header, put_DayVisible, put_MonthVisible, put_YearVisible, add_DateChanged}",
+    "Windows.UI.Xaml.Controls.IDatePickerValueChangedEventArgs::{get_NewDate}",
     "Windows.UI.Xaml.Controls.DropDownButton::{CreateInstance}",
     "Windows.UI.Xaml.Controls.FlipView::{CreateInstance}",
     "Windows.UI.Xaml.Controls.Grid::{CreateInstance, SetColumn, SetColumnSpan, SetRow, SetRowSpan}",
@@ -88,15 +102,16 @@ const XAML_MINIMAL_FILTERS: &[&str] = &[
     "Windows.UI.Xaml.Controls.PersonPicture::{CreateInstance}",
     "Windows.UI.Xaml.Controls.IPersonPicture::{put_DisplayName, put_Initials}",
     "Windows.UI.Xaml.Controls.Pivot::{CreateInstance}",
-    "Windows.UI.Xaml.Controls.IPivot::{put_SelectedIndex}",
+    "Windows.UI.Xaml.Controls.IPivot::{put_SelectedIndex, put_Title}",
     "Windows.UI.Xaml.Controls.PivotItem::{CreateInstance}",
     "Windows.UI.Xaml.Controls.ProgressBar::{CreateInstance}",
     "Windows.UI.Xaml.Controls.IProgressBar::{put_IsIndeterminate}",
     "Windows.UI.Xaml.Controls.ProgressRing::{CreateInstance}",
     "Windows.UI.Xaml.Controls.IProgressRing::{put_IsActive}",
     "Windows.UI.Xaml.Controls.RadioButton::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.IRadioButton::{put_GroupName}",
     "Windows.UI.Xaml.Controls.RatingControl::{CreateInstance}",
-    "Windows.UI.Xaml.Controls.IRatingControl::{get_Value, put_Value, add_ValueChanged}",
+    "Windows.UI.Xaml.Controls.IRatingControl::{get_Value, put_Value, put_Caption, put_IsReadOnly, put_MaxRating, put_PlaceholderValue, add_ValueChanged}",
     "Windows.UI.Xaml.Controls.RelativePanel::{CreateInstance, SetAlignBottomWithPanel, SetAlignHorizontalCenterWithPanel, SetAlignLeftWithPanel, SetAlignRightWithPanel, SetAlignTopWithPanel, SetAlignVerticalCenterWithPanel}",
     "Windows.UI.Xaml.Controls.RichEditBox::{CreateInstance}",
     "Windows.UI.Xaml.Controls.IRichEditBox::{put_IsReadOnly}",
@@ -115,8 +130,9 @@ const XAML_MINIMAL_FILTERS: &[&str] = &[
     "Windows.UI.Xaml.Controls.ISlider::{put_Orientation, put_StepFrequency}",
     "Windows.UI.Xaml.Controls.ISlider2::{put_Header}",
     "Windows.UI.Xaml.Controls.SplitButton::{CreateInstance}",
+    "Windows.UI.Xaml.Controls.ISplitButton::{add_Click}",
     "Windows.UI.Xaml.Controls.SplitView::{CreateInstance}",
-    "Windows.UI.Xaml.Controls.ISplitView::{put_IsPaneOpen, put_OpenPaneLength, put_CompactPaneLength, put_DisplayMode, put_Content, put_Pane}",
+    "Windows.UI.Xaml.Controls.ISplitView::{put_IsPaneOpen, put_OpenPaneLength, put_CompactPaneLength, put_DisplayMode, put_Content, put_Pane, add_PaneClosed}",
     "Windows.UI.Xaml.Controls.SplitViewDisplayMode",
     "Windows.UI.Xaml.Controls.StackPanel::{CreateInstance}",
     "Windows.UI.Xaml.Controls.IStackPanel::{put_Orientation}",
@@ -129,12 +145,15 @@ const XAML_MINIMAL_FILTERS: &[&str] = &[
     "Windows.UI.Xaml.Controls.ITextBox::{get_Text, put_Text, put_TextWrapping, put_AcceptsReturn, add_TextChanged}",
     "Windows.UI.Xaml.Controls.ITextBox2::{put_Header, put_PlaceholderText}",
     "Windows.UI.Xaml.Controls.TimePicker::{CreateInstance}",
-    "Windows.UI.Xaml.Controls.ITimePicker::{put_Header, put_ClockIdentifier, put_MinuteIncrement}",
+    "Windows.UI.Xaml.Controls.ITimePicker::{put_Header, put_ClockIdentifier, put_MinuteIncrement, add_TimeChanged}",
+    "Windows.UI.Xaml.Controls.ITimePickerValueChangedEventArgs::{get_NewTime}",
     "Windows.UI.Xaml.Controls.ToggleSwitch::{CreateInstance}",
-    "Windows.UI.Xaml.Controls.IToggleSwitch::{get_IsOn, put_IsOn, put_OnContent, put_OffContent, add_Toggled}",
+    "Windows.UI.Xaml.Controls.IToggleSwitch::{get_IsOn, put_IsOn, put_OnContent, put_OffContent, put_Header, add_Toggled}",
     "Windows.UI.Xaml.Controls.ToolTipService::{SetToolTip}",
     "Windows.UI.Xaml.Controls.TreeView::{CreateInstance}",
-    "Windows.UI.Xaml.Controls.ITreeView::{put_SelectionMode}",
+    "Windows.UI.Xaml.Controls.ITreeView::{put_SelectionMode, add_ItemInvoked}",
+    "Windows.UI.Xaml.Controls.ITreeViewItemInvokedEventArgs::{get_InvokedItem}",
+    "Windows.UI.Xaml.Controls.ITreeViewNode::{get_Content}",
     "Windows.UI.Xaml.Controls.TreeViewSelectionMode",
     "Windows.UI.Xaml.Controls.UIElementCollection",
     "Windows.UI.Xaml.Controls.Viewbox::{CreateInstance}",
@@ -233,7 +252,7 @@ const MUXC_MINIMAL_FILTERS: &[&str] = &[
     "Microsoft.UI.Xaml.Controls.NavigationView::{CreateInstance}",
     "Microsoft.UI.Xaml.Controls.NavigationViewBackButtonVisible",
     "Microsoft.UI.Xaml.Controls.NavigationViewBackRequestedEventArgs",
-    "Microsoft.UI.Xaml.Controls.INavigationView::{get_MenuItems, put_SelectedItem, put_IsPaneOpen, put_IsSettingsVisible, put_IsPaneToggleButtonVisible, add_SelectionChanged}",
+    "Microsoft.UI.Xaml.Controls.INavigationView::{get_MenuItems, put_SelectedItem, put_Header, put_IsPaneOpen, put_IsSettingsVisible, put_IsPaneToggleButtonVisible, add_SelectionChanged}",
     "Microsoft.UI.Xaml.Controls.INavigationView2::{put_PaneDisplayMode, put_IsBackButtonVisible, put_IsBackEnabled, put_PaneTitle, add_BackRequested}",
     "Microsoft.UI.Xaml.Controls.INavigationViewItem::{put_Icon}",
     "Microsoft.UI.Xaml.Controls.INavigationViewSelectionChangedEventArgs::{get_SelectedItem}",
@@ -285,6 +304,7 @@ fn generate_bindings() -> Result<(), String> {
 
     generate_xaml_bindings(&root)?;
     generate_muxc_module(&root, &winmd)?;
+    generate_reactor_code(&root, &winmd)?;
     vendor_muxc_runtime(&root, &package)?;
     Ok(())
 }
@@ -378,6 +398,79 @@ fn generate_muxc_module(root: &Path, winmd: &Path) -> Result<(), String> {
     run_bindgen(args)?;
     patch_muxc_module(&temp)?;
     copy_if_changed(&temp, &out)
+}
+
+fn generate_reactor_code(root: &Path, muxc_winmd: &Path) -> Result<(), String> {
+    let metadata_dir = stage_reactor_metadata(root, muxc_winmd)?;
+    let resolver = metadata::MetadataResolver::load(&metadata_dir);
+    let mut controls = toml_parser::parse(REACTOR_WIDGETS_TOML, &resolver);
+
+    for ctrl in &mut controls {
+        let handle = ctrl.handle().to_string();
+        for prop in &mut ctrl.prop {
+            prop.resolve_defaults(Some(&resolver), &handle);
+        }
+    }
+
+    for warning in schema::validate(&controls, &resolver) {
+        eprintln!("{warning}");
+    }
+
+    write_generated_rs(
+        &root.join("crates/island-reactor/src/core/generated_bindings.rs"),
+        &gen_bindings::generate(&controls),
+    )?;
+    write_generated_rs(
+        &root.join("crates/island-reactor/src/winui/backend/generated_set_prop.rs"),
+        &gen_set_prop::generate(&controls, &resolver),
+    )?;
+    write_generated_rs(
+        &root.join("crates/island-reactor/src/winui/backend/generated_attach_event.rs"),
+        &gen_attach::generate(&controls, &resolver),
+    )
+}
+
+fn stage_reactor_metadata(root: &Path, muxc_winmd: &Path) -> Result<PathBuf, String> {
+    let work = root
+        .join("target")
+        .join("island-reactor-codegen")
+        .join("reactor-metadata");
+    recreate_dir(&work)?;
+
+    let windows_winmd = locate_windows_bindgen_default_winmd(root)?;
+    copy_file(&windows_winmd, &work.join("Windows.winmd"))?;
+    copy_file(muxc_winmd, &work.join("Microsoft.UI.Xaml.winmd"))?;
+    Ok(work)
+}
+
+fn locate_windows_bindgen_default_winmd(root: &Path) -> Result<PathBuf, String> {
+    let metadata = cargo_metadata::MetadataCommand::new()
+        .manifest_path(root.join("Cargo.toml"))
+        .exec()
+        .map_err(|err| format!("cargo metadata failed: {err}"))?;
+
+    let package = metadata
+        .packages
+        .iter()
+        .find(|package| package.name.as_str() == "windows-bindgen")
+        .ok_or_else(|| "cargo metadata did not include windows-bindgen".to_string())?;
+    let manifest = package.manifest_path.as_std_path();
+    let winmd = manifest
+        .parent()
+        .ok_or_else(|| {
+            format!(
+                "windows-bindgen manifest has no parent: {}",
+                manifest.display()
+            )
+        })?
+        .join("default")
+        .join("Windows.winmd");
+    require_file(&winmd, "windows-bindgen default Windows.winmd")?;
+    Ok(winmd)
+}
+
+fn write_generated_rs(path: &Path, code: &str) -> Result<(), String> {
+    write_if_changed(path, &rustfmt(code))
 }
 
 fn run_bindgen(args: Vec<&str>) -> Result<(), String> {
@@ -485,10 +578,12 @@ fn trim_mux_pri(input: &Path, output: &Path) -> Result<(), String> {
 }
 
 fn trim_xbf_nodes(path: &Path) -> Result<(), String> {
-    let file =
-        fs::File::open(path).map_err(|err| format!("failed to open {}: {err}", path.display()))?;
-    let mut xml = Element::parse(BufReader::new(file))
-        .map_err(|err| format!("failed to parse {}: {err}", path.display()))?;
+    let mut xml = {
+        let file = fs::File::open(path)
+            .map_err(|err| format!("failed to open {}: {err}", path.display()))?;
+        Element::parse(BufReader::new(file))
+            .map_err(|err| format!("failed to parse {}: {err}", path.display()))?
+    };
     trim_xbf_element(&mut xml);
     let file = fs::File::create(path)
         .map_err(|err| format!("failed to rewrite {}: {err}", path.display()))?;

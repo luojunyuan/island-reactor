@@ -84,19 +84,7 @@ impl Widget for InfoBar {
     widget_header!(ControlKind::InfoBar);
 
     fn bindings(&self) -> PropBindings {
-        vec![
-            Binding::Prop(Prop::Title, PropValue::Str(self.title.clone())),
-            Binding::Prop(Prop::Message, PropValue::Str(self.message.clone())),
-            Binding::Prop(Prop::Severity, PropValue::I32(self.severity.0)),
-            Binding::Prop(Prop::IsOpen, PropValue::Bool(self.is_open)),
-            Binding::Prop(Prop::IsClosable, PropValue::Bool(self.is_closable)),
-            Binding::Event(
-                Event::Closed,
-                self.on_closed
-                    .as_ref()
-                    .map(|cb| EventHandler::Unit(cb.clone())),
-            ),
-        ]
+        crate::core::generated_bindings::info_bar_bindings(self)
     }
 }
 

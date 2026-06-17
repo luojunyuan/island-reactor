@@ -9,6 +9,10 @@ use crate::bindings_muxc as Muxc;
 use crate::core::backend::*;
 use crate::core::*;
 
+mod convert;
+mod generated_attach_event;
+mod generated_set_prop;
+
 /// Backend that creates native `Windows.UI.Xaml` controls for XAML Islands.
 pub struct WinUIBackend {
     controls: RefCell<FxHashMap<ControlId, Handle>>,
@@ -93,6 +97,10 @@ impl WinUIBackend {
         let Some(handle) = map.get(&id) else {
             return Ok(());
         };
+
+        if generated_set_prop::dispatch(handle, prop, value)? {
+            return Ok(());
+        }
 
         match (prop, value, handle) {
             (Prop::Text, PropValue::Str(s), Handle::TextBlock(tb)) => tb.put_Text(s)?,
@@ -927,6 +935,15 @@ impl Backend for WinUIBackend {
             return;
         };
 
+        if let Some(revokers) = generated_attach_event::dispatch(handle, event, &handler) {
+            if !revokers.is_empty() {
+                self.event_revokers
+                    .borrow_mut()
+                    .insert((id, event), revokers);
+            }
+            return;
+        }
+
         match (event, handle) {
             (Event::ItemClicked, Handle::BreadcrumbBar(breadcrumb)) => {
                 revokers.push(
@@ -1051,6 +1068,46 @@ impl Backend for WinUIBackend {
                             .and_then(inspectable_to_string)
                             .unwrap_or_default();
                         handler.invoke_string(text);
+                    })
+                    .unwrap(),
+                );
+            }
+            (Event::ColorChanged, Handle::ColorPicker(cp)) => {
+                revokers.push(
+                    cp.add_ColorChanged(move |_, args| {
+                        let color = args.as_ref().and_then(|a| a.get_NewColor().ok()).unwrap_or(
+                            Xaml::Color {
+                                A: 255,
+                                R: 0,
+                                G: 0,
+                                B: 0,
+                            },
+                        );
+                        handler.invoke_color((color.A, color.R, color.G, color.B));
+                    })
+                    .unwrap(),
+                );
+            }
+            (Event::SelectedDateChanged, Handle::DatePicker(dp)) => {
+                revokers.push(
+                    dp.add_DateChanged(move |_, args| {
+                        if let Some(a) = args.as_ref()
+                            && let Ok(dt) = a.get_NewDate()
+                        {
+                            handler.invoke_datetime(dt);
+                        }
+                    })
+                    .unwrap(),
+                );
+            }
+            (Event::SelectedTimeChanged, Handle::TimePicker(tp)) => {
+                revokers.push(
+                    tp.add_TimeChanged(move |_, args| {
+                        if let Some(a) = args.as_ref()
+                            && let Ok(ts) = a.get_NewTime()
+                        {
+                            handler.invoke_timespan(ts);
+                        }
                     })
                     .unwrap(),
                 );
@@ -1214,6 +1271,24 @@ impl Backend for WinUIBackend {
                             .as_ref()
                             .and_then(|s| s.cast::<Xaml::PasswordBox>().ok())
                             .and_then(|p| p.get_Password().ok())
+                            .unwrap_or_default();
+                        handler.invoke_string(text);
+                    })
+                    .unwrap(),
+                );
+            }
+            (Event::ItemInvoked, Handle::TreeView(tv)) => {
+                revokers.push(
+                    tv.add_ItemInvoked(move |_, args| {
+                        let text = args
+                            .as_ref()
+                            .and_then(|a| a.get_InvokedItem().ok())
+                            .and_then(|insp| {
+                                insp.cast::<Xaml::ITreeViewNode>()
+                                    .ok()
+                                    .and_then(|node| node.get_Content().ok())
+                            })
+                            .and_then(inspectable_to_string)
                             .unwrap_or_default();
                         handler.invoke_string(text);
                     })

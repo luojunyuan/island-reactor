@@ -51,19 +51,7 @@ impl Widget for Expander {
     widget_header!(ControlKind::Expander);
 
     fn bindings(&self) -> PropBindings {
-        let mut out = vec![
-            Binding::Prop(Prop::IsExpanded, PropValue::Bool(self.is_expanded)),
-            Binding::Event(
-                Event::Expanding,
-                self.on_expanding
-                    .as_ref()
-                    .map(|cb| EventHandler::Bool(cb.clone())),
-            ),
-        ];
-        if let Some(header) = &self.header {
-            out.push(Binding::Prop(Prop::Header, PropValue::Str(header.clone())));
-        }
-        out
+        crate::core::generated_bindings::expander_bindings(self)
     }
 
     fn children(&self) -> Children<'_> {

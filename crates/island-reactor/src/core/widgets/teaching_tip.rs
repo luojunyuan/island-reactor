@@ -79,31 +79,7 @@ impl Widget for TeachingTip {
     widget_header!(ControlKind::TeachingTip);
 
     fn bindings(&self) -> PropBindings {
-        let mut out = vec![
-            Binding::Prop(Prop::Title, PropValue::Str(self.title.clone())),
-            Binding::Prop(Prop::Subtitle, PropValue::Str(self.subtitle.clone())),
-            Binding::Prop(Prop::IsOpen, PropValue::Bool(self.is_open)),
-            Binding::Prop(
-                Prop::IsLightDismissEnabled,
-                PropValue::Bool(self.is_light_dismiss_enabled),
-            ),
-            Binding::Prop(
-                Prop::PreferredPlacement,
-                PropValue::I32(self.preferred_placement.0),
-            ),
-            Binding::Event(
-                Event::Closed,
-                self.on_closed
-                    .as_ref()
-                    .map(|cb| EventHandler::Unit(cb.clone())),
-            ),
-            Binding::Event(
-                Event::ActionButtonClick,
-                self.on_action_button_click
-                    .as_ref()
-                    .map(|cb| EventHandler::Unit(cb.clone())),
-            ),
-        ];
+        let mut out = crate::core::generated_bindings::teaching_tip_bindings(self);
         if let Some(text) = &self.action_button_text {
             out.push(Binding::Prop(
                 Prop::ActionButtonText,

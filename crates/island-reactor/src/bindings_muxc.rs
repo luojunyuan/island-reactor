@@ -771,6 +771,18 @@ impl INavigationView {
             .ok()
         }
     }
+    pub fn put_Header<P0>(&self, value: P0) -> windows_core::Result<()>
+    where
+        P0: windows_core::Param<windows_core::IInspectable>,
+    {
+        unsafe {
+            (windows_core::Interface::vtable(self).put_Header)(
+                windows_core::Interface::as_raw(self),
+                value.param().abi(),
+            )
+            .ok()
+        }
+    }
     pub fn put_IsSettingsVisible(&self, value: bool) -> windows_core::Result<()> {
         unsafe {
             (windows_core::Interface::vtable(self).put_IsSettingsVisible)(
@@ -863,7 +875,10 @@ pub struct INavigationView_Vtbl {
     get_PaneFooter: usize,
     put_PaneFooter: usize,
     get_Header: usize,
-    put_Header: usize,
+    pub put_Header: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
     get_HeaderTemplate: usize,
     put_HeaderTemplate: usize,
     get_DisplayMode: usize,

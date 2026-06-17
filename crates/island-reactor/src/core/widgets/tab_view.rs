@@ -92,35 +92,7 @@ impl Widget for TabView {
     widget_header!(ControlKind::TabView);
 
     fn bindings(&self) -> PropBindings {
-        vec![
-            Binding::Prop(Prop::SelectedIndex, PropValue::I32(self.selected_index)),
-            Binding::Prop(
-                Prop::CanReorderTabs,
-                PropValue::Bool(self.can_reorder_tabs),
-            ),
-            Binding::Prop(
-                Prop::IsAddTabButtonVisible,
-                PropValue::Bool(self.is_add_tab_button_visible),
-            ),
-            Binding::Event(
-                Event::SelectionChanged,
-                self.on_selection_changed
-                    .as_ref()
-                    .map(|cb| EventHandler::I32(cb.clone())),
-            ),
-            Binding::Event(
-                Event::CloseRequested,
-                self.on_close_requested
-                    .as_ref()
-                    .map(|cb| EventHandler::Str(cb.clone())),
-            ),
-            Binding::Event(
-                Event::AddTabButtonClick,
-                self.on_add_tab_button_click
-                    .as_ref()
-                    .map(|cb| EventHandler::Unit(cb.clone())),
-            ),
-        ]
+        crate::core::generated_bindings::tab_view_bindings(self)
     }
 
     fn children(&self) -> Children<'_> {

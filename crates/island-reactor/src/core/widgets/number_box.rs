@@ -61,22 +61,7 @@ impl Widget for NumberBox {
     widget_header!(ControlKind::NumberBox);
 
     fn bindings(&self) -> PropBindings {
-        let mut out = vec![
-            Binding::Prop(Prop::Value, PropValue::F64(self.value)),
-            Binding::Prop(Prop::Minimum, PropValue::F64(self.minimum)),
-            Binding::Prop(Prop::Maximum, PropValue::F64(self.maximum)),
-            Binding::Prop(Prop::IsEnabled, PropValue::Bool(self.is_enabled)),
-            Binding::Event(
-                Event::ValueChanged,
-                self.on_value_changed
-                    .as_ref()
-                    .map(|cb| EventHandler::F64(cb.clone())),
-            ),
-        ];
-        if let Some(header) = &self.header {
-            out.push(Binding::Prop(Prop::Header, PropValue::Str(header.clone())));
-        }
-        out
+        crate::core::generated_bindings::number_box_bindings(self)
     }
 }
 
