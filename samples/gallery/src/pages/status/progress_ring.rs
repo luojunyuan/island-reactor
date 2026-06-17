@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn progress_ring_page(_: &(), cx: &mut RenderCx) -> Element {
     let (active, set_active) = cx.use_state(true);

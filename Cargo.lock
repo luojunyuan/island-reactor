@@ -57,7 +57,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "island-reactor"
+name = "islands-reactor"
 version = "0.1.0"
 dependencies = [
  "rustc-hash",
@@ -72,7 +72,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "island-reactor-codegen"
+name = "islands-reactor-codegen"
 version = "0.1.0"
 dependencies = [
  "cargo_metadata",
@@ -86,31 +86,31 @@ dependencies = [
 ]
 
 [[package]]
-name = "island-reactor-demo"
+name = "islands-reactor-demo"
 version = "0.1.0"
 dependencies = [
- "island-reactor",
- "island-reactor-setup",
+ "islands-reactor",
+ "islands-reactor-setup",
 ]
 
 [[package]]
-name = "island-reactor-gallery"
+name = "islands-reactor-gallery"
 version = "0.1.0"
 dependencies = [
- "island-reactor",
- "island-reactor-setup",
+ "islands-reactor",
+ "islands-reactor-setup",
 ]
 
 [[package]]
-name = "island-reactor-hello"
+name = "islands-reactor-hello"
 version = "0.1.0"
 dependencies = [
- "island-reactor",
- "island-reactor-setup",
+ "islands-reactor",
+ "islands-reactor-setup",
 ]
 
 [[package]]
-name = "island-reactor-setup"
+name = "islands-reactor-setup"
 version = "0.1.0"
 
 [[package]]

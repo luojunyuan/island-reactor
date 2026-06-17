@@ -101,7 +101,7 @@ impl App {
         C: Component + 'static,
     {
         init_app_platform()?;
-        let title = self.title.unwrap_or_else(|| "island-reactor".to_string());
+        let title = self.title.unwrap_or_else(|| "islands-reactor".to_string());
         let eager = self.eager_templated_realization;
         let size = self.inner_size;
         let constraints = self.inner_constraints;

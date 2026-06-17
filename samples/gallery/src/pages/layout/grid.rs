@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn grid_page(_: &(), cx: &mut RenderCx) -> Element {
     let (wide, set_wide) = cx.use_state(false);

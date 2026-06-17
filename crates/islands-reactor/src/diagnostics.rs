@@ -76,13 +76,13 @@ fn install_inner() {
             let _ = writeln!(f, "{info}\n\nBacktrace:\n{bt}");
             let _ = f.flush();
             emit(&format!(
-                "island_reactor: panic log written to {}\n",
+                "islands_reactor: panic log written to {}\n",
                 path.display()
             ));
         }
 
         // Force-kill: std::process::abort() doesn't reliably terminate WinUI apps.
-        emit("island_reactor: terminating process due to unrecoverable panic\n");
+        emit("islands_reactor: terminating process due to unrecoverable panic\n");
         std::process::exit(101);
     }));
 }
@@ -111,6 +111,6 @@ pub fn format_panic_payload(payload: &(dyn Any + Send)) -> String {
 fn crash_log_path() -> Option<PathBuf> {
     let mut p = std::env::temp_dir();
     let pid = std::process::id();
-    p.push(format!("island-reactor-crash-{pid}.log"));
+    p.push(format!("islands-reactor-crash-{pid}.log"));
     Some(p)
 }

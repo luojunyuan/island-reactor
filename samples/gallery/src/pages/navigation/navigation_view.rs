@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn navigation_view_page(_: &(), cx: &mut RenderCx) -> Element {
     let (selected, set_selected) = cx.use_state(String::from("page1"));

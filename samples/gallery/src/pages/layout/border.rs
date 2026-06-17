@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn border_page(_: &(), cx: &mut RenderCx) -> Element {
     let (radius, set_radius) = cx.use_state(8.0_f64);

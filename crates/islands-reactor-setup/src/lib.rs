@@ -22,14 +22,14 @@ pub fn embed_manifest() {
 
     let mux = stage_mux_runtime();
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
-    let manifest_path = out_dir.join("island-reactor-app.manifest");
+    let manifest_path = out_dir.join("islands-reactor-app.manifest");
     let manifest = match mux.as_ref() {
         Some(mux) => merged_manifest(mux),
         None => APP_MANIFEST.to_string(),
     };
     fs::write(&manifest_path, manifest).unwrap_or_else(|err| {
         panic!(
-            "failed to write island-reactor manifest to {}: {err}",
+            "failed to write islands-reactor manifest to {}: {err}",
             manifest_path.display()
         )
     });
@@ -52,7 +52,7 @@ pub fn embed_manifest() {
                 manifest_path.display()
             );
         }
-        _ => panic!("unsupported target environment for island-reactor manifest embedding"),
+        _ => panic!("unsupported target environment for islands-reactor manifest embedding"),
     }
 }
 
@@ -165,7 +165,7 @@ fn ensure_app_resources_pri(target_dir: &Path, mux_pri: &Path) -> std::io::Resul
         return Ok(());
     };
 
-    let work = target_dir.join("island-reactor-pri");
+    let work = target_dir.join("islands-reactor-pri");
     let input = work.join("input");
     recreate_dir(&work)?;
     fs::create_dir_all(&input)?;
@@ -207,7 +207,7 @@ struct RuntimeStageLock {
 
 impl RuntimeStageLock {
     fn acquire(target_dir: &Path) -> io::Result<Self> {
-        let path = target_dir.join(".island-reactor-runtime.lock");
+        let path = target_dir.join(".islands-reactor-runtime.lock");
         let started = Instant::now();
         loop {
             match fs::OpenOptions::new()

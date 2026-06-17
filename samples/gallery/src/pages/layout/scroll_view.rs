@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn scroll_view_page(_: &(), _cx: &mut RenderCx) -> Element {
     let rows: Vec<Element> = (1..=18)

@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn expander_page(_: &(), cx: &mut RenderCx) -> Element {
     let (is_expanded, set_expanded) = cx.use_state(true);

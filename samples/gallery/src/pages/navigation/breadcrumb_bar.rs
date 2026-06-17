@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn breadcrumb_bar_page(_: &(), cx: &mut RenderCx) -> Element {
     let (clicked, set_clicked) = cx.use_state(-1_i32);

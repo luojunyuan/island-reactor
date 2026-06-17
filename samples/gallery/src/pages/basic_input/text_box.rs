@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn text_box_page(_: &(), cx: &mut RenderCx) -> Element {
     let (text, set_text) = cx.use_state(String::new());

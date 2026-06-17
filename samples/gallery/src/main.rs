@@ -1,6 +1,6 @@
 #![windows_subsystem = "windows"]
 
-use island_reactor::*;
+use islands_reactor::*;
 
 mod controls;
 mod pages;
@@ -10,7 +10,7 @@ mod shell;
 
 fn main() {
     let _ = App::new()
-        .title("Island Reactor Gallery")
+        .title("Islands Reactor Gallery")
         .inner_size(1400.0, 900.0)
         .backdrop(Backdrop::Mica)
         .eager_templated_realization(true)

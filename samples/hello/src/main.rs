@@ -1,10 +1,10 @@
 #![windows_subsystem = "windows"]
 
-use island_reactor::*;
+use islands_reactor::*;
 
 fn main() -> Result<()> {
     App::new()
-        .title("Rust Island Reactor Hello")
+        .title("Rust Islands Reactor Hello")
         .backdrop(Backdrop::Mica)
         .render(app)
 }
@@ -15,7 +15,7 @@ fn app(_cx: &mut RenderCx) -> Element {
         .row_spacing(8.0)
         .width(190.0);
     layout.children = vec![
-        text_block("Hello, island-reactor")
+        text_block("Hello, islands-reactor")
             .font_size(20.0)
             .bold()
             .wrap()

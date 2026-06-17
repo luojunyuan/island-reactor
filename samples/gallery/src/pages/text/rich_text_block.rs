@@ -1,6 +1,6 @@
 use crate::controls::*;
-use island_reactor::core::{RichTextBlock, RichTextInline, RichTextParagraph, RichTextRun};
-use island_reactor::*;
+use islands_reactor::core::{RichTextBlock, RichTextInline, RichTextParagraph, RichTextRun};
+use islands_reactor::*;
 
 pub fn rich_text_block_page(_: &(), cx: &mut RenderCx) -> Element {
     let (font_size, set_font_size) = cx.use_state(14.0);

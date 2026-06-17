@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn repeat_button_page(_: &(), cx: &mut RenderCx) -> Element {
     let (count, set_count) = cx.use_state(0_i32);

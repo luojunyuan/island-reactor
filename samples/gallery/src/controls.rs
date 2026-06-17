@@ -1,6 +1,6 @@
 //! Reusable UI building blocks for gallery pages.
 
-use island_reactor::*;
+use islands_reactor::*;
 
 /// Renders a page header with title and description (matches C# PageHeader).
 pub fn page_header(title: &str, description: &str) -> Element {

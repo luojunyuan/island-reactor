@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn hyperlink_button_page(_: &(), cx: &mut RenderCx) -> Element {
     let (clicks, set_clicks) = cx.use_state(0_i32);

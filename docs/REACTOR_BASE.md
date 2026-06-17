@@ -13,7 +13,7 @@ matching a handful of public functions:
 - Reference worktree status when recorded: clean
 - Recorded date: `2026-06-15`
 
-`island-reactor` should preserve Reactor's public API, internal module shape,
+`islands-reactor` should preserve Reactor's public API, internal module shape,
 folder layout, generated binding model, and runtime behavior wherever that is
 practical. The core porting work is replacing Reactor's WinAppSDK / WinUI 3
 kernel with `Windows.UI.Xaml` XAML Islands plus WinUI 2 (`Microsoft.UI.Xaml`

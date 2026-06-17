@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn time_picker_page(_: &(), cx: &mut RenderCx) -> Element {
     let (selected_time, set_selected_time) = cx.use_state(String::from("No time selected"));
@@ -15,7 +15,7 @@ pub fn time_picker_page(_: &(), cx: &mut RenderCx) -> Element {
                         .header("Select time")
                         .on_selected_time_changed({
                             let set_selected_time = set_selected_time;
-                            move |time: island_reactor::TimeSpan| {
+                            move |time: islands_reactor::TimeSpan| {
                                 let hours = time.whole_hours();
                                 let minutes = time.whole_minutes() % 60;
                                 set_selected_time

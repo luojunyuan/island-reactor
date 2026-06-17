@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "crates/island-reactor",
-    "crates/island-reactor-setup",
-    "crates/tools/island-reactor-codegen",
+    "crates/islands-reactor",
+    "crates/islands-reactor-setup",
+    "crates/tools/islands-reactor-codegen",
     "samples/*",
 ]
 resolver = "3"

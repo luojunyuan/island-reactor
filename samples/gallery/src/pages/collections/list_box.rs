@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn list_box_page(_: &(), cx: &mut RenderCx) -> Element {
     let (selected, set_selected) = cx.use_state(-1_i32);

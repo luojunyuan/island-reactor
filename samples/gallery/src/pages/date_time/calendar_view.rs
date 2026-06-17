@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn calendar_view_page(_: &(), cx: &mut RenderCx) -> Element {
     let (today_highlighted, set_today_highlighted) = cx.use_state(true);

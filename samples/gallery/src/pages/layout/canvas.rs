@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn canvas_page(_: &(), cx: &mut RenderCx) -> Element {
     let (x, set_x) = cx.use_state(100.0_f64);

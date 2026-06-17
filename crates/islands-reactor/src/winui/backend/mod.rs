@@ -849,7 +849,7 @@ impl Backend for WinUIBackend {
     fn create(&mut self, kind: ControlKind) -> ControlId {
         let id = self.alloc_id();
         let handle = Handle::new(kind).unwrap_or_else(|err| {
-            panic!("island-reactor: unsupported or failed native control {kind:?}: {err:?}")
+            panic!("islands-reactor: unsupported or failed native control {kind:?}: {err:?}")
         });
         self.controls.borrow_mut().insert(id, handle);
         id
@@ -2259,7 +2259,7 @@ fn apply_theme_resource_style(handle: &Handle, bindings: &[(Prop, crate::core::t
         }
         Err(err) => {
             crate::diagnostics::emit(&format!(
-                "island_reactor: theme resource style failed: {err:?}\n"
+                "islands_reactor: theme resource style failed: {err:?}\n"
             ));
         }
     }

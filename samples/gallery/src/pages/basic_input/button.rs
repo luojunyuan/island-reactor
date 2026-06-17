@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn button_page(_: &(), cx: &mut RenderCx) -> Element {
     let (basic_output, set_basic_output) = cx.use_state(String::from("Ready"));

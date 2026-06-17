@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn date_picker_page(_: &(), cx: &mut RenderCx) -> Element {
     let (selected_date, set_selected_date) = cx.use_state(String::from("No date selected"));

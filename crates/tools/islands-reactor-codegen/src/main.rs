@@ -286,12 +286,12 @@ fn main() {
     match args.next().as_deref() {
         Some("generate-bindings") if args.next().is_none() => {
             if let Err(err) = generate_bindings() {
-                eprintln!("island-reactor-codegen: {err}");
+                eprintln!("islands-reactor-codegen: {err}");
                 std::process::exit(1);
             }
         }
         _ => {
-            eprintln!("usage: cargo run -p island-reactor-codegen -- generate-bindings");
+            eprintln!("usage: cargo run -p islands-reactor-codegen -- generate-bindings");
             std::process::exit(2);
         }
     }
@@ -310,10 +310,10 @@ fn generate_bindings() -> Result<(), String> {
 }
 
 fn generate_xaml_bindings(root: &Path) -> Result<(), String> {
-    let out = root.join("crates/island-reactor/src/bindings.rs");
+    let out = root.join("crates/islands-reactor/src/bindings.rs");
     let temp = root
         .join("target")
-        .join("island-reactor-codegen")
+        .join("islands-reactor-codegen")
         .join("bindings.rs");
     let temp_arg = path_arg(&temp);
     let mut args = vec![
@@ -357,10 +357,10 @@ fn generate_xaml_bindings(root: &Path) -> Result<(), String> {
 }
 
 fn generate_muxc_module(root: &Path, winmd: &Path) -> Result<(), String> {
-    let out = root.join("crates/island-reactor/src/bindings_muxc.rs");
+    let out = root.join("crates/islands-reactor/src/bindings_muxc.rs");
     let temp = root
         .join("target")
-        .join("island-reactor-codegen")
+        .join("islands-reactor-codegen")
         .join("bindings_muxc.rs");
     let temp_arg = path_arg(&temp);
     let winmd = path_arg(winmd);
@@ -417,15 +417,15 @@ fn generate_reactor_code(root: &Path, muxc_winmd: &Path) -> Result<(), String> {
     }
 
     write_generated_rs(
-        &root.join("crates/island-reactor/src/core/generated_bindings.rs"),
+        &root.join("crates/islands-reactor/src/core/generated_bindings.rs"),
         &gen_bindings::generate(&controls),
     )?;
     write_generated_rs(
-        &root.join("crates/island-reactor/src/winui/backend/generated_set_prop.rs"),
+        &root.join("crates/islands-reactor/src/winui/backend/generated_set_prop.rs"),
         &gen_set_prop::generate(&controls, &resolver),
     )?;
     write_generated_rs(
-        &root.join("crates/island-reactor/src/winui/backend/generated_attach_event.rs"),
+        &root.join("crates/islands-reactor/src/winui/backend/generated_attach_event.rs"),
         &gen_attach::generate(&controls, &resolver),
     )
 }
@@ -433,7 +433,7 @@ fn generate_reactor_code(root: &Path, muxc_winmd: &Path) -> Result<(), String> {
 fn stage_reactor_metadata(root: &Path, muxc_winmd: &Path) -> Result<PathBuf, String> {
     let work = root
         .join("target")
-        .join("island-reactor-codegen")
+        .join("islands-reactor-codegen")
         .join("reactor-metadata");
     recreate_dir(&work)?;
 
@@ -486,12 +486,12 @@ fn vendor_muxc_runtime(root: &Path, package: &Path) -> Result<(), String> {
 
         let work = root
             .join("target")
-            .join("island-reactor-codegen")
+            .join("islands-reactor-codegen")
             .join(format!("muxc-{arch}"));
         recreate_dir(&work)?;
         expand_appx(&appx, &work)?;
 
-        let runtime = root.join("crates/island-reactor-setup/runtime").join(arch);
+        let runtime = root.join("crates/islands-reactor-setup/runtime").join(arch);
         fs::create_dir_all(&runtime).map_err(|err| {
             format!(
                 "failed to create runtime asset dir {}: {err}",
@@ -513,7 +513,7 @@ fn vendor_muxc_runtime(root: &Path, package: &Path) -> Result<(), String> {
     }
 
     write_runtime_rs(
-        &root.join("crates/island-reactor-setup/src/muxc_runtime.rs"),
+        &root.join("crates/islands-reactor-setup/src/muxc_runtime.rs"),
         &registration.unwrap_or_default(),
     )
 }
@@ -813,7 +813,7 @@ fn extract_muxc_metadata_winmd(root: &Path, package: &Path) -> Result<PathBuf, S
 
     let work = root
         .join("target")
-        .join("island-reactor-codegen")
+        .join("islands-reactor-codegen")
         .join("muxc-metadata-x64");
     recreate_dir(&work)?;
     expand_appx(&appx, &work)?;

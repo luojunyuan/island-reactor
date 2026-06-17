@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn tree_view_page(_: &(), cx: &mut RenderCx) -> Element {
     let (invoked, set_invoked) = cx.use_state(String::from("(none)"));

@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn tool_tip_page(_: &(), cx: &mut RenderCx) -> Element {
     let (hover_count, set_hover_count) = cx.use_state(0_i32);

@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn person_picture_page(_: &(), cx: &mut RenderCx) -> Element {
     let (show_display_names, set_show_display_names) = cx.use_state(true);

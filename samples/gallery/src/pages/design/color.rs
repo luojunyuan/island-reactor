@@ -1,5 +1,5 @@
 use crate::controls::page_content;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn color_page(_: &(), _cx: &mut RenderCx) -> Element {
     let swatches = [

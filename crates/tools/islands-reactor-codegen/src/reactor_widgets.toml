@@ -1,4 +1,4 @@
-# Island Reactor widget declarations.
+# Islands Reactor widget declarations.
 #
 # This is the Island counterpart of upstream Reactor's winui.toml. It drives
 # core widget binding generation and the backend generated set_prop /

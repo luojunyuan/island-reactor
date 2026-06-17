@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn toggle_switch_page(_: &(), cx: &mut RenderCx) -> Element {
     let (wifi_on, set_wifi_on) = cx.use_state(true);

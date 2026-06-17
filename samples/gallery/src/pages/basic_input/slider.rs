@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn slider_page(_: &(), cx: &mut RenderCx) -> Element {
     let (volume, set_volume) = cx.use_state(35.0_f64);

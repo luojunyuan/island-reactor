@@ -53,7 +53,7 @@ pub use core::dispatcher::*;
 pub use core::element::*;
 // Rust 2024 edition does not propagate `pub use` items through glob
 // re-exports. Explicitly re-export types that element.rs sources from sibling
-// modules so that downstream crates can rely on `island_reactor::X`.
+// modules so that downstream crates can rely on `islands_reactor::X`.
 pub use core::element::{
     AccessibilityModifiers, AttachedProps, Brush, Color, CommandBarDefaultLabelPosition,
     FlyoutPlacementMode, GridLength, GridPlacement, HeadingLevel, HorizontalAlignment,

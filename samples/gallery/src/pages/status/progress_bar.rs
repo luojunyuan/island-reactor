@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn progress_bar_page(_: &(), cx: &mut RenderCx) -> Element {
     let (value, set_value) = cx.use_state(60.0_f64);

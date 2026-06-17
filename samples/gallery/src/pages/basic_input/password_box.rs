@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn password_box_page(_: &(), cx: &mut RenderCx) -> Element {
     let (password, set_password) = cx.use_state(String::new());

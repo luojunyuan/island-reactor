@@ -7,7 +7,7 @@ pub struct BootstrapHandle;
 
 /// Initialize the reactor platform layer.
 ///
-/// This is a no-op for island-reactor and is kept only for source
+/// This is a no-op for islands-reactor and is kept only for source
 /// compatibility with examples that call `bootstrap::initialize()`.
 pub fn initialize() -> windows_core::Result<BootstrapHandle> {
     Ok(BootstrapHandle)

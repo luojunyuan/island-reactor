@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn title_bar_page(_: &(), _cx: &mut RenderCx) -> Element {
     page_content(

@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn viewbox_page(_: &(), cx: &mut RenderCx) -> Element {
     let (content_size, set_content_size) = cx.use_state(120.0_f64);

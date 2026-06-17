@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn auto_suggest_box_page(_: &(), cx: &mut RenderCx) -> Element {
     let (query, set_query) = cx.use_state(String::new());

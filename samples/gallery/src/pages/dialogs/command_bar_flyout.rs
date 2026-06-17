@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn command_bar_flyout_page(_: &(), cx: &mut RenderCx) -> Element {
     let (last_action, set_last_action) = cx.use_state(String::from("(none)"));

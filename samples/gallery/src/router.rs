@@ -1,4 +1,4 @@
-use island_reactor::*;
+use islands_reactor::*;
 
 use crate::pages::{
     basic_input, collections, date_time, design, dialogs, layout, media, menus, navigation, status,

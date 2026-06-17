@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn stack_panel_page(_: &(), cx: &mut RenderCx) -> Element {
     let (item_count, set_count) = cx.use_state(3_i32);

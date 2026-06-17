@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn info_badge_page(_: &(), cx: &mut RenderCx) -> Element {
     let (count, set_count) = cx.use_state(3_i32);

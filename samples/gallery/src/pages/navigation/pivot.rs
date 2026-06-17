@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn pivot_page(_: &(), cx: &mut RenderCx) -> Element {
     let (tab_idx, set_tab) = cx.use_state(0_i32);

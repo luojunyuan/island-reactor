@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn teaching_tip_page(_: &(), cx: &mut RenderCx) -> Element {
     let (show_basic, set_basic) = cx.use_state(false);

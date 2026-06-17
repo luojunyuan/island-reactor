@@ -7,14 +7,14 @@ fn main() {
 
     // This crate is a library and does not need build-time setup for downstream
     // apps. The build script exists so Cargo's generated Windows test harness
-    // (`island_reactor_setup-*.exe`) carries an explicit asInvoker manifest;
+    // (`islands_reactor_setup-*.exe`) carries an explicit asInvoker manifest;
     // otherwise Windows may treat the word "setup" as an installer and require
     // elevation when running `cargo test`.
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
-    let manifest = out_dir.join("island-reactor-setup-tests.manifest");
+    let manifest = out_dir.join("islands-reactor-setup-tests.manifest");
     fs::write(&manifest, TEST_MANIFEST).unwrap_or_else(|err| {
         panic!(
-            "failed to write island-reactor-setup test manifest to {}: {err}",
+            "failed to write islands-reactor-setup test manifest to {}: {err}",
             manifest.display()
         )
     });
@@ -33,7 +33,7 @@ fn main() {
                 manifest.display()
             );
         }
-        _ => panic!("unsupported target environment for island-reactor-setup test manifest"),
+        _ => panic!("unsupported target environment for islands-reactor-setup test manifest"),
     }
 }
 

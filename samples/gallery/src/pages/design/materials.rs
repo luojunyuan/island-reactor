@@ -1,5 +1,5 @@
 use crate::controls::{page_content, sample_card};
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn materials_page(_: &(), cx: &mut RenderCx) -> Element {
     let (selected, set_selected) = cx.use_state(0_i32);
@@ -18,7 +18,7 @@ pub fn materials_page(_: &(), cx: &mut RenderCx) -> Element {
 
     page_content(
         "Materials",
-        "Window backdrop materials that provide depth behind island-reactor content.",
+        "Window backdrop materials that provide depth behind islands-reactor content.",
         vec![
             sample_card(
                 "Live Backdrop Switcher",

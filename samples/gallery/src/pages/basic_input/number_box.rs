@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn number_box_page(_: &(), cx: &mut RenderCx) -> Element {
     let (value, set_value) = cx.use_state(42.0_f64);

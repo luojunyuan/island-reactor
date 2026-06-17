@@ -1,7 +1,7 @@
 use crate::controls::{CardItem, card_grid};
 use crate::registry::{self, CATEGORIES, ControlInfo};
 use crate::router;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn gallery_shell(cx: &mut RenderCx) -> Element {
     let (nav, set_nav) = cx.use_state((String::from("home"), Vec::<String>::new()));
@@ -101,7 +101,7 @@ pub fn gallery_shell(cx: &mut RenderCx) -> Element {
         .into();
     let search_box = search_box.width(320.0);
 
-    let title_bar = TitleBar::new("Island Reactor Gallery")
+    let title_bar = TitleBar::new("Islands Reactor Gallery")
         .pane_toggle_button_visible(true)
         .back_button_visible(true)
         .back_button_enabled(!history.is_empty())

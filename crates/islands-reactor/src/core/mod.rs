@@ -12,7 +12,7 @@ macro_rules! internal_submodules {
     };
 }
 
-// Modules exposed as `island_reactor::core::X` for downstream use.
+// Modules exposed as `islands_reactor::core::X` for downstream use.
 public_submodules! {
     animation,
     backend,

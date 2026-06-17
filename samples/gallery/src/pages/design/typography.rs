@@ -1,5 +1,5 @@
 use crate::controls::page_content;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn typography_page(_: &(), _cx: &mut RenderCx) -> Element {
     let samples: Vec<Element> = vec![

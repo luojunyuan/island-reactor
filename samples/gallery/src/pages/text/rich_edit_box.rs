@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn rich_edit_box_page(_: &(), cx: &mut RenderCx) -> Element {
     let (editor_text, set_editor_text) = cx.use_state(String::new());

@@ -1,13 +1,13 @@
-# Island Reactor Project Handoff
+# Islands Reactor Project Handoff
 
 Use this file as the starting context for a fresh agent conversation.
 
 ## Project Goal
 
-`island-reactor` is intended to be a port of upstream `windows-rs` Reactor, not
+`islands-reactor` is intended to be a port of upstream `windows-rs` Reactor, not
 a new framework inspired by Reactor. The north star is that an application using
 upstream Reactor can switch dependency/import names from Reactor to
-`island-reactor` / `island_reactor` and keep running with little or no business
+`islands-reactor` / `islands_reactor` and keep running with little or no business
 code change.
 
 That means parity is larger than the public API. Preserve upstream Reactor's
@@ -18,7 +18,7 @@ is technically possible.
 The necessary divergence is the rendering/runtime kernel:
 
 - Upstream Reactor is built around WinAppSDK / WinUI 3.
-- `island-reactor` replaces that kernel with `Windows.UI.Xaml` XAML Islands plus
+- `islands-reactor` replaces that kernel with `Windows.UI.Xaml` XAML Islands plus
   WinUI 2 (`Microsoft.UI.Xaml.Controls`, MUXC).
 - Missing WinUI 3 behavior should be recreated on top of XAML Islands + WinUI 2
   when feasible, then documented when it cannot be made equivalent.
@@ -36,25 +36,25 @@ larger design changes.
 ## Workspace Shape
 
 - Root `Cargo.toml` is only a workspace.
-- Main library: `crates/island-reactor`
-- Setup/build helper library: `crates/island-reactor-setup`
-- Codegen tool: `crates/tools/island-reactor-codegen`
+- Main library: `crates/islands-reactor`
+- Setup/build helper library: `crates/islands-reactor-setup`
+- Codegen tool: `crates/tools/islands-reactor-codegen`
 - Samples: `samples/hello` and `samples/gallery`
 
-Applications should depend on `island-reactor` normally and use `island-reactor-setup` as a `[build-dependencies]` crate. App build scripts call:
+Applications should depend on `islands-reactor` normally and use `islands-reactor-setup` as a `[build-dependencies]` crate. App build scripts call:
 
 ```rust
 fn main() {
-    island_reactor_setup::embed_manifest();
+    islands_reactor_setup::embed_manifest();
     println!("cargo:rerun-if-changed=build.rs");
 }
 ```
 
-`island-reactor-setup` stages WinUI 2 runtime assets, embeds the app manifest, and creates/merges the app `resources.pri`. It is a library crate; it should not need its own `build.rs`.
+`islands-reactor-setup` stages WinUI 2 runtime assets, embeds the app manifest, and creates/merges the app `resources.pri`. It is a library crate; it should not need its own `build.rs`.
 
 ## Binding Policy
 
-Normal builds must not run `windows-bindgen` and must not download from NuGet. Bindings are checked in under `crates/island-reactor/src`:
+Normal builds must not run `windows-bindgen` and must not download from NuGet. Bindings are checked in under `crates/islands-reactor/src`:
 
 - `bindings.rs`: private `Windows.UI.Xaml`/Win32/WinRT support bindings.
 - `bindings_muxc.rs`: private WinUI 2/MUXC bindings.
@@ -62,10 +62,10 @@ Normal builds must not run `windows-bindgen` and must not download from NuGet. B
 Regeneration is explicit:
 
 ```powershell
-cargo run -p island-reactor-codegen -- generate-bindings
+cargo run -p islands-reactor-codegen -- generate-bindings
 ```
 
-If a binding change is needed, update `crates/tools/island-reactor-codegen/src/main.rs`, run the tool, and commit the generated result. Avoid long-term manual edits to generated binding files.
+If a binding change is needed, update `crates/tools/islands-reactor-codegen/src/main.rs`, run the tool, and commit the generated result. Avoid long-term manual edits to generated binding files.
 
 The MUXC metadata source is the `Microsoft.UI.Xaml.winmd` extracted from the WinUI 2 AppX beside the runtime DLL, not the `uap` folder metadata and not the .NET projection metadata.
 
@@ -92,7 +92,7 @@ When the WinAppSDK / WinUI 3 implementation cannot be reproduced directly:
 - Record remaining gaps in `docs/UNSUPPORTED_REACTOR.md`.
 
 Concrete example: upstream Reactor exposes `button(...).accent()`. User code
-should keep using `.accent()`. Internally, `island-reactor` may map that variant
+should keep using `.accent()`. Internally, `islands-reactor` may map that variant
 to the XAML resource `AccentButtonStyle`, but it should not make users write
 `AccentButtonStyle` unless upstream Reactor also exposes that style-level API.
 
@@ -119,7 +119,7 @@ The ideal downstream migration should look like this:
 
 ```toml
 [dependencies]
-island-reactor = { path = "..." }
+islands-reactor = { path = "..." }
 ```
 
 ```rust
@@ -127,7 +127,7 @@ island-reactor = { path = "..." }
 use reactor::*;
 
 // after
-use island_reactor::*;
+use islands_reactor::*;
 ```
 
 The rest of the application code should stay as close as possible to the
@@ -149,7 +149,7 @@ git diff --check
 For binding/tooling changes:
 
 ```powershell
-cargo run -p island-reactor-codegen -- generate-bindings
+cargo run -p islands-reactor-codegen -- generate-bindings
 git diff --check
 ```
 
@@ -165,4 +165,4 @@ After regeneration, rerunning the codegen command should produce no meaningful d
 - If generated bindings must change, update codegen first, then regenerate.
 - Keep commits focused and commit at natural checkpoints when asked.
 - Keep XAML/MUXC bindings private implementation details. Users should consume
-  `island-reactor`, not raw binding modules.
+  `islands-reactor`, not raw binding modules.

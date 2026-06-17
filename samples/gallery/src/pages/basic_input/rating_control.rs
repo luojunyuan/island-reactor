@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn rating_control_page(_: &(), cx: &mut RenderCx) -> Element {
     let (rating, set_rating) = cx.use_state(3.0_f64);

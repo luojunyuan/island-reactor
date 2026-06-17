@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn toggle_button_page(_: &(), cx: &mut RenderCx) -> Element {
     let (bold, set_bold) = cx.use_state(false);

@@ -1,4 +1,4 @@
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn settings_page(_: &(), _cx: &mut RenderCx) -> Element {
     let content: Element = vstack((
@@ -6,12 +6,12 @@ pub fn settings_page(_: &(), _cx: &mut RenderCx) -> Element {
         vstack((
             text_block("About this app").bold(),
             vstack((
-                text_block("Island Reactor Gallery").bold(),
+                text_block("Islands Reactor Gallery").bold(),
                 text_block("Version 0.1.0").font_size(12.0).opacity(0.6),
             ))
             .spacing(2.0),
             text_block(
-                "This app is built with Island Reactor, a declarative component-based UI framework for Windows.UI.Xaml XAML Islands."
+                "This app is built with Islands Reactor, a declarative component-based UI framework for Windows.UI.Xaml XAML Islands."
             )
             .font_size(13.0)
             .wrap()

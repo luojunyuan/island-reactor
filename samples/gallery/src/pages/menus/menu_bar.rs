@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn menu_bar_page(_: &(), cx: &mut RenderCx) -> Element {
     let (status, set_status) = cx.use_state(String::from("Last clicked: (none)"));

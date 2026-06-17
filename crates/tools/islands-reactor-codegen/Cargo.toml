@@ -1,5 +1,5 @@
 [package]
-name = "island-reactor-codegen"
+name = "islands-reactor-codegen"
 version = "0.1.0"
 edition = "2024"
 publish = false

@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn content_dialog_page(_: &(), cx: &mut RenderCx) -> Element {
     let (open, set_open) = cx.use_state(false);

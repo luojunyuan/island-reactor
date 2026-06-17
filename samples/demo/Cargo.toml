@@ -1,14 +1,14 @@
 [package]
-name = "island-reactor-demo"
+name = "islands-reactor-demo"
 version = "0.1.0"
 edition = "2024"
 publish = false
 
 [dependencies]
-island-reactor = { path = "../../crates/island-reactor" }
+islands-reactor = { path = "../../crates/islands-reactor" }
 
 [build-dependencies]
-island-reactor-setup = { path = "../../crates/island-reactor-setup" }
+islands-reactor-setup = { path = "../../crates/islands-reactor-setup" }
 
 [[bin]]
 name = "demo"

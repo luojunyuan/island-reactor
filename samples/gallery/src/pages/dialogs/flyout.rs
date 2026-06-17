@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn flyout_page(_: &(), cx: &mut RenderCx) -> Element {
     let (deleted, set_deleted) = cx.use_state(false);

@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn image_page(_: &(), cx: &mut RenderCx) -> Element {
     let (stretch_idx, set_stretch) = cx.use_state(0_i32);

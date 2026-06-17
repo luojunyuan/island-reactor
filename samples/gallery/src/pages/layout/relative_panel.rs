@@ -1,5 +1,5 @@
 use crate::controls::*;
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn relative_panel_page(_: &(), cx: &mut RenderCx) -> Element {
     let (show_alt_layout, set_show_alt_layout) = cx.use_state(false);

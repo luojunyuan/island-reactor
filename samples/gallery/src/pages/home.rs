@@ -1,6 +1,6 @@
 use crate::controls::{CardItem, card_grid};
 use crate::registry::{self, CATEGORIES};
-use island_reactor::*;
+use islands_reactor::*;
 
 pub fn home_page(on_navigate: impl Fn(String) + Clone + 'static) -> Element {
     let items: Vec<CardItem> = CATEGORIES
@@ -21,8 +21,8 @@ pub fn home_page(on_navigate: impl Fn(String) + Clone + 'static) -> Element {
 
     let root = grid((
         vstack((
-            text_block("Island Reactor Gallery").font_size(28.0).bold(),
-            text_block("A showcase of Windows.UI.Xaml controls built with island-reactor.")
+            text_block("Islands Reactor Gallery").font_size(28.0).bold(),
+            text_block("A showcase of Windows.UI.Xaml controls built with islands-reactor.")
                 .horizontal_alignment(HorizontalAlignment::Left)
                 .max_width(500.0)
                 .opacity(0.7)

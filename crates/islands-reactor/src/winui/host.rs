@@ -60,7 +60,7 @@ static TITLEBAR_ENABLED: AtomicBool = AtomicBool::new(false);
 static TITLEBAR_HEIGHT_DIPS: AtomicU32 = AtomicU32::new(40);
 static TITLEBAR_DRAG_LEFT_DIPS: AtomicU32 = AtomicU32::new(0);
 static TITLEBAR_DRAG_WIDTH_DIPS: AtomicU32 = AtomicU32::new(1);
-const WM_ISLAND_REACTOR_SYSTEM_THEME_CHANGED: u32 = WM_APP + 0x491;
+const WM_ISLANDS_REACTOR_SYSTEM_THEME_CHANGED: u32 = WM_APP + 0x491;
 const CAPTION_BUTTON_WIDTH_DIPS: f64 = 46.0;
 const CAPTION_BUTTON_HEIGHT_DIPS: f64 = 32.0;
 
@@ -140,7 +140,7 @@ pub fn install_winui2_resources() -> windows_core::Result<()> {
 
     if !current_exe_sibling("Microsoft.UI.Xaml.dll")?.exists() {
         crate::diagnostics::emit(
-            "island_reactor: WinUI 2 runtime DLL not found; skipping resource install\n",
+            "islands_reactor: WinUI 2 runtime DLL not found; skipping resource install\n",
         );
         return Ok(());
     }
@@ -148,7 +148,7 @@ pub fn install_winui2_resources() -> windows_core::Result<()> {
     if !current_exe_sibling("resources.pri")?.exists() {
         if let Err(err) = load_winui2_pri() {
             crate::diagnostics::emit(&format!(
-                "island_reactor: WinUI 2 PRI load failed: {err:?}\n"
+                "islands_reactor: WinUI 2 PRI load failed: {err:?}\n"
             ));
             return Err(err);
         }
@@ -172,19 +172,19 @@ fn install_xaml_controls_resources() -> windows_core::Result<()> {
     let dictionaries = resources.get_MergedDictionaries()?;
     let mux_resources = create_xaml_controls_resources().map_err(|err| {
         crate::diagnostics::emit(&format!(
-            "island_reactor: XamlControlsResources creation failed: {err:?}\n"
+            "islands_reactor: XamlControlsResources creation failed: {err:?}\n"
         ));
         err
     })?;
     let mux_resources = mux_resources.cast::<ResourceDictionary>().map_err(|err| {
         crate::diagnostics::emit(&format!(
-            "island_reactor: XamlControlsResources dictionary cast failed: {err:?}\n"
+            "islands_reactor: XamlControlsResources dictionary cast failed: {err:?}\n"
         ));
         err
     })?;
     dictionaries.Append(&mux_resources).map_err(|err| {
         crate::diagnostics::emit(&format!(
-            "island_reactor: XamlControlsResources append failed: {err:?}\n"
+            "islands_reactor: XamlControlsResources append failed: {err:?}\n"
         ));
         err
     })?;
@@ -194,7 +194,7 @@ fn install_xaml_controls_resources() -> windows_core::Result<()> {
 fn try_install_winui2_resources() {
     if let Err(err) = install_winui2_resources() {
         crate::diagnostics::emit(&format!(
-            "island_reactor: WinUI 2 resources were not installed: {err:?}\n"
+            "islands_reactor: WinUI 2 resources were not installed: {err:?}\n"
         ));
     }
 }
@@ -207,7 +207,7 @@ fn load_winui2_pri() -> windows_core::Result<()> {
     let pri_path = current_exe_sibling("Microsoft.UI.Xaml.pri")?;
     if !pri_path.exists() {
         crate::diagnostics::emit(&format!(
-            "island_reactor: WinUI 2 PRI not found at {}\n",
+            "islands_reactor: WinUI 2 PRI not found at {}\n",
             pri_path.display()
         ));
         return Ok(());
@@ -217,7 +217,7 @@ fn load_winui2_pri() -> windows_core::Result<()> {
     let pri_file = StorageFile::GetFileFromPathAsync(&path)
         .map_err(|err| {
             crate::diagnostics::emit(&format!(
-                "island_reactor: StorageFile::GetFileFromPathAsync failed for {}: {err:?}\n",
+                "islands_reactor: StorageFile::GetFileFromPathAsync failed for {}: {err:?}\n",
                 pri_path.display()
             ));
             err
@@ -225,7 +225,7 @@ fn load_winui2_pri() -> windows_core::Result<()> {
         .join()
         .map_err(|err| {
             crate::diagnostics::emit(&format!(
-                "island_reactor: StorageFile::GetFileFromPathAsync join failed for {}: {err:?}\n",
+                "islands_reactor: StorageFile::GetFileFromPathAsync join failed for {}: {err:?}\n",
                 pri_path.display()
             ));
             err
@@ -234,13 +234,13 @@ fn load_winui2_pri() -> windows_core::Result<()> {
     let files = windows_collections::IVector::<IStorageFile>::from(vec![Some(pri_file)]);
     let resource_manager = ResourceManager::get_Current().map_err(|err| {
         crate::diagnostics::emit(&format!(
-            "island_reactor: ResourceManager::Current failed: {err:?}\n"
+            "islands_reactor: ResourceManager::Current failed: {err:?}\n"
         ));
         err
     })?;
     resource_manager.LoadPriFiles(&files).map_err(|err| {
         crate::diagnostics::emit(&format!(
-            "island_reactor: ResourceManager::LoadPriFiles failed for {}: {err:?}\n",
+            "islands_reactor: ResourceManager::LoadPriFiles failed for {}: {err:?}\n",
             pri_path.display()
         ));
         err
@@ -269,7 +269,7 @@ fn install_xaml_exception_logging() {
                 let hr = args.get_Exception().map(|v| v.0).unwrap_or_default();
                 let message = args.get_Message().unwrap_or_default();
                 crate::diagnostics::emit(&format!(
-                    "island_reactor: XAML unhandled exception 0x{hr:08X}: {message}\n"
+                    "islands_reactor: XAML unhandled exception 0x{hr:08X}: {message}\n"
                 ));
             }
         });
@@ -592,7 +592,7 @@ unsafe extern "system" fn wnd_proc(
             set_synchronization_window(hwnd);
             LRESULT(0)
         }
-        WM_ISLAND_REACTOR_SYSTEM_THEME_CHANGED => {
+        WM_ISLANDS_REACTOR_SYSTEM_THEME_CHANGED => {
             apply_current_requested_theme();
             notify_host_theme_changed();
             LRESULT(0)
@@ -950,7 +950,7 @@ fn subscribe_system_theme_changed(hwnd: HWND) -> Option<SystemThemeSubscription>
         Ok(settings) => settings,
         Err(err) => {
             crate::diagnostics::emit(&format!(
-                "island_reactor: UISettings creation failed: {err:?}\n"
+                "islands_reactor: UISettings creation failed: {err:?}\n"
             ));
             return None;
         }
@@ -959,7 +959,7 @@ fn subscribe_system_theme_changed(hwnd: HWND) -> Option<SystemThemeSubscription>
         Ok(settings) => settings,
         Err(err) => {
             crate::diagnostics::emit(&format!(
-                "island_reactor: UISettings theme interface unavailable: {err:?}\n"
+                "islands_reactor: UISettings theme interface unavailable: {err:?}\n"
             ));
             return None;
         }
@@ -970,7 +970,7 @@ fn subscribe_system_theme_changed(hwnd: HWND) -> Option<SystemThemeSubscription>
         unsafe {
             let _ = PostMessageW(
                 Some(hwnd),
-                WM_ISLAND_REACTOR_SYSTEM_THEME_CHANGED,
+                WM_ISLANDS_REACTOR_SYSTEM_THEME_CHANGED,
                 WPARAM(0),
                 LPARAM(0),
             );
@@ -979,7 +979,7 @@ fn subscribe_system_theme_changed(hwnd: HWND) -> Option<SystemThemeSubscription>
         Ok(revoker) => revoker,
         Err(err) => {
             crate::diagnostics::emit(&format!(
-                "island_reactor: UISettings ColorValuesChanged hookup failed: {err:?}\n"
+                "islands_reactor: UISettings ColorValuesChanged hookup failed: {err:?}\n"
             ));
             return None;
         }
@@ -1072,7 +1072,7 @@ fn apply_backdrop(hwnd: HWND, backdrop: Option<Backdrop>) {
 
     if backdrop.is_some() && !supports_system_backdrop() {
         crate::diagnostics::emit(
-            "island_reactor: system backdrop requires Windows 11 22H2 or newer\n",
+            "islands_reactor: system backdrop requires Windows 11 22H2 or newer\n",
         );
         return;
     }
@@ -1088,7 +1088,7 @@ fn apply_backdrop(hwnd: HWND, backdrop: Option<Backdrop>) {
         )
     } {
         crate::diagnostics::emit(&format!(
-            "island_reactor: DWM system backdrop setup failed: {err:?}\n"
+            "islands_reactor: DWM system backdrop setup failed: {err:?}\n"
         ));
     }
 }
@@ -1168,7 +1168,7 @@ fn set_xaml_background_transparency(enabled: bool) {
         .and_then(|transparency| unsafe { transparency.SetIsBackgroundTransparent(enabled) });
     if let Err(err) = result {
         crate::diagnostics::emit(&format!(
-            "island_reactor: XAML background transparency setup failed: {err:?}\n"
+            "islands_reactor: XAML background transparency setup failed: {err:?}\n"
         ));
     }
 }

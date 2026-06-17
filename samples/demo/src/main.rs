@@ -1,10 +1,10 @@
 #![windows_subsystem = "windows"]
 
-use island_reactor::*;
+use islands_reactor::*;
 
 fn main() -> Result<()> {
     App::new()
-        .title("Island Reactor Demo")
+        .title("Islands Reactor Demo")
         .inner_size(900.0, 560.0)
         .backdrop(Backdrop::Mica)
         .render(app)
@@ -16,7 +16,7 @@ fn app(cx: &mut RenderCx) -> Element {
     let (backdrop, set_backdrop_index) = cx.use_state(2_i32);
 
     let titlebar: Element = if custom_titlebar {
-        TitleBar::new("Island Reactor Demo")
+        TitleBar::new("Islands Reactor Demo")
             .subtitle("XAML Islands")
             .content(text_block("Windows.UI.Xaml + WinUI 2").opacity(0.72))
             .footer(
@@ -118,7 +118,7 @@ fn settings_panel(
                 bottom: 4.0,
             }),
         text_block("Loaded string resource"),
-        text_block("Hello from island-reactor")
+        text_block("Hello from islands-reactor")
             .horizontal_alignment(HorizontalAlignment::Center)
             .foreground(ThemeRef::AccentText),
         text_block("Custom control"),
