@@ -5,7 +5,6 @@ use islands_reactor::*;
 fn main() -> Result<()> {
     App::new()
         .title("Islands Reactor Demo")
-        .inner_size(900.0, 560.0)
         .backdrop(Backdrop::Mica)
         .render(app)
 }

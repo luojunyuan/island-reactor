@@ -66,7 +66,6 @@ const CAPTION_BUTTON_HEIGHT_DIPS: f64 = 32.0;
 
 thread_local! {
     static ROOT_FRAMEWORK_ELEMENT: RefCell<Option<FrameworkElement>> = const { RefCell::new(None) };
-    static BACKDROP_MATERIAL_CONTROL: RefCell<Option<Control>> = const { RefCell::new(None) };
     static REQUESTED_THEME: Cell<RequestedTheme> = const { Cell::new(RequestedTheme::Default) };
     static PENDING_THEME: Cell<Option<RequestedTheme>> = const { Cell::new(None) };
     static PENDING_BACKDROP: Cell<Option<Backdrop>> = const { Cell::new(None) };
@@ -363,14 +362,11 @@ impl ReactorHost {
         enable_resize_layout_synchronization(hwnd, true);
         resize_xaml_island(hwnd);
 
-        let content_host = create_content_host()?;
-        let content_host_ui: UIElement = content_host.cast()?;
-        xaml_source.put_Content(&content_host_ui)?;
-        let backdrop_control: Control = content_host.cast()?;
-        BACKDROP_MATERIAL_CONTROL.with(|cell| {
-            *cell.borrow_mut() = Some(backdrop_control);
-        });
-        set_backdrop_material_enabled(backdrop.is_some() && supports_system_backdrop());
+        let backdrop_content_host = create_backdrop_content_host(backdrop)?;
+        if let Some(content_host) = backdrop_content_host.as_ref() {
+            let content_host_ui: UIElement = content_host.cast()?;
+            xaml_source.put_Content(&content_host_ui)?;
+        }
 
         let dispatcher = WinUIDispatcher::for_current_thread()?;
         let render_host = RenderHost::new(WinUIBackend::new(), root, dispatcher);
@@ -379,7 +375,8 @@ impl ReactorHost {
         render_host.set_dpi(current_dpi(hwnd));
         render_host.with_reconciler_mut(configure);
 
-        let content_host_for_post_render = content_host.clone();
+        let source_for_post_render = xaml_source.clone();
+        let content_host_for_post_render = backdrop_content_host.clone();
         let render_for_post_render = render_host.clone_inner();
         let last_attached: Rc<Cell<Option<ControlId>>> = Rc::new(Cell::new(None));
         let last_for_hook = Rc::clone(&last_attached);
@@ -395,7 +392,11 @@ impl ReactorHost {
                 if let Some(ui) = render_for_post_render.with_backend(|b| b.get_ui_element(rid))
                     && let Ok(ui_element) = ui.cast::<UIElement>()
                 {
-                    let _ = content_host_for_post_render.put_Content(&ui_element);
+                    if let Some(content_host) = content_host_for_post_render.as_ref() {
+                        let _ = content_host.put_Content(&ui_element);
+                    } else {
+                        let _ = source_for_post_render.put_Content(&ui_element);
+                    }
                     last_for_hook.set(Some(rid));
                     if let Ok(fe) = ui_element.cast::<FrameworkElement>() {
                         ROOT_FRAMEWORK_ELEMENT.with(|cell| {
@@ -467,9 +468,6 @@ impl Drop for ReactorHost {
         self.render_host.clear_callbacks();
         let _ = self._xaml_source.put_Content(None);
         ROOT_FRAMEWORK_ELEMENT.with(|cell| {
-            *cell.borrow_mut() = None;
-        });
-        BACKDROP_MATERIAL_CONTROL.with(|cell| {
             *cell.borrow_mut() = None;
         });
         self.render_host.with_backend(|backend| backend.shutdown());
@@ -1072,22 +1070,14 @@ fn update_window_theme(hwnd: HWND, theme: ElementTheme) {
 fn apply_backdrop(hwnd: HWND, backdrop: Option<Backdrop>) {
     update_window_theme(hwnd, resolve_requested_theme(requested_theme()));
 
-    let enabled = backdrop.is_some();
-    if enabled && !supports_system_backdrop() {
-        set_xaml_background_transparency(false);
-        set_backdrop_material_enabled(false);
+    if backdrop.is_some() && !supports_system_backdrop() {
         crate::diagnostics::emit(
             "islands_reactor: system backdrop requires Windows 11 22H2 or newer\n",
         );
         return;
     }
 
-    set_xaml_background_transparency(enabled);
-    set_backdrop_material_enabled(enabled);
-    if !supports_system_backdrop() {
-        return;
-    }
-
+    set_xaml_background_transparency(backdrop.is_some());
     let value = backdrop.map_or(DWMSBT_AUTO, Backdrop::system_backdrop_type);
     if let Err(err) = unsafe {
         DwmSetWindowAttribute(
@@ -1115,15 +1105,22 @@ fn set_window_dark_mode(hwnd: HWND, enabled: bool) {
     };
 }
 
-fn create_content_host() -> windows_core::Result<ContentControl> {
+fn create_backdrop_content_host(
+    backdrop: Option<Backdrop>,
+) -> windows_core::Result<Option<ContentControl>> {
+    if backdrop.is_none() || !supports_system_backdrop() {
+        return Ok(None);
+    }
+
     let content_host: ContentControl = XamlReader::Load(
         r#"<ContentControl
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     HorizontalContentAlignment="Stretch"
-    VerticalContentAlignment="Stretch" />"#,
+    VerticalContentAlignment="Stretch"
+    Background="Transparent" />"#,
     )?
     .cast()?;
-    Ok(content_host)
+    Ok(Some(content_host))
 }
 
 fn resize_xaml_island(parent: HWND) {
@@ -1174,20 +1171,6 @@ fn set_xaml_background_transparency(enabled: bool) {
             "islands_reactor: XAML background transparency setup failed: {err:?}\n"
         ));
     }
-}
-
-fn set_backdrop_material_enabled(enabled: bool) {
-    BACKDROP_MATERIAL_CONTROL.with(|cell| {
-        let Some(control) = cell.borrow().as_ref().cloned() else {
-            return;
-        };
-        if let Err(err) = Muxc::BackdropMaterial::SetApplyToRootOrPageBackground(&control, enabled)
-        {
-            crate::diagnostics::emit(&format!(
-                "islands_reactor: WinUI BackdropMaterial setup failed: {err:?}\n"
-            ));
-        }
-    });
 }
 
 fn supports_system_backdrop() -> bool {
