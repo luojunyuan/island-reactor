@@ -56,7 +56,6 @@ fn app(cx: &mut RenderCx) -> Element {
     ))
     .rows([GridLength::Auto, GridLength::Star(1.0)])
     .columns([GridLength::Star(1.0)])
-    .background(ThemeRef::SolidBackground)
     .into()
 }
 

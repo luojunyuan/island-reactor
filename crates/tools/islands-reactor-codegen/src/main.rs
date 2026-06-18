@@ -234,6 +234,7 @@ const XAML_MINIMAL_FILTERS: &[&str] = &[
 ];
 
 const MUXC_MINIMAL_FILTERS: &[&str] = &[
+    "Microsoft.UI.Xaml.Controls.BackdropMaterial::{SetApplyToRootOrPageBackground}",
     "Microsoft.UI.Xaml.Controls.BreadcrumbBar::{CreateInstance}",
     "Microsoft.UI.Xaml.Controls.BreadcrumbBarItem",
     "Microsoft.UI.Xaml.Controls.BreadcrumbBarItemClickedEventArgs",
