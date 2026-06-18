@@ -1338,13 +1338,17 @@ impl Backend for WinUIBackend {
         if row_idx >= list.len() {
             list.resize(row_idx + 1, None);
         }
+        let previous = list[row_idx];
         list[row_idx] = content;
         drop(rows);
 
-        let Some(content_id) = content else {
-            return;
-        };
-        self.visual_insert_at(list_id, row_idx, content_id);
+        match (previous, content) {
+            (None, None) => {}
+            (Some(_), None) => self.visual_remove_at(list_id, row_idx),
+            (None, Some(content_id)) => self.visual_insert_at(list_id, row_idx, content_id),
+            (Some(previous_id), Some(content_id)) if previous_id == content_id => {}
+            (Some(_), Some(content_id)) => self.visual_set_at(list_id, row_idx, content_id),
+        }
     }
 
     fn set_templated_selected_index(&mut self, id: ControlId, index: i32) {
