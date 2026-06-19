@@ -121,6 +121,72 @@ unsafe impl Send for BreadcrumbBarItemClickedEventArgs {}
 unsafe impl Sync for BreadcrumbBarItemClickedEventArgs {}
 #[repr(transparent)]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DropDownButton(windows_core::IUnknown);
+windows_core::imp::interface_hierarchy!(
+    DropDownButton,
+    windows_core::IUnknown,
+    windows_core::IInspectable
+);
+impl DropDownButton {
+    pub fn new() -> windows_core::Result<DropDownButton> {
+        Self::IDropDownButtonFactory(|this| unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(this).CreateInstance)(
+                windows_core::Interface::as_raw(this),
+                core::ptr::null_mut(),
+                core::ptr::null_mut(),
+                &mut result__,
+            )
+            .and_then(|| windows_core::Type::from_abi(result__))
+        })
+    }
+    pub fn compose<T>(compose: T) -> windows_core::Result<DropDownButton>
+    where
+        T: windows_core::Compose,
+    {
+        Self::IDropDownButtonFactory(|this| unsafe {
+            let (derived__, base__) = windows_core::Compose::compose(compose);
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(this).CreateInstance)(
+                windows_core::Interface::as_raw(this),
+                core::mem::transmute_copy(&derived__),
+                base__ as *mut _ as _,
+                &mut result__,
+            )
+            .ok()?;
+            let _ = &derived__;
+            windows_core::Type::from_abi(result__)
+        })
+    }
+    fn IDropDownButtonFactory<R, F: FnOnce(&IDropDownButtonFactory) -> windows_core::Result<R>>(
+        callback: F,
+    ) -> windows_core::Result<R> {
+        static SHARED: windows_core::imp::FactoryCache<DropDownButton, IDropDownButtonFactory> =
+            windows_core::imp::FactoryCache::new();
+        SHARED.call(callback)
+    }
+}
+impl windows_core::RuntimeType for DropDownButton {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_class::<Self, IDropDownButton>();
+}
+unsafe impl windows_core::Interface for DropDownButton {
+    type Vtable = <IDropDownButton as windows_core::Interface>::Vtable;
+    const IID: windows_core::GUID = <IDropDownButton as windows_core::Interface>::IID;
+}
+impl core::ops::Deref for DropDownButton {
+    type Target = IDropDownButton;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+impl windows_core::RuntimeName for DropDownButton {
+    const NAME: &'static str = "Microsoft.UI.Xaml.Controls.DropDownButton";
+}
+unsafe impl Send for DropDownButton {}
+unsafe impl Sync for DropDownButton {}
+#[repr(transparent)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Expander(windows_core::IUnknown);
 windows_core::imp::interface_hierarchy!(
     Expander,
@@ -369,6 +435,38 @@ pub struct IBreadcrumbBarItemClickedEventArgs_Vtbl {
     pub get_Index:
         unsafe extern "system" fn(*mut core::ffi::c_void, *mut i32) -> windows_core::HRESULT,
     get_Item: usize,
+}
+windows_core::imp::define_interface!(
+    IDropDownButton,
+    IDropDownButton_Vtbl,
+    0xc1e9fa91_4f95_5796_8a7b_3b7594a12c69
+);
+impl windows_core::RuntimeType for IDropDownButton {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_interface::<Self>();
+}
+#[repr(C)]
+pub struct IDropDownButton_Vtbl {
+    pub base__: windows_core::IInspectable_Vtbl,
+}
+windows_core::imp::define_interface!(
+    IDropDownButtonFactory,
+    IDropDownButtonFactory_Vtbl,
+    0x7cf3e13b_668d_57e7_b5d6_f5ca3dbc80bd
+);
+impl windows_core::RuntimeType for IDropDownButtonFactory {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_interface::<Self>();
+}
+#[repr(C)]
+pub struct IDropDownButtonFactory_Vtbl {
+    pub base__: windows_core::IInspectable_Vtbl,
+    pub CreateInstance: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *mut *mut core::ffi::c_void,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
 }
 windows_core::imp::define_interface!(
     IExpander,
@@ -1600,6 +1698,94 @@ impl windows_core::RuntimeType for IRadioButtonsFactory {
 }
 #[repr(C)]
 pub struct IRadioButtonsFactory_Vtbl {
+    pub base__: windows_core::IInspectable_Vtbl,
+    pub CreateInstance: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *mut *mut core::ffi::c_void,
+        *mut *mut core::ffi::c_void,
+    ) -> windows_core::HRESULT,
+}
+windows_core::imp::define_interface!(
+    ISplitButton,
+    ISplitButton_Vtbl,
+    0x8b09006a_6241_594f_93e4_8bf051d7ba8f
+);
+impl windows_core::RuntimeType for ISplitButton {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_interface::<Self>();
+}
+impl ISplitButton {
+    pub fn add_Click<F>(&self, handler: F) -> windows_core::Result<windows_core::EventRevoker>
+    where
+        F: Fn(windows_core::Ref<SplitButton>, windows_core::Ref<SplitButtonClickEventArgs>)
+            + Send
+            + 'static,
+    {
+        let handler = <windows::Foundation::TypedEventHandler<
+            SplitButton,
+            SplitButtonClickEventArgs,
+        >>::new(move |a0, a1| {
+            handler(a0, a1);
+            Ok(())
+        });
+        unsafe {
+            let mut result__ = core::mem::zeroed();
+            let token__ = (windows_core::Interface::vtable(self).add_Click)(
+                windows_core::Interface::as_raw(self),
+                windows_core::Interface::as_raw(&handler),
+                &mut result__,
+            )
+            .map(|| result__)?;
+            Ok(windows_core::EventRevoker::new(
+                self.clone(),
+                token__,
+                windows_core::Interface::vtable(self).remove_Click,
+            ))
+        }
+    }
+}
+#[repr(C)]
+pub struct ISplitButton_Vtbl {
+    pub base__: windows_core::IInspectable_Vtbl,
+    get_Flyout: usize,
+    put_Flyout: usize,
+    get_Command: usize,
+    put_Command: usize,
+    get_CommandParameter: usize,
+    put_CommandParameter: usize,
+    pub add_Click: unsafe extern "system" fn(
+        *mut core::ffi::c_void,
+        *mut core::ffi::c_void,
+        *mut i64,
+    ) -> windows_core::HRESULT,
+    pub remove_Click:
+        unsafe extern "system" fn(*mut core::ffi::c_void, i64) -> windows_core::HRESULT,
+}
+windows_core::imp::define_interface!(
+    ISplitButtonClickEventArgs,
+    ISplitButtonClickEventArgs_Vtbl,
+    0x6af896c2_e65a_5998_9c82_2af8f3e0741f
+);
+impl windows_core::RuntimeType for ISplitButtonClickEventArgs {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_interface::<Self>();
+}
+#[repr(C)]
+pub struct ISplitButtonClickEventArgs_Vtbl {
+    pub base__: windows_core::IInspectable_Vtbl,
+}
+windows_core::imp::define_interface!(
+    ISplitButtonFactory,
+    ISplitButtonFactory_Vtbl,
+    0x07510092_2612_55e7_981c_a536ddd4570e
+);
+impl windows_core::RuntimeType for ISplitButtonFactory {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_interface::<Self>();
+}
+#[repr(C)]
+pub struct ISplitButtonFactory_Vtbl {
     pub base__: windows_core::IInspectable_Vtbl,
     pub CreateInstance: unsafe extern "system" fn(
         *mut core::ffi::c_void,
@@ -2893,6 +3079,99 @@ impl windows_core::RuntimeName for RadioButtons {
 }
 unsafe impl Send for RadioButtons {}
 unsafe impl Sync for RadioButtons {}
+#[repr(transparent)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SplitButton(windows_core::IUnknown);
+windows_core::imp::interface_hierarchy!(
+    SplitButton,
+    windows_core::IUnknown,
+    windows_core::IInspectable
+);
+impl SplitButton {
+    pub fn new() -> windows_core::Result<SplitButton> {
+        Self::ISplitButtonFactory(|this| unsafe {
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(this).CreateInstance)(
+                windows_core::Interface::as_raw(this),
+                core::ptr::null_mut(),
+                core::ptr::null_mut(),
+                &mut result__,
+            )
+            .and_then(|| windows_core::Type::from_abi(result__))
+        })
+    }
+    pub fn compose<T>(compose: T) -> windows_core::Result<SplitButton>
+    where
+        T: windows_core::Compose,
+    {
+        Self::ISplitButtonFactory(|this| unsafe {
+            let (derived__, base__) = windows_core::Compose::compose(compose);
+            let mut result__ = core::mem::zeroed();
+            (windows_core::Interface::vtable(this).CreateInstance)(
+                windows_core::Interface::as_raw(this),
+                core::mem::transmute_copy(&derived__),
+                base__ as *mut _ as _,
+                &mut result__,
+            )
+            .ok()?;
+            let _ = &derived__;
+            windows_core::Type::from_abi(result__)
+        })
+    }
+    fn ISplitButtonFactory<R, F: FnOnce(&ISplitButtonFactory) -> windows_core::Result<R>>(
+        callback: F,
+    ) -> windows_core::Result<R> {
+        static SHARED: windows_core::imp::FactoryCache<SplitButton, ISplitButtonFactory> =
+            windows_core::imp::FactoryCache::new();
+        SHARED.call(callback)
+    }
+}
+impl windows_core::RuntimeType for SplitButton {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_class::<Self, ISplitButton>();
+}
+unsafe impl windows_core::Interface for SplitButton {
+    type Vtable = <ISplitButton as windows_core::Interface>::Vtable;
+    const IID: windows_core::GUID = <ISplitButton as windows_core::Interface>::IID;
+}
+impl core::ops::Deref for SplitButton {
+    type Target = ISplitButton;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+impl windows_core::RuntimeName for SplitButton {
+    const NAME: &'static str = "Microsoft.UI.Xaml.Controls.SplitButton";
+}
+unsafe impl Send for SplitButton {}
+unsafe impl Sync for SplitButton {}
+#[repr(transparent)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SplitButtonClickEventArgs(windows_core::IUnknown);
+windows_core::imp::interface_hierarchy!(
+    SplitButtonClickEventArgs,
+    windows_core::IUnknown,
+    windows_core::IInspectable
+);
+impl windows_core::RuntimeType for SplitButtonClickEventArgs {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_class::<Self, ISplitButtonClickEventArgs>();
+}
+unsafe impl windows_core::Interface for SplitButtonClickEventArgs {
+    type Vtable = <ISplitButtonClickEventArgs as windows_core::Interface>::Vtable;
+    const IID: windows_core::GUID = <ISplitButtonClickEventArgs as windows_core::Interface>::IID;
+}
+impl core::ops::Deref for SplitButtonClickEventArgs {
+    type Target = ISplitButtonClickEventArgs;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+impl windows_core::RuntimeName for SplitButtonClickEventArgs {
+    const NAME: &'static str = "Microsoft.UI.Xaml.Controls.SplitButtonClickEventArgs";
+}
+unsafe impl Send for SplitButtonClickEventArgs {}
+unsafe impl Sync for SplitButtonClickEventArgs {}
 #[repr(transparent)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TabView(windows_core::IUnknown);

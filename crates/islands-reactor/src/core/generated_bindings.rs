@@ -47,6 +47,27 @@ pub(crate) fn breadcrumb_bar_bindings(w: &BreadcrumbBar) -> PropBindings {
             .map(|cb| EventHandler::I32(cb.clone())),
     )]
 }
+pub(crate) fn drop_down_button_bindings(w: &DropDownButton) -> PropBindings {
+    let mut out = Vec::with_capacity(4usize);
+    out.push(Binding::Event(
+        Event::Click,
+        w.on_click.as_ref().map(|cb| EventHandler::Unit(cb.clone())),
+    ));
+    out.push(Binding::Event(
+        Event::ItemClicked,
+        w.on_item_clicked
+            .as_ref()
+            .map(|cb| EventHandler::Str(cb.clone())),
+    ));
+    if let Some(v) = w.content.to_prop_str() {
+        out.push(Binding::Prop(Prop::Content, v));
+    }
+    out.push(Binding::Prop(
+        Prop::IsEnabled,
+        PropValue::Bool(w.is_enabled),
+    ));
+    out
+}
 pub(crate) fn expander_bindings(w: &Expander) -> PropBindings {
     let mut out = Vec::with_capacity(3usize);
     out.push(Binding::Event(
@@ -178,6 +199,21 @@ pub(crate) fn radio_buttons_bindings(w: &RadioButtons) -> PropBindings {
     out.push(Binding::Prop(
         Prop::SelectedIndex,
         PropValue::I32(w.selected_index),
+    ));
+    out
+}
+pub(crate) fn split_button_bindings(w: &SplitButton) -> PropBindings {
+    let mut out = Vec::with_capacity(3usize);
+    out.push(Binding::Event(
+        Event::Click,
+        w.on_click.as_ref().map(|cb| EventHandler::Unit(cb.clone())),
+    ));
+    if let Some(v) = w.content.to_prop_str() {
+        out.push(Binding::Prop(Prop::Content, v));
+    }
+    out.push(Binding::Prop(
+        Prop::IsEnabled,
+        PropValue::Bool(w.is_enabled),
     ));
     out
 }
@@ -482,27 +518,6 @@ pub(crate) fn date_picker_bindings(w: &DatePicker) -> PropBindings {
     ));
     out
 }
-pub(crate) fn drop_down_button_bindings(w: &DropDownButton) -> PropBindings {
-    let mut out = Vec::with_capacity(4usize);
-    out.push(Binding::Event(
-        Event::Click,
-        w.on_click.as_ref().map(|cb| EventHandler::Unit(cb.clone())),
-    ));
-    out.push(Binding::Event(
-        Event::ItemClicked,
-        w.on_item_clicked
-            .as_ref()
-            .map(|cb| EventHandler::Str(cb.clone())),
-    ));
-    if let Some(v) = w.content.to_prop_str() {
-        out.push(Binding::Prop(Prop::Content, v));
-    }
-    out.push(Binding::Prop(
-        Prop::IsEnabled,
-        PropValue::Bool(w.is_enabled),
-    ));
-    out
-}
 pub(crate) fn grid_bindings(w: &Grid) -> PropBindings {
     vec![
         Binding::Prop(Prop::ColumnSpacing, PropValue::F64(w.column_spacing)),
@@ -746,21 +761,6 @@ pub(crate) fn slider_bindings(w: &Slider) -> PropBindings {
         PropValue::I32(w.orientation.0),
     ));
     out.push(Binding::Prop(Prop::Value, PropValue::F64(w.value)));
-    out
-}
-pub(crate) fn split_button_bindings(w: &SplitButton) -> PropBindings {
-    let mut out = Vec::with_capacity(3usize);
-    out.push(Binding::Event(
-        Event::Click,
-        w.on_click.as_ref().map(|cb| EventHandler::Unit(cb.clone())),
-    ));
-    if let Some(v) = w.content.to_prop_str() {
-        out.push(Binding::Prop(Prop::Content, v));
-    }
-    out.push(Binding::Prop(
-        Prop::IsEnabled,
-        PropValue::Bool(w.is_enabled),
-    ));
     out
 }
 pub(crate) fn split_view_bindings(w: &SplitView) -> PropBindings {

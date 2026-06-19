@@ -83,7 +83,7 @@ YearVisible = {}
 IsEnabled = {}
 SelectedDateChanged = { manual = true, type = "DateTime" }
 
-["Windows.UI.Xaml.Controls.DropDownButton"]
+["Microsoft.UI.Xaml.Controls.DropDownButton"]
 Content = { type = "Str" }
 IsEnabled = {}
 ItemClicked = { manual = true, type = "Str" }
@@ -222,7 +222,7 @@ Orientation = {}
 IsEnabled = {}
 ValueChanged = { property = "NewValue" }
 
-["Windows.UI.Xaml.Controls.SplitButton"]
+["Microsoft.UI.Xaml.Controls.SplitButton"]
 Content = { type = "Str" }
 IsEnabled = {}
 Click = {}

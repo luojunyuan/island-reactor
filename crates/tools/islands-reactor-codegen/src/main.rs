@@ -239,6 +239,7 @@ const MUXC_MINIMAL_FILTERS: &[&str] = &[
     "Microsoft.UI.Xaml.Controls.BreadcrumbBarItemClickedEventArgs",
     "Microsoft.UI.Xaml.Controls.IBreadcrumbBar::{put_ItemsSource, add_ItemClicked}",
     "Microsoft.UI.Xaml.Controls.IBreadcrumbBarItemClickedEventArgs::{get_Index}",
+    "Microsoft.UI.Xaml.Controls.DropDownButton::{CreateInstance}",
     "Microsoft.UI.Xaml.Controls.Expander::{CreateInstance}",
     "Microsoft.UI.Xaml.Controls.ExpanderCollapsedEventArgs",
     "Microsoft.UI.Xaml.Controls.ExpanderExpandingEventArgs",
@@ -268,6 +269,9 @@ const MUXC_MINIMAL_FILTERS: &[&str] = &[
     "Microsoft.UI.Xaml.Controls.INumberBoxValueChangedEventArgs::{get_NewValue}",
     "Microsoft.UI.Xaml.Controls.RadioButtons::{CreateInstance}",
     "Microsoft.UI.Xaml.Controls.IRadioButtons::{put_Header, get_Items, put_SelectedIndex, get_SelectedIndex, put_MaxColumns, add_SelectionChanged}",
+    "Microsoft.UI.Xaml.Controls.SplitButton::{CreateInstance}",
+    "Microsoft.UI.Xaml.Controls.SplitButtonClickEventArgs",
+    "Microsoft.UI.Xaml.Controls.ISplitButton::{add_Click}",
     "Microsoft.UI.Xaml.Controls.TabView::{CreateInstance}",
     "Microsoft.UI.Xaml.Controls.ITabView::{get_TabItems, put_SelectedIndex, get_SelectedIndex, put_CanReorderTabs, put_IsAddTabButtonVisible, add_SelectionChanged, add_TabCloseRequested, add_AddTabButtonClick}",
     "Microsoft.UI.Xaml.Controls.TabViewItem::{CreateInstance}",
@@ -617,14 +621,12 @@ fn should_strip_xbf(name: &str) -> bool {
     if name.contains("scale-100") {
         return true;
     }
-    for key in [
-        "compact", "Compact", "v1", "rs2", "rs3", "rs4", "rs5", "19h1",
-    ] {
+    for key in ["compact", "Compact", "v1", "rs2", "rs3", "rs4", "rs5"] {
         if name.contains(key) {
             return true;
         }
     }
-    !name.contains("21h1")
+    !(name.contains("19h1") || name.contains("21h1"))
 }
 
 fn set_candidate_base64(element: &mut Element, value: &str) {

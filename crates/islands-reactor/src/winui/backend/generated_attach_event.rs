@@ -25,6 +25,17 @@ pub(crate) fn dispatch(
                 .unwrap(),
             );
         }
+        (Event::Click, Handle::DropDownButton(h)) => {
+            let handler = handler.clone();
+            revokers.push(
+                h.cast::<Xaml::IButtonBase>()
+                    .unwrap()
+                    .add_Click(move |_sender, _args| {
+                        handler.invoke();
+                    })
+                    .unwrap(),
+            );
+        }
         (Event::Expanding, Handle::Expander(h)) => {
             let true_handler = handler.clone();
             revokers.push(
@@ -84,6 +95,15 @@ pub(crate) fn dispatch(
                         .and_then(|s| s.get_SelectedIndex().ok())
                         .unwrap_or(-1);
                     handler.invoke_i32(v);
+                })
+                .unwrap(),
+            );
+        }
+        (Event::Click, Handle::SplitButton(h)) => {
+            let handler = handler.clone();
+            revokers.push(
+                h.add_Click(move |_sender, _args| {
+                    handler.invoke();
                 })
                 .unwrap(),
             );
@@ -151,17 +171,6 @@ pub(crate) fn dispatch(
                     .unwrap()
                     .add_Unchecked(move |_sender, _args| {
                         false_handler.invoke_bool(false);
-                    })
-                    .unwrap(),
-            );
-        }
-        (Event::Click, Handle::DropDownButton(h)) => {
-            let handler = handler.clone();
-            revokers.push(
-                h.cast::<Xaml::IButtonBase>()
-                    .unwrap()
-                    .add_Click(move |_sender, _args| {
-                        handler.invoke();
                     })
                     .unwrap(),
             );
@@ -242,15 +251,6 @@ pub(crate) fn dispatch(
                         }
                     })
                     .unwrap(),
-            );
-        }
-        (Event::Click, Handle::SplitButton(h)) => {
-            let handler = handler.clone();
-            revokers.push(
-                h.add_Click(move |_sender, _args| {
-                    handler.invoke();
-                })
-                .unwrap(),
             );
         }
         (Event::PaneClosed, Handle::SplitView(h)) => {
