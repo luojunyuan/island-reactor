@@ -21,6 +21,7 @@ pub struct WinUIBackend {
     templated_realizers: RefCell<FxHashMap<ControlId, Rc<dyn Fn(usize)>>>,
     parent_children: RefCell<FxHashMap<ControlId, Vec<ControlId>>>,
     templated_rows: RefCell<FxHashMap<ControlId, Vec<Option<ControlId>>>>,
+    templated_selected_indices: RefCell<FxHashMap<ControlId, i32>>,
     theme_brush_registry: RefCell<FxHashMap<ControlId, Vec<(Prop, crate::core::theme::ThemeRef)>>>,
     next_id: RefCell<u32>,
 }
@@ -40,6 +41,7 @@ impl WinUIBackend {
             templated_realizers: RefCell::new(FxHashMap::default()),
             parent_children: RefCell::new(FxHashMap::default()),
             templated_rows: RefCell::new(FxHashMap::default()),
+            templated_selected_indices: RefCell::new(FxHashMap::default()),
             theme_brush_registry: RefCell::new(FxHashMap::default()),
             next_id: RefCell::new(0),
         }
@@ -74,6 +76,7 @@ impl WinUIBackend {
         self.templated_selection_revokers.borrow_mut().clear();
         self.templated_realizers.borrow_mut().clear();
         self.templated_rows.borrow_mut().clear();
+        self.templated_selected_indices.borrow_mut().clear();
         self.parent_children.borrow_mut().clear();
         self.theme_brush_registry.borrow_mut().clear();
         self.controls.borrow_mut().clear();
@@ -90,6 +93,27 @@ impl WinUIBackend {
             .borrow()
             .get(&parent)
             .map_or(logical, |children| logical.min(children.len()))
+    }
+
+    fn apply_templated_selected_index(&self, id: ControlId, index: i32) {
+        let map = self.controls.borrow();
+        let Some(handle) = map.get(&id) else { return };
+        let selector: Xaml::ISelector = match handle {
+            Handle::ListView(lv) => match lv.cast() {
+                Ok(selector) => selector,
+                Err(_) => return,
+            },
+            Handle::GridView(gv) => match gv.cast() {
+                Ok(selector) => selector,
+                Err(_) => return,
+            },
+            Handle::FlipView(fv) => match fv.cast() {
+                Ok(selector) => selector,
+                Err(_) => return,
+            },
+            _ => return,
+        };
+        let _ = selector.put_SelectedIndex(index);
     }
 
     fn set_prop_inner(&self, id: ControlId, prop: Prop, value: &PropValue) -> Result<()> {
@@ -924,6 +948,7 @@ impl Backend for WinUIBackend {
         self.templated_realizers.borrow_mut().remove(&id);
         self.parent_children.borrow_mut().remove(&id);
         self.templated_rows.borrow_mut().remove(&id);
+        self.templated_selected_indices.borrow_mut().remove(&id);
         self.theme_brush_registry.borrow_mut().remove(&id);
     }
 
@@ -1349,10 +1374,17 @@ impl Backend for WinUIBackend {
             (Some(previous_id), Some(content_id)) if previous_id == content_id => {}
             (Some(_), Some(content_id)) => self.visual_set_at(list_id, row_idx, content_id),
         }
+
+        if let Some(index) = self.templated_selected_indices.borrow().get(&list_id).copied() {
+            self.apply_templated_selected_index(list_id, index);
+        }
     }
 
     fn set_templated_selected_index(&mut self, id: ControlId, index: i32) {
-        let _ = self.set_prop_inner(id, Prop::SelectedIndex, &PropValue::I32(index));
+        self.templated_selected_indices
+            .borrow_mut()
+            .insert(id, index);
+        self.apply_templated_selected_index(id, index);
     }
 
     fn set_templated_selection_mode(
