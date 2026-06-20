@@ -1,4 +1,4 @@
-use crate::controls::{page_content, sample_card};
+use crate::controls::*;
 use islands_reactor::*;
 
 pub fn materials_page(_: &(), cx: &mut RenderCx) -> Element {
@@ -10,19 +10,22 @@ pub fn materials_page(_: &(), cx: &mut RenderCx) -> Element {
         .collect();
 
     let description = match selected {
-        0 => "Mica is the default backdrop for primary app windows.",
-        1 => "Mica Alt uses a stronger tint for tabbed or sectioned windows.",
-        2 => "Acrylic uses the transient window backdrop material on supported Windows builds.",
-        _ => "Solid removes the DWM system backdrop from this window.",
+        0 => {
+            "Mica samples the desktop wallpaper and applies a subtle tint. Default for app windows."
+        }
+        1 => "Mica Alt uses a stronger tint - ideal for tab-based UIs and title bar regions.",
+        2 => "Acrylic provides translucent blur with noise. Falls back to solid when inactive.",
+        _ => "No system backdrop - solid color background.",
     };
 
     page_content(
         "Materials",
-        "Window backdrop materials that provide depth behind islands-reactor content.",
+        "Window backdrop materials that provide depth and visual hierarchy using translucent surfaces.",
         vec![
             sample_card(
                 "Live Backdrop Switcher",
                 vstack((
+                    text_block("Select a backdrop material to apply it to this window:"),
                     list_view(options, |item, _idx| {
                         text_block(item.clone()).padding(Thickness::uniform(10.0))
                     })
@@ -42,28 +45,32 @@ pub fn materials_page(_: &(), cx: &mut RenderCx) -> Element {
                         }
                     })
                     .height(170.0),
-                    text_block(description)
-                        .foreground(ThemeRef::SecondaryText)
-                        .wrap(),
+                    text_block(description).opacity(0.7),
                 ))
                 .spacing(8.0),
                 r#"set_backdrop(Some(Backdrop::Mica));
 set_backdrop(Some(Backdrop::MicaAlt));
 set_backdrop(Some(Backdrop::Acrylic));
-set_backdrop(None);"#,
+set_backdrop(None); // remove backdrop"#,
             ),
             sample_card(
-                "App Startup",
+                "Usage Guidance",
                 vstack((
-                    text_block("Use App::backdrop before run or render to choose the initial window material."),
-                    text_block("The window is created with the DWM style needed for Mica/Acrylic on Windows 11 22H2 and newer.")
-                        .foreground(ThemeRef::SecondaryText)
-                        .wrap(),
+                    text_block("� Use Mica for primary app windows (default material)")
+                        .font_size(13.0),
+                    text_block("� Use Mica Alt for windows with prominent tabs or sections")
+                        .font_size(13.0),
+                    text_block("� Use Acrylic for transient surfaces (flyouts, dialogs)")
+                        .font_size(13.0),
+                    text_block("� All materials degrade gracefully on unsupported hardware")
+                        .font_size(13.0),
                 ))
-                .spacing(8.0),
-                r#"App::new()
-    .backdrop(Backdrop::Mica)
-    .render(app);"#,
+                .spacing(6.0),
+                r#"// At app level:
+App::new(root).backdrop(Backdrop::Mica).run()
+
+// Runtime switching:
+set_backdrop(Some(Backdrop::Acrylic));"#,
             ),
         ],
     )
