@@ -7,6 +7,12 @@ members = [
 ]
 resolver = "3"
 
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
+
 [workspace.dependencies]
 windows = { git = "https://github.com/microsoft/windows-rs", rev = "62af965b827a68079605ee6461241764e4a6374b", default-features = false }
 windows-bindgen = { git = "https://github.com/microsoft/windows-rs", rev = "62af965b827a68079605ee6461241764e4a6374b", default-features = false }
