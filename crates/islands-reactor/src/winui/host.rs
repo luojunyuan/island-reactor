@@ -369,7 +369,9 @@ impl ReactorHost {
         }
 
         let dispatcher = WinUIDispatcher::for_current_thread()?;
+        let marshaller = dispatcher.marshaller();
         let render_host = RenderHost::new(WinUIBackend::new(), root, dispatcher);
+        render_host.set_marshaller(Some(marshaller));
         install_theme_changed_callback(render_host.clone_inner());
         render_host.set_inner_size(client_size_dips(hwnd));
         render_host.set_dpi(current_dpi(hwnd));
