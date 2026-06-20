@@ -5,7 +5,6 @@ use islands_reactor::*;
 fn main() -> Result<()> {
     App::new()
         .title("Rust Islands Reactor Hello")
-        .backdrop(Backdrop::Mica)
         .render(app)
 }
 
@@ -33,6 +32,5 @@ fn app(_cx: &mut RenderCx) -> Element {
     ];
     border(layout)
         .padding(16.0)
-        .background(ThemeRef::custom("ApplicationPageBackgroundThemeBrush"))
         .into()
 }
