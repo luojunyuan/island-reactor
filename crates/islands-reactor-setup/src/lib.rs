@@ -20,14 +20,10 @@ pub fn embed_manifest() {
         .join("app.manifest");
     println!("cargo:rerun-if-changed={}", manifest_asset.display());
 
-    let mux = stage_mux_runtime();
+    stage_mux_runtime();
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
     let manifest_path = out_dir.join("islands-reactor-app.manifest");
-    let manifest = match mux.as_ref() {
-        Some(mux) => merged_manifest(mux),
-        None => APP_MANIFEST.to_string(),
-    };
-    fs::write(&manifest_path, manifest).unwrap_or_else(|err| {
+    fs::write(&manifest_path, APP_MANIFEST).unwrap_or_else(|err| {
         panic!(
             "failed to write islands-reactor manifest to {}: {err}",
             manifest_path.display()
@@ -56,53 +52,17 @@ pub fn embed_manifest() {
     }
 }
 
-fn merged_manifest(mux: &MuxRegistration) -> String {
-    let insertion = mux_file_entry(mux);
-    if let Some(end) = APP_MANIFEST.rfind("</assembly>") {
-        let mut out = String::with_capacity(APP_MANIFEST.len() + insertion.len());
-        out.push_str(&APP_MANIFEST[..end]);
-        out.push_str(&insertion);
-        out.push_str(&APP_MANIFEST[end..]);
-        out
-    } else {
-        APP_MANIFEST.to_string()
-    }
-}
-
-fn mux_file_entry(mux: &MuxRegistration) -> String {
-    let mut out = String::new();
-    out.push_str("    <file name=\"");
-    out.push_str(&escape_manifest_attr(mux.path));
-    out.push_str("\">\n");
-    for class in mux.classes {
-        out.push_str(
-            "        <activatableClass xmlns=\"urn:schemas-microsoft-com:winrt.v1\" name=\"",
-        );
-        out.push_str(&escape_manifest_attr(class.name));
-        out.push_str("\" threadingModel=\"");
-        out.push_str(&escape_manifest_attr(class.threading_model));
-        out.push_str("\"/>\n");
-    }
-    out.push_str("    </file>\n");
-    out
-}
-
-struct MuxRegistration {
-    path: &'static str,
-    classes: &'static [muxc_runtime::ActivatableClass],
-}
-
-fn stage_mux_runtime() -> Option<MuxRegistration> {
+fn stage_mux_runtime() {
     let Ok(out_dir) = env::var("OUT_DIR").map(PathBuf::from) else {
-        return None;
+        return;
     };
     let Some(arch) = target_arch_folder() else {
         println!("cargo:warning=WinUI 2 runtime staging skipped: unsupported target architecture");
-        return None;
+        return;
     };
     let Some(asset_dir) = muxc_runtime::runtime_asset_dir(arch) else {
         println!("cargo:warning=WinUI 2 runtime staging skipped: unsupported target architecture");
-        return None;
+        return;
     };
     let dll = asset_dir.join(muxc_runtime::RUNTIME_DLL);
     let pri = asset_dir.join(muxc_runtime::RUNTIME_PRI);
@@ -113,7 +73,7 @@ fn stage_mux_runtime() -> Option<MuxRegistration> {
             "cargo:warning=WinUI 2 runtime staging skipped: missing vendored assets in {}",
             asset_dir.display()
         );
-        return None;
+        return;
     }
 
     if let Some(target_dir) = target_output_dir(&out_dir) {
@@ -126,11 +86,6 @@ fn stage_mux_runtime() -> Option<MuxRegistration> {
     } else {
         println!("cargo:warning=WinUI 2 runtime staging skipped: could not resolve target dir");
     }
-
-    Some(MuxRegistration {
-        path: muxc_runtime::RUNTIME_DLL,
-        classes: muxc_runtime::ACTIVATABLE_CLASSES,
-    })
 }
 
 fn target_arch_folder() -> Option<&'static str> {
@@ -399,13 +354,4 @@ fn target_output_dir(out_dir: &Path) -> Option<PathBuf> {
         path = parent;
     }
     None
-}
-
-fn escape_manifest_attr(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
 }

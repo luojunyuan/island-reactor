@@ -484,7 +484,6 @@ fn run_bindgen(args: Vec<&str>) -> Result<(), String> {
 }
 
 fn vendor_muxc_runtime(root: &Path, package: &Path) -> Result<(), String> {
-    let mut registration = None;
     for arch in ["x64", "arm64"] {
         let appx = muxc_appx(package, arch);
         require_file(&appx, &format!("WinUI 2 {arch} AppX"))?;
@@ -511,16 +510,9 @@ fn vendor_muxc_runtime(root: &Path, package: &Path) -> Result<(), String> {
             &work.join("resources.pri"),
             &runtime.join("Microsoft.UI.Xaml.pri"),
         )?;
-
-        if registration.is_none() {
-            registration = Some(parse_mux_registration(&work.join("AppxManifest.xml"))?);
-        }
     }
 
-    write_runtime_rs(
-        &root.join("crates/islands-reactor-setup/src/muxc_runtime.rs"),
-        &registration.unwrap_or_default(),
-    )
+    write_runtime_rs(&root.join("crates/islands-reactor-setup/src/muxc_runtime.rs"))
 }
 
 fn trim_mux_pri(input: &Path, output: &Path) -> Result<(), String> {
@@ -643,67 +635,7 @@ fn set_candidate_base64(element: &mut Element, value: &str) {
     }
 }
 
-fn parse_mux_registration(manifest: &Path) -> Result<Vec<ActivatableClass>, String> {
-    let file = fs::File::open(manifest)
-        .map_err(|err| format!("failed to open {}: {err}", manifest.display()))?;
-    let xml = Element::parse(BufReader::new(file))
-        .map_err(|err| format!("failed to parse {}: {err}", manifest.display()))?;
-    let server = find_element(&xml, "InProcessServer")
-        .ok_or_else(|| format!("missing InProcessServer in {}", manifest.display()))?;
-    let mut classes = Vec::new();
-    collect_activatable_classes(server, &mut classes);
-    if classes.is_empty() {
-        return Err(format!(
-            "no ActivatableClass entries found in {}",
-            manifest.display()
-        ));
-    }
-    classes.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(classes)
-}
-
-fn collect_activatable_classes(element: &Element, out: &mut Vec<ActivatableClass>) {
-    if local_name(&element.name) == "ActivatableClass"
-        && let Some(name) = element.attributes.get("ActivatableClassId")
-    {
-        let threading_model = element
-            .attributes
-            .get("ThreadingModel")
-            .map(|value| value.to_ascii_lowercase())
-            .unwrap_or_else(|| "both".to_string());
-        out.push(ActivatableClass {
-            name: name.clone(),
-            threading_model,
-        });
-    }
-    for child in &element.children {
-        if let XMLNode::Element(element) = child {
-            collect_activatable_classes(element, out);
-        }
-    }
-}
-
-fn find_element<'a>(element: &'a Element, name: &str) -> Option<&'a Element> {
-    if local_name(&element.name) == name {
-        return Some(element);
-    }
-    for child in &element.children {
-        if let XMLNode::Element(element) = child
-            && let Some(found) = find_element(element, name)
-        {
-            return Some(found);
-        }
-    }
-    None
-}
-
-#[derive(Default)]
-struct ActivatableClass {
-    name: String,
-    threading_model: String,
-}
-
-fn write_runtime_rs(path: &Path, classes: &[ActivatableClass]) -> Result<(), String> {
+fn write_runtime_rs(path: &Path) -> Result<(), String> {
     let mut code = String::new();
     code.push_str("use std::path::{Path, PathBuf};\n\n");
     code.push_str(&format!(
@@ -712,20 +644,6 @@ fn write_runtime_rs(path: &Path, classes: &[ActivatableClass]) -> Result<(), Str
     ));
     code.push_str("pub const RUNTIME_DLL: &str = \"Microsoft.UI.Xaml.dll\";\n");
     code.push_str("pub const RUNTIME_PRI: &str = \"Microsoft.UI.Xaml.pri\";\n\n");
-    code.push_str("#[derive(Clone, Copy, Debug, Eq, PartialEq)]\n");
-    code.push_str("pub struct ActivatableClass {\n");
-    code.push_str("    pub name: &'static str,\n");
-    code.push_str("    pub threading_model: &'static str,\n");
-    code.push_str("}\n\n");
-    code.push_str("pub const ACTIVATABLE_CLASSES: &[ActivatableClass] = &[\n");
-    for class in classes {
-        code.push_str("    ActivatableClass { name: ");
-        code.push_str(&format!("{:?}", class.name));
-        code.push_str(", threading_model: ");
-        code.push_str(&format!("{:?}", class.threading_model));
-        code.push_str(" },\n");
-    }
-    code.push_str("];\n\n");
     code.push_str("pub fn runtime_asset_dir(arch: &str) -> Option<PathBuf> {\n");
     code.push_str("    match arch {\n");
     code.push_str(
