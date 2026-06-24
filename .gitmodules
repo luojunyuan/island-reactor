@@ -1,0 +1,3 @@
+[submodule "_reference/windows-rs"]
+	path = _reference/windows-rs
+	url = https://github.com/microsoft/windows-rs.git
