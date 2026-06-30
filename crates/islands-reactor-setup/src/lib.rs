@@ -80,7 +80,7 @@ fn stage_runtime() {
 
     let iuxc_asset_dir = iuxc_runtime::runtime_asset_dir(arch);
     if let Some(iuxc_asset_dir) = iuxc_asset_dir.as_ref() {
-        for file in iuxc_runtime::RUNTIME_FILES {
+        for file in [iuxc_runtime::CONTROLS_DLL, iuxc_runtime::CONTROLS_PRI] {
             println!(
                 "cargo:rerun-if-changed={}",
                 iuxc_asset_dir.join(file).display()
@@ -120,22 +120,26 @@ fn copy_runtime_payload(
     copy_file_if_missing_or_stale(&dll, target_dir.join(muxc_runtime::RUNTIME_DLL))?;
 
     let iuxc_pri = if let Some(iuxc_asset_dir) = iuxc_asset_dir {
-        let mut all_present = true;
-        for file in iuxc_runtime::RUNTIME_FILES {
-            let src = iuxc_asset_dir.join(file);
-            if src.exists() {
-                copy_file_if_missing_or_stale(&src, target_dir.join(file))?;
-            } else {
-                all_present = false;
-                println!(
-                    "cargo:warning=Islands.UI.Xaml runtime asset missing: {}",
-                    src.display()
-                );
-            }
+        let iuxc_dll = iuxc_asset_dir.join(iuxc_runtime::CONTROLS_DLL);
+        if iuxc_dll.exists() {
+            copy_file_if_missing_or_stale(&iuxc_dll, target_dir.join(iuxc_runtime::CONTROLS_DLL))?;
+        } else {
+            println!(
+                "cargo:warning=Islands.UI.Xaml runtime asset missing: {}",
+                iuxc_dll.display()
+            );
         }
-        all_present
-            .then(|| iuxc_asset_dir.join(iuxc_runtime::CONTROLS_PRI))
-            .filter(|path| path.exists())
+
+        let iuxc_pri = iuxc_asset_dir.join(iuxc_runtime::CONTROLS_PRI);
+        if iuxc_pri.exists() {
+            Some(iuxc_pri)
+        } else {
+            println!(
+                "cargo:warning=Islands.UI.Xaml runtime asset missing: {}",
+                iuxc_pri.display()
+            );
+            None
+        }
     } else {
         None
     };

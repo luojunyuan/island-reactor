@@ -309,8 +309,6 @@ const IUXC_MINIMAL_FILTERS: &[&str] = &[
 const IUXC_RUNTIME_FILES: &[&str] = &[
     "Islands.UI.Xaml.Controls.dll",
     "Islands.UI.Xaml.Controls.pri",
-    "Islands.UI.Xaml.Controls.winmd",
-    "Islands.UI.Xaml.Automation.winmd",
 ];
 
 fn main() {
@@ -774,11 +772,7 @@ fn write_iuxc_runtime_rs(path: &Path) -> Result<(), String> {
     ));
     code.push_str("pub const CONTROLS_DLL: &str = \"Islands.UI.Xaml.Controls.dll\";\n");
     code.push_str("pub const CONTROLS_PRI: &str = \"Islands.UI.Xaml.Controls.pri\";\n");
-    code.push_str("pub const CONTROLS_WINMD: &str = \"Islands.UI.Xaml.Controls.winmd\";\n");
-    code.push_str("pub const AUTOMATION_WINMD: &str = \"Islands.UI.Xaml.Automation.winmd\";\n");
-    code.push_str(
-        "pub const RUNTIME_FILES: &[&str] = &[CONTROLS_DLL, CONTROLS_PRI, CONTROLS_WINMD, AUTOMATION_WINMD];\n\n",
-    );
+    code.push_str("pub const RUNTIME_FILES: &[&str] = &[CONTROLS_DLL];\n\n");
     code.push_str("pub fn runtime_asset_dir(arch: &str) -> Option<PathBuf> {\n");
     code.push_str("    match arch {\n");
     code.push_str(
