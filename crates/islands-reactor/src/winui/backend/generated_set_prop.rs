@@ -3,6 +3,7 @@
 use super::convert::string_as_textblock;
 use super::*;
 use crate::bindings as Xaml;
+use crate::bindings_iuxc as Iuxc;
 use crate::bindings_muxc as Muxc;
 #[doc = r" Try to handle a `set_prop` call via generated dispatch."]
 #[doc = r" Returns `Ok(true)` if handled, `Ok(false)` to fall through."]
@@ -184,6 +185,9 @@ pub(crate) fn dispatch(
         }
         (Prop::Header, PropValue::Unset, Handle::ToggleSwitch(h)) => {
             h.put_Header(None)?;
+        }
+        (Prop::HorizontalScrollBarVisibility, PropValue::I32(v), Handle::ScrollView(h)) => {
+            h.put_HorizontalScrollBarVisibility(Iuxc::ScrollingScrollBarVisibility(*v))?;
         }
         (Prop::HorizontalScrollBarVisibility, PropValue::I32(v), Handle::ScrollViewer(h)) => {
             h.put_HorizontalScrollBarVisibility(Xaml::ScrollBarVisibility(*v))?;
@@ -493,6 +497,9 @@ pub(crate) fn dispatch(
         }
         (Prop::Value, PropValue::F64(v), Handle::ProgressBar(_) | Handle::Slider(_)) => {
             handle.cast_inner::<Xaml::IRangeBase>()?.put_Value(*v)?;
+        }
+        (Prop::VerticalScrollBarVisibility, PropValue::I32(v), Handle::ScrollView(h)) => {
+            h.put_VerticalScrollBarVisibility(Iuxc::ScrollingScrollBarVisibility(*v))?;
         }
         (Prop::VerticalScrollBarVisibility, PropValue::I32(v), Handle::ScrollViewer(h)) => {
             h.put_VerticalScrollBarVisibility(Xaml::ScrollBarVisibility(*v))?;

@@ -146,5 +146,7 @@ pub fn page_content(title: &str, description: &str, cards: Vec<Element>) -> Elem
         })
         .horizontal_alignment(HorizontalAlignment::Stretch)
         .into();
-    scroll_viewer(content).into()
+    scroll_view(content)
+        .vertical_scroll_bar_visibility(ScrollingScrollBarVisibility::Auto)
+        .into()
 }

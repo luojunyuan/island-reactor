@@ -14,13 +14,13 @@ pub fn scroll_view_page(_: &(), _cx: &mut RenderCx) -> Element {
 
     page_content(
         "ScrollView",
-        "A scrollable container for overflowing content. In the current WinUI2 AppX winmd profile this sample is backed by Windows.UI.Xaml ScrollViewer.",
+        "A scrollable container for overflowing content.",
         vec![sample_card(
             "Vertical Scrolling",
-            scroll_viewer(vstack(rows).spacing(8.0))
+            scroll_view(vstack(rows).spacing(8.0))
                 .height(240.0)
-                .vertical_scroll_bar_visibility(ScrollBarVisibility::Auto),
-            r#"scroll_viewer(content).vertical_scroll_bar_visibility(ScrollBarVisibility::Auto)"#,
+                .vertical_scroll_bar_visibility(ScrollingScrollBarVisibility::Auto),
+            r#"scroll_view(content).vertical_scroll_bar_visibility(ScrollingScrollBarVisibility::Auto)"#,
         )],
     )
 }

@@ -38,6 +38,7 @@ pub enum ControlKind {
     TextBox,
     Grid,
     ScrollViewer,
+    ScrollView,
     ToggleSwitch,
     Slider,
     RadioButton,

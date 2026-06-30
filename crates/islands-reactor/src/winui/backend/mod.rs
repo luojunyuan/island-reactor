@@ -5,6 +5,7 @@ use rustc_hash::FxHashMap;
 use windows_core::{IInspectable, Interface, Result};
 
 use crate::bindings as Xaml;
+use crate::bindings_iuxc as Iuxc;
 use crate::bindings_muxc as Muxc;
 use crate::core::backend::*;
 use crate::core::*;
@@ -47,19 +48,16 @@ impl WinUIBackend {
         }
     }
 
-    pub(crate) fn root_titlebar_metrics(
-        &self,
-        root_id: Option<ControlId>,
-    ) -> Option<TitleBarMetrics> {
+    pub(crate) fn root_titlebar_state(&self, root_id: Option<ControlId>) -> Option<TitleBarState> {
         let root_id = root_id?;
         let controls = self.controls.borrow();
-        titlebar_metrics_from_handle(controls.get(&root_id)?).or_else(|| {
+        titlebar_state_from_handle(controls.get(&root_id)?).or_else(|| {
             self.parent_children
                 .borrow()
                 .get(&root_id)
                 .into_iter()
                 .flat_map(|children| children.iter())
-                .find_map(|child_id| titlebar_metrics_from_handle(controls.get(child_id)?))
+                .find_map(|child_id| titlebar_state_from_handle(controls.get(child_id)?))
         })
     }
 
@@ -754,6 +752,9 @@ impl WinUIBackend {
             Handle::Viewbox(v) => {
                 let _ = v.put_Child(&child_ui);
             }
+            Handle::ScrollView(scroll) => {
+                let _ = scroll.put_Content(&child_ui);
+            }
             Handle::ScrollViewer(_)
             | Handle::NavigationView(_)
             | Handle::PivotItem(_)
@@ -831,6 +832,9 @@ impl WinUIBackend {
             }
             Handle::Viewbox(v) => {
                 let _ = v.put_Child(None);
+            }
+            Handle::ScrollView(scroll) => {
+                let _ = scroll.put_Content(Option::<&Xaml::UIElement>::None);
             }
             Handle::ScrollViewer(_)
             | Handle::NavigationView(_)
@@ -1375,7 +1379,12 @@ impl Backend for WinUIBackend {
             (Some(_), Some(content_id)) => self.visual_set_at(list_id, row_idx, content_id),
         }
 
-        if let Some(index) = self.templated_selected_indices.borrow().get(&list_id).copied() {
+        if let Some(index) = self
+            .templated_selected_indices
+            .borrow()
+            .get(&list_id)
+            .copied()
+        {
             self.apply_templated_selected_index(list_id, index);
         }
     }
@@ -1434,11 +1443,13 @@ impl Backend for WinUIBackend {
         };
         let content = header_id
             .and_then(|hid| map.get(&hid))
-            .and_then(|h| h.as_ui_element().ok())
-            .and_then(|ui| ui.cast::<IInspectable>().ok());
+            .and_then(|h| h.as_ui_element().ok());
         match handle {
             Handle::Expander(expander) => match content {
                 Some(header) => {
+                    let Ok(header) = header.cast::<IInspectable>() else {
+                        return;
+                    };
                     let _ = expander
                         .cast::<Muxc::IExpander>()
                         .and_then(|expander| expander.put_Header(&header));
@@ -1630,6 +1641,7 @@ enum Handle {
     RepeatButton(Xaml::RepeatButton),
     RichEditBox(Xaml::RichEditBox),
     RichTextBlock(Xaml::RichTextBlock),
+    ScrollView(Iuxc::ScrollView),
     ScrollViewer(Xaml::ScrollViewer),
     Slider(Xaml::Slider),
     SplitButton(Muxc::SplitButton),
@@ -1697,6 +1709,7 @@ impl Handle {
             ControlKind::RepeatButton => Self::RepeatButton(Xaml::RepeatButton::new()?),
             ControlKind::RichEditBox => Self::RichEditBox(Xaml::RichEditBox::new()?),
             ControlKind::RichTextBlock => Self::RichTextBlock(Xaml::RichTextBlock::new()?),
+            ControlKind::ScrollView => Self::ScrollView(Iuxc::ScrollView::new()?),
             ControlKind::ScrollViewer => Self::ScrollViewer(Xaml::ScrollViewer::new()?),
             ControlKind::Slider => Self::Slider(Xaml::Slider::new()?),
             ControlKind::SplitButton => Self::SplitButton(Muxc::SplitButton::new()?),
@@ -1762,6 +1775,7 @@ impl Handle {
             Self::RepeatButton(v) => v.cast(),
             Self::RichEditBox(v) => v.cast(),
             Self::RichTextBlock(v) => v.cast(),
+            Self::ScrollView(v) => v.cast(),
             Self::ScrollViewer(v) => v.cast(),
             Self::Slider(v) => v.cast(),
             Self::SplitButton(v) => v.cast(),
@@ -1939,9 +1953,15 @@ pub(crate) struct TitleBarMetrics {
     pub drag_width_dips: f64,
 }
 
-fn titlebar_metrics_from_handle(handle: &Handle) -> Option<TitleBarMetrics> {
+#[derive(Clone, Debug)]
+pub(crate) struct TitleBarState {
+    pub metrics: TitleBarMetrics,
+    pub adapter: Iuxc::TitleBarWindowAdapter,
+}
+
+fn titlebar_state_from_handle(handle: &Handle) -> Option<TitleBarState> {
     if let Handle::TitleBar(titlebar) = handle {
-        Some(titlebar.metrics())
+        Some(titlebar.state())
     } else {
         None
     }
@@ -1950,13 +1970,8 @@ fn titlebar_metrics_from_handle(handle: &Handle) -> Option<TitleBarMetrics> {
 #[derive(Clone)]
 pub(crate) struct IslandTitleBar {
     root: Xaml::Grid,
-    back_button: Xaml::Button,
-    pane_button: Xaml::Button,
-    title_text: Xaml::TextBlock,
-    subtitle_text: Xaml::TextBlock,
-    content_slot: Xaml::ContentControl,
-    footer_slot: Xaml::ContentControl,
-    _caption_buttons: Xaml::Grid,
+    inner: Iuxc::TitleBar,
+    adapter: Iuxc::TitleBarWindowAdapter,
     _caption_button_revokers: Rc<Vec<EventSubscription>>,
     height_dips: Rc<Cell<f64>>,
     back_button_visible: Rc<Cell<bool>>,
@@ -1969,70 +1984,30 @@ impl IslandTitleBar {
     const COMMAND_WIDTH: f64 = 40.0;
     const TITLE_AREA_WIDTH: f64 = 180.0;
     const CAPTION_BUTTON_WIDTH: f64 = 46.0;
+    const CAPTION_BUTTON_HEIGHT: f64 = 32.0;
 
     fn new() -> Result<Self> {
         let root = Xaml::Grid::new()?;
         root.cast::<Xaml::IGrid3>()?.put_ColumnSpacing(0.0)?;
         let root_fe: Xaml::IFrameworkElement = root.cast()?;
-        root_fe.put_Height(Self::STANDARD_HEIGHT)?;
         root_fe.put_HorizontalAlignment(Xaml::HorizontalAlignment::Stretch)?;
         root_fe.put_VerticalAlignment(Xaml::VerticalAlignment::Top)?;
 
-        append_grid_column(&root, grid_length_pixel(Self::TITLE_AREA_WIDTH))?;
-        append_grid_column(&root, grid_length_auto())?;
-        append_grid_column(&root, grid_length_auto())?;
         append_grid_column(&root, grid_length_star())?;
-        append_grid_column(&root, grid_length_auto())?;
         append_grid_column(&root, grid_length_pixel(Self::CAPTION_BUTTON_WIDTH * 3.0))?;
 
-        let back_button = titlebar_glyph_button("\u{E72B}", Self::COMMAND_WIDTH)?;
-        place_in_grid(&back_button, 0)?;
-        append_to_panel(&root, &back_button)?;
-
-        let pane_button = titlebar_glyph_button("\u{E700}", Self::COMMAND_WIDTH)?;
-        place_in_grid(&pane_button, 1)?;
-        append_to_panel(&root, &pane_button)?;
-
-        let title_stack = Xaml::StackPanel::new()?;
-        title_stack.put_Orientation(Xaml::Orientation::Vertical)?;
-        if let Ok(spacing) = title_stack.cast::<Xaml::IStackPanel4>() {
-            let _ = spacing.put_Spacing(0.0);
+        let inner = Iuxc::TitleBar::new()?;
+        let adapter = Iuxc::TitleBarWindowAdapter::CreateInstance(&inner)?;
+        let inner_ui: Xaml::UIElement = inner.cast()?;
+        adapter.SetTitleBar(&inner_ui)?;
+        adapter.SetCaptionInsets(0.0, Self::CAPTION_BUTTON_WIDTH * 3.0)?;
+        if let Ok(window_titlebar) = adapter.get_WindowTitleBar() {
+            let _ = window_titlebar.put_ExtendsContentIntoTitleBar(true);
+            let _ = window_titlebar.put_LeftInset(0.0);
+            let _ = window_titlebar.put_RightInset(Self::CAPTION_BUTTON_WIDTH * 3.0);
         }
-        let title_stack_fe: Xaml::IFrameworkElement = title_stack.cast()?;
-        title_stack_fe.put_VerticalAlignment(Xaml::VerticalAlignment::Center)?;
-        title_stack_fe.put_Margin(Xaml::Thickness {
-            Left: 12.0,
-            Top: 0.0,
-            Right: 12.0,
-            Bottom: 0.0,
-        })?;
-        place_in_grid(&title_stack, 2)?;
-
-        let title_text = Xaml::TextBlock::new()?;
-        title_text.put_FontSize(12.0)?;
-        title_text.put_FontWeight(Xaml::FontWeight { Weight: 600 })?;
-        title_text.put_TextWrapping(Xaml::TextWrapping::NoWrap)?;
-        append_to_panel(&title_stack, &title_text)?;
-
-        let subtitle_text = Xaml::TextBlock::new()?;
-        subtitle_text.put_FontSize(11.0)?;
-        subtitle_text.put_TextWrapping(Xaml::TextWrapping::NoWrap)?;
-        subtitle_text.cast::<Xaml::UIElement>()?.put_Opacity(0.65)?;
-        append_to_panel(&title_stack, &subtitle_text)?;
-        append_to_panel(&root, &title_stack)?;
-
-        let content_slot = new_content_control()?;
-        let content_fe: Xaml::IFrameworkElement = content_slot.cast()?;
-        content_fe.put_HorizontalAlignment(Xaml::HorizontalAlignment::Stretch)?;
-        content_fe.put_VerticalAlignment(Xaml::VerticalAlignment::Center)?;
-        place_in_grid(&content_slot, 3)?;
-        append_to_panel(&root, &content_slot)?;
-
-        let footer_slot = new_content_control()?;
-        let footer_fe: Xaml::IFrameworkElement = footer_slot.cast()?;
-        footer_fe.put_VerticalAlignment(Xaml::VerticalAlignment::Center)?;
-        place_in_grid(&footer_slot, 4)?;
-        append_to_panel(&root, &footer_slot)?;
+        place_in_grid(&inner, 0)?;
+        append_to_panel(&root, &inner)?;
 
         let caption_buttons = Xaml::Grid::new()?;
         for _ in 0..3 {
@@ -2042,10 +2017,10 @@ impl IslandTitleBar {
             )?;
         }
         let caption_fe: Xaml::IFrameworkElement = caption_buttons.cast()?;
-        caption_fe.put_Height(32.0)?;
+        caption_fe.put_Height(Self::CAPTION_BUTTON_HEIGHT)?;
         caption_fe.put_HorizontalAlignment(Xaml::HorizontalAlignment::Right)?;
         caption_fe.put_VerticalAlignment(Xaml::VerticalAlignment::Top)?;
-        place_in_grid(&caption_buttons, 5)?;
+        place_in_grid(&caption_buttons, 1)?;
 
         let minimize = titlebar_glyph_button("\u{E921}", Self::CAPTION_BUTTON_WIDTH)?;
         place_in_grid(&minimize, 0)?;
@@ -2072,25 +2047,29 @@ impl IslandTitleBar {
 
         let titlebar = Self {
             root,
-            back_button,
-            pane_button,
-            title_text,
-            subtitle_text,
-            content_slot,
-            footer_slot,
-            _caption_buttons: caption_buttons,
+            inner,
+            adapter,
             _caption_button_revokers: Rc::new(caption_button_revokers),
             height_dips: Rc::new(Cell::new(Self::STANDARD_HEIGHT)),
             back_button_visible: Rc::new(Cell::new(false)),
             pane_button_visible: Rc::new(Cell::new(false)),
         };
-        titlebar.set_back_button_visible(false)?;
-        titlebar.set_pane_toggle_button_visible(false)?;
+        titlebar.apply_height(Self::STANDARD_HEIGHT)?;
+        if let Ok(titlebar2) = titlebar.inner.cast::<Iuxc::ITitleBar2>() {
+            let _ = titlebar2.put_AutoRefreshDragRegions(true);
+        }
         Ok(titlebar)
     }
 
     fn as_ui_element(&self) -> Result<Xaml::UIElement> {
         self.root.cast()
+    }
+
+    fn state(&self) -> TitleBarState {
+        TitleBarState {
+            metrics: self.metrics(),
+            adapter: self.adapter.clone(),
+        }
     }
 
     fn metrics(&self) -> TitleBarMetrics {
@@ -2112,11 +2091,11 @@ impl IslandTitleBar {
     }
 
     fn set_title(&self, value: &str) -> Result<()> {
-        self.title_text.put_Text(value)
+        self.inner.put_Title(value)
     }
 
     fn set_subtitle(&self, value: &str) -> Result<()> {
-        self.subtitle_text.put_Text(value)
+        self.inner.put_Subtitle(value)
     }
 
     fn set_tall(&self, value: bool) -> Result<()> {
@@ -2126,58 +2105,66 @@ impl IslandTitleBar {
             Self::STANDARD_HEIGHT
         };
         self.height_dips.set(height);
-        self.root
-            .cast::<Xaml::IFrameworkElement>()?
-            .put_Height(height)
+        self.apply_height(height)
     }
 
     fn set_back_button_visible(&self, value: bool) -> Result<()> {
         self.back_button_visible.set(value);
-        set_button_visible(&self.back_button, value, Self::COMMAND_WIDTH)
+        self.inner.put_IsBackButtonVisible(value)?;
+        self.recompute_drag_regions()
     }
 
     fn set_back_button_enabled(&self, value: bool) -> Result<()> {
-        self.back_button
-            .cast::<Xaml::IControl>()?
-            .put_IsEnabled(value)
+        self.inner.put_IsBackButtonEnabled(value)
     }
 
     fn set_pane_toggle_button_visible(&self, value: bool) -> Result<()> {
         self.pane_button_visible.set(value);
-        set_button_visible(&self.pane_button, value, Self::COMMAND_WIDTH)
+        self.inner.put_IsPaneToggleButtonVisible(value)?;
+        self.recompute_drag_regions()
     }
 
-    fn set_content(&self, content: Option<&IInspectable>) -> Result<()> {
+    fn set_content(&self, content: Option<&Xaml::UIElement>) -> Result<()> {
         match content {
-            Some(content) => self.content_slot.put_Content(content),
-            None => self.content_slot.put_Content(None),
-        }
+            Some(content) => self.inner.put_Content(content)?,
+            None => self.inner.put_Content(Option::<&Xaml::UIElement>::None)?,
+        };
+        self.recompute_drag_regions()
     }
 
     fn set_footer(&self, content: Option<&Xaml::UIElement>) -> Result<()> {
-        match content.and_then(|content| content.cast::<IInspectable>().ok()) {
-            Some(content) => self.footer_slot.put_Content(&content),
-            None => self.footer_slot.put_Content(None),
-        }
+        match content {
+            Some(content) => self.inner.put_RightHeader(content)?,
+            None => self
+                .inner
+                .put_RightHeader(Option::<&Xaml::UIElement>::None)?,
+        };
+        self.recompute_drag_regions()
     }
 
     fn add_back_requested(&self, handler: EventHandler) -> Result<EventSubscription> {
-        self.back_button
-            .cast::<Xaml::ButtonBase>()?
-            .add_Click(move |_, _| handler.invoke())
+        self.inner.add_BackRequested(move |_, _| handler.invoke())
     }
 
     fn add_pane_toggle_requested(&self, handler: EventHandler) -> Result<EventSubscription> {
-        self.pane_button
-            .cast::<Xaml::ButtonBase>()?
-            .add_Click(move |_, _| handler.invoke())
+        self.inner
+            .add_PaneToggleRequested(move |_, _| handler.invoke())
     }
-}
 
-fn grid_length_auto() -> Xaml::GridLength {
-    Xaml::GridLength {
-        Value: 0.0,
-        GridUnitType: Xaml::GridUnitType::Auto,
+    fn apply_height(&self, height: f64) -> Result<()> {
+        self.root
+            .cast::<Xaml::IFrameworkElement>()?
+            .put_Height(height)?;
+        let fe: Xaml::IFrameworkElement = self.inner.cast()?;
+        fe.put_MinHeight(height)?;
+        fe.put_Height(height)
+    }
+
+    fn recompute_drag_regions(&self) -> Result<()> {
+        if let Ok(titlebar2) = self.inner.cast::<Iuxc::ITitleBar2>() {
+            titlebar2.RecomputeDragRegions()?;
+        }
+        Ok(())
     }
 }
 
@@ -2201,16 +2188,6 @@ fn append_grid_column(grid: &Xaml::Grid, width: Xaml::GridLength) -> Result<()> 
     grid.get_ColumnDefinitions()?.Append(&column)
 }
 
-fn new_content_control() -> Result<Xaml::ContentControl> {
-    Xaml::XamlReader::Load(
-        r#"<ContentControl
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    HorizontalContentAlignment="Stretch"
-    VerticalContentAlignment="Center" />"#,
-    )?
-    .cast()
-}
-
 fn place_in_grid<T: Interface>(element: &T, column: i32) -> Result<()> {
     let fe: Xaml::FrameworkElement = element.cast()?;
     Xaml::Grid::SetColumn(&fe, column)
@@ -2226,7 +2203,7 @@ fn titlebar_glyph_button(glyph: &str, width: f64) -> Result<Xaml::Button> {
     let button = Xaml::Button::new()?;
     let fe: Xaml::IFrameworkElement = button.cast()?;
     fe.put_Width(width)?;
-    fe.put_Height(32.0)?;
+    fe.put_Height(IslandTitleBar::CAPTION_BUTTON_HEIGHT)?;
     fe.put_HorizontalAlignment(Xaml::HorizontalAlignment::Left)?;
     fe.put_VerticalAlignment(Xaml::VerticalAlignment::Top)?;
 
@@ -2246,14 +2223,6 @@ fn titlebar_glyph_button(glyph: &str, width: f64) -> Result<Xaml::Button> {
 
     button.cast::<Xaml::ContentControl>()?.put_Content(&text)?;
     Ok(button)
-}
-
-fn set_button_visible(button: &Xaml::Button, visible: bool, width: f64) -> Result<()> {
-    let fe: Xaml::IFrameworkElement = button.cast()?;
-    fe.put_Width(if visible { width } else { 0.0 })?;
-    let ui: Xaml::IUIElement = button.cast()?;
-    ui.put_Opacity(if visible { 1.0 } else { 0.0 })?;
-    button.cast::<Xaml::IControl>()?.put_IsEnabled(visible)
 }
 
 /// Build and apply a XAML Style with {ThemeResource} setters to an element.

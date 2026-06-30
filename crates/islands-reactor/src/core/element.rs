@@ -134,6 +134,7 @@ define_element! {
     TextBox,
     Grid,
     ScrollViewer,
+    ScrollView,
     ToggleSwitch,
     Slider,
     RadioButton,

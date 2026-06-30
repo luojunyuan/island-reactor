@@ -64,6 +64,7 @@ widget_modules! {
     relative_panel,
     repeat_button,
     rich_edit_box,
+    scroll_view,
     scroll_viewer,
     selector_bar,
     shape,

@@ -31,6 +31,8 @@ pub fn generate(controls: &[Control], resolver: &MetadataResolver) -> String {
     format_generated(quote! {
         use super::*;
         use crate::bindings as Xaml;
+        #[allow(unused_imports)]
+        use crate::bindings_iuxc as Iuxc;
         use crate::bindings_muxc as Muxc;
 
         /// Try to handle an `attach_event` call via generated dispatch.

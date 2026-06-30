@@ -7,6 +7,8 @@ use std::{
 };
 
 #[allow(dead_code)]
+mod iuxc_runtime;
+#[allow(dead_code)]
 mod muxc_runtime;
 
 const APP_MANIFEST: &str = include_str!("../assets/app.manifest");
@@ -20,7 +22,7 @@ pub fn embed_manifest() {
         .join("app.manifest");
     println!("cargo:rerun-if-changed={}", manifest_asset.display());
 
-    stage_mux_runtime();
+    stage_runtime();
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
     let manifest_path = out_dir.join("islands-reactor-app.manifest");
     fs::write(&manifest_path, APP_MANIFEST).unwrap_or_else(|err| {
@@ -52,7 +54,7 @@ pub fn embed_manifest() {
     }
 }
 
-fn stage_mux_runtime() {
+fn stage_runtime() {
     let Ok(out_dir) = env::var("OUT_DIR").map(PathBuf::from) else {
         return;
     };
@@ -76,15 +78,25 @@ fn stage_mux_runtime() {
         return;
     }
 
-    if let Some(target_dir) = target_output_dir(&out_dir) {
-        if let Err(err) = copy_runtime_payload(&asset_dir, &target_dir) {
+    let iuxc_asset_dir = iuxc_runtime::runtime_asset_dir(arch);
+    if let Some(iuxc_asset_dir) = iuxc_asset_dir.as_ref() {
+        for file in iuxc_runtime::RUNTIME_FILES {
             println!(
-                "cargo:warning=WinUI 2 runtime payload copy failed for {}: {err}",
+                "cargo:rerun-if-changed={}",
+                iuxc_asset_dir.join(file).display()
+            );
+        }
+    }
+
+    if let Some(target_dir) = target_output_dir(&out_dir) {
+        if let Err(err) = copy_runtime_payload(&asset_dir, iuxc_asset_dir.as_deref(), &target_dir) {
+            println!(
+                "cargo:warning=XAML runtime payload copy failed for {}: {err}",
                 target_dir.display()
             );
         }
     } else {
-        println!("cargo:warning=WinUI 2 runtime staging skipped: could not resolve target dir");
+        println!("cargo:warning=XAML runtime staging skipped: could not resolve target dir");
     }
 }
 
@@ -96,27 +108,60 @@ fn target_arch_folder() -> Option<&'static str> {
     }
 }
 
-fn copy_runtime_payload(asset_dir: &Path, target_dir: &Path) -> std::io::Result<()> {
+fn copy_runtime_payload(
+    muxc_asset_dir: &Path,
+    iuxc_asset_dir: Option<&Path>,
+    target_dir: &Path,
+) -> std::io::Result<()> {
     fs::create_dir_all(target_dir)?;
     let _stage_lock = RuntimeStageLock::acquire(target_dir)?;
-    let dll = asset_dir.join(muxc_runtime::RUNTIME_DLL);
-    let pri = asset_dir.join(muxc_runtime::RUNTIME_PRI);
+    let dll = muxc_asset_dir.join(muxc_runtime::RUNTIME_DLL);
+    let pri = muxc_asset_dir.join(muxc_runtime::RUNTIME_PRI);
     copy_file_if_missing_or_stale(&dll, target_dir.join(muxc_runtime::RUNTIME_DLL))?;
-    let stale_pri = target_dir.join(muxc_runtime::RUNTIME_PRI);
-    if stale_pri.exists() {
-        fs::remove_file(stale_pri)?;
+
+    let iuxc_pri = if let Some(iuxc_asset_dir) = iuxc_asset_dir {
+        let mut all_present = true;
+        for file in iuxc_runtime::RUNTIME_FILES {
+            let src = iuxc_asset_dir.join(file);
+            if src.exists() {
+                copy_file_if_missing_or_stale(&src, target_dir.join(file))?;
+            } else {
+                all_present = false;
+                println!(
+                    "cargo:warning=Islands.UI.Xaml runtime asset missing: {}",
+                    src.display()
+                );
+            }
+        }
+        all_present
+            .then(|| iuxc_asset_dir.join(iuxc_runtime::CONTROLS_PRI))
+            .filter(|path| path.exists())
+    } else {
+        None
+    };
+
+    if target_dir.join(muxc_runtime::RUNTIME_PRI).exists() {
+        fs::remove_file(target_dir.join(muxc_runtime::RUNTIME_PRI))?;
     }
-    ensure_app_resources_pri(target_dir, &pri)
+    ensure_app_resources_pri(target_dir, &pri, iuxc_pri.as_deref())
 }
 
-fn ensure_app_resources_pri(target_dir: &Path, mux_pri: &Path) -> std::io::Result<()> {
+fn ensure_app_resources_pri(
+    target_dir: &Path,
+    mux_pri: &Path,
+    iuxc_pri: Option<&Path>,
+) -> std::io::Result<()> {
     let resources_pri = target_dir.join("resources.pri");
-    if app_resources_pri_is_current(&resources_pri, mux_pri)? {
+    if app_resources_pri_is_current(&resources_pri, mux_pri, iuxc_pri)? {
         return Ok(());
     }
 
     let Some(makepri) = find_makepri() else {
-        println!("cargo:warning=WinUI 2 app PRI generation skipped: could not find makepri.exe");
+        println!("cargo:warning=XAML app PRI generation skipped: could not find makepri.exe");
+        copy_file(mux_pri, target_dir.join(muxc_runtime::RUNTIME_PRI))?;
+        if let Some(iuxc_pri) = iuxc_pri {
+            copy_file(iuxc_pri, target_dir.join(iuxc_runtime::CONTROLS_PRI))?;
+        }
         return Ok(());
     };
 
@@ -124,12 +169,16 @@ fn ensure_app_resources_pri(target_dir: &Path, mux_pri: &Path) -> std::io::Resul
     let input = work.join("input");
     recreate_dir(&work)?;
     fs::create_dir_all(&input)?;
-    copy_file(mux_pri, input.join(muxc_runtime::RUNTIME_PRI))?;
 
     let config = work.join("priconfig.xml");
     fs::write(&config, APP_PRI_CONFIG)?;
 
     let output = work.join("resources.pri");
+    copy_file(mux_pri, input.join(muxc_runtime::RUNTIME_PRI))?;
+    if let Some(iuxc_pri) = iuxc_pri {
+        copy_file(iuxc_pri, input.join(iuxc_runtime::CONTROLS_PRI))?;
+    }
+
     let status = Command::new(&makepri)
         .current_dir(&work)
         .arg("new")
@@ -145,7 +194,7 @@ fn ensure_app_resources_pri(target_dir: &Path, mux_pri: &Path) -> std::io::Resul
         .status()?;
     if !status.success() {
         println!(
-            "cargo:warning=WinUI 2 app PRI generation failed with {status}: {}",
+            "cargo:warning=XAML app PRI generation failed with {status}: {}",
             makepri.display()
         );
         return Ok(());
@@ -196,7 +245,11 @@ impl Drop for RuntimeStageLock {
     }
 }
 
-fn app_resources_pri_is_current(resources_pri: &Path, mux_pri: &Path) -> io::Result<bool> {
+fn app_resources_pri_is_current(
+    resources_pri: &Path,
+    mux_pri: &Path,
+    iuxc_pri: Option<&Path>,
+) -> io::Result<bool> {
     let resources = match fs::metadata(resources_pri) {
         Ok(metadata) => metadata,
         Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(false),
@@ -212,7 +265,11 @@ fn app_resources_pri_is_current(resources_pri: &Path, mux_pri: &Path) -> io::Res
     let setup_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("src")
         .join("lib.rs");
-    for input in [mux_pri, setup_src.as_path()] {
+    let mut inputs = vec![mux_pri, setup_src.as_path()];
+    if let Some(iuxc_pri) = iuxc_pri {
+        inputs.push(iuxc_pri);
+    }
+    for input in inputs {
         let Ok(input_modified) = fs::metadata(input).and_then(|metadata| metadata.modified())
         else {
             return Ok(false);

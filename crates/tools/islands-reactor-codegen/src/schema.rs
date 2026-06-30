@@ -407,6 +407,8 @@ pub fn module_alias_for_namespace(namespace: &str) -> Option<&'static str> {
         Some("Xaml")
     } else if namespace.starts_with("Microsoft.UI.Xaml") {
         Some("Muxc")
+    } else if namespace.starts_with("Islands.UI.Xaml") {
+        Some("Iuxc")
     } else {
         None
     }

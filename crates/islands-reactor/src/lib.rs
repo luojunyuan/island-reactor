@@ -21,6 +21,18 @@ mod bindings;
     clippy::missing_safety_doc,
     clippy::too_many_arguments
 )]
+mod bindings_iuxc;
+#[allow(
+    non_snake_case,
+    non_upper_case_globals,
+    non_camel_case_types,
+    dead_code,
+    clippy::upper_case_acronyms,
+    clippy::useless_transmute,
+    clippy::missing_transmute_annotations,
+    clippy::missing_safety_doc,
+    clippy::too_many_arguments
+)]
 mod bindings_muxc;
 mod xaml_interop;
 
@@ -59,9 +71,9 @@ pub use core::element::{
     FlyoutPlacementMode, GridLength, GridPlacement, HeadingLevel, HorizontalAlignment,
     InfoBarSeverity, KeyModifiers, KeyboardAccelerator, KeyboardKey, LiveSetting, Modifiers,
     NavigationViewPaneDisplayMode, Orientation, PasswordRevealMode, PointerEventInfo,
-    PointerHandlers, ScrollBarVisibility, Stretch, Symbol, TabItem, TeachingTipPlacementMode,
-    TextWrapping, Thickness, Tooltip, TooltipContent, TooltipPlacement, TreeViewSelectionMode,
-    VerticalAlignment,
+    PointerHandlers, ScrollBarVisibility, ScrollingScrollBarVisibility, Stretch, Symbol, TabItem,
+    TeachingTipPlacementMode, TextWrapping, Thickness, Tooltip, TooltipContent, TooltipPlacement,
+    TreeViewSelectionMode, VerticalAlignment,
 };
 pub use core::error_boundary::*;
 pub use core::into_elements::IntoElements;

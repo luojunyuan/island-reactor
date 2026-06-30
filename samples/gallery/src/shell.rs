@@ -101,31 +101,6 @@ pub fn gallery_shell(cx: &mut RenderCx) -> Element {
         .into();
     let search_box = search_box.width(320.0);
 
-    let pane_button = button("\u{E700}")
-        .on_click(move || set_pane_open.call(!is_pane_open))
-        .font_family("Segoe MDL2 Assets")
-        .font_size(14.0)
-        .width(40.0)
-        .height(36.0)
-        .padding(0.0);
-
-    let back_button = button("\u{E72B}")
-        .enabled(!history.is_empty())
-        .on_click({
-            let (set_nav, hist) = (set_nav.clone(), history.clone());
-            move || {
-                let mut h = hist.clone();
-                if let Some(prev) = h.pop() {
-                    set_nav.call((prev, h));
-                }
-            }
-        })
-        .font_family("Segoe MDL2 Assets")
-        .font_size(14.0)
-        .width(40.0)
-        .height(36.0)
-        .padding(0.0);
-
     let theme_button = {
         let glyph = if is_dark { "\u{E706}" } else { "\u{E708}" };
         button(glyph)
@@ -143,28 +118,24 @@ pub fn gallery_shell(cx: &mut RenderCx) -> Element {
             .padding(0.0)
     };
 
-    let command_bar = border(
-        grid((
-            pane_button.grid_column(0),
-            back_button.grid_column(1),
-            search_box.grid_column(2),
-            theme_button.grid_column(3),
-        ))
-        .columns([
-            GridLength::Auto,
-            GridLength::Auto,
-            GridLength::Star(1.0),
-            GridLength::Auto,
-        ])
-        .column_spacing(8.0),
-    )
-    .padding(Thickness {
-        left: 8.0,
-        top: 8.0,
-        right: 8.0,
-        bottom: 8.0,
-    })
-    .background(ThemeRef::CardBackground);
+    let title_bar = TitleBar::new("Islands Reactor Gallery")
+        .subtitle("WinUI controls")
+        .back_button_visible(!history.is_empty())
+        .back_button_enabled(!history.is_empty())
+        .pane_toggle_button_visible(true)
+        .on_back_requested({
+            let (set_nav, hist) = (set_nav.clone(), history.clone());
+            move || {
+                let mut h = hist.clone();
+                if let Some(prev) = h.pop() {
+                    set_nav.call((prev, h));
+                }
+            }
+        })
+        .on_pane_toggle_requested(move || set_pane_open.call(!is_pane_open))
+        .content(search_box)
+        .footer(theme_button)
+        .tall(true);
 
     let nav_view = NavigationView::new(nav_items, content)
         .selected_tag(&selected_tag)
@@ -190,7 +161,7 @@ pub fn gallery_shell(cx: &mut RenderCx) -> Element {
         .back_button_visible(false)
         .font_family("Segoe UI Variable");
 
-    grid((command_bar.grid_row(0), nav_view.grid_row(1)))
+    grid((title_bar.grid_row(0), nav_view.grid_row(1)))
         .rows([GridLength::Auto, GridLength::Star(1.0)])
         .columns([GridLength::Star(1.0)])
         .into()

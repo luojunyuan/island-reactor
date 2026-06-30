@@ -16,6 +16,7 @@ mod schema;
 mod toml_parser;
 
 const WINUI2_VERSION: &str = "2.8.7";
+const ISLANDS_UI_XAML_VERSION: &str = "0.1.0-local";
 const REACTOR_WIDGETS_TOML: &str = include_str!("reactor_widgets.toml");
 
 const XAML_MINIMAL_FILTERS: &[&str] = &[
@@ -254,6 +255,7 @@ const MUXC_MINIMAL_FILTERS: &[&str] = &[
     "Microsoft.UI.Xaml.Controls.InfoBarClosedEventArgs",
     "Microsoft.UI.Xaml.Controls.InfoBarSeverity",
     "Microsoft.UI.Xaml.Controls.IInfoBar::{put_Title, put_Message, put_Severity, put_IsOpen, put_IsClosable, add_Closed}",
+    "Microsoft.UI.Xaml.Controls.IconSource",
     "Microsoft.UI.Xaml.Controls.NavigationView::{CreateInstance}",
     "Microsoft.UI.Xaml.Controls.NavigationViewBackButtonVisible",
     "Microsoft.UI.Xaml.Controls.NavigationViewBackRequestedEventArgs",
@@ -290,6 +292,27 @@ const MUXC_MINIMAL_FILTERS: &[&str] = &[
     "Microsoft.UI.Xaml.XamlTypeInfo.XamlControlsXamlMetaDataProvider::{CreateInstance}",
 ];
 
+const IUXC_MINIMAL_FILTERS: &[&str] = &[
+    "Islands.UI.Xaml.Controls.ScrollView::{CreateInstance}",
+    "Islands.UI.Xaml.Controls.IScrollView::{put_Content, put_HorizontalScrollBarVisibility, put_VerticalScrollBarVisibility}",
+    "Islands.UI.Xaml.Controls.ScrollingScrollBarVisibility",
+    "Islands.UI.Xaml.Controls.TitleBar::{CreateInstance}",
+    "Islands.UI.Xaml.Controls.ITitleBar::{put_Title, put_Subtitle, put_Content, put_RightHeader, put_IsBackButtonVisible, put_IsBackButtonEnabled, put_IsPaneToggleButtonVisible, add_BackRequested, add_PaneToggleRequested}",
+    "Islands.UI.Xaml.Controls.ITitleBar2::{put_AutoRefreshDragRegions, RecomputeDragRegions}",
+    "Islands.UI.Xaml.Controls.AppWindowTitleBar::{CreateInstance}",
+    "Islands.UI.Xaml.Controls.IAppWindowTitleBar::{put_ExtendsContentIntoTitleBar, put_LeftInset, put_RightInset}",
+    "Islands.UI.Xaml.Controls.TitleBarWindowAdapter::{CreateInstance}",
+    "Islands.UI.Xaml.Controls.ITitleBarWindowAdapter::{put_WindowHandle, get_WindowTitleBar, SetTitleBar, NotifyWindowActivated, SetCaptionInsets, HitTest, ApplyTitleBarWindowRegion}",
+    "Islands.UI.Xaml.Controls.XamlMetaDataProvider::{CreateInstance}",
+];
+
+const IUXC_RUNTIME_FILES: &[&str] = &[
+    "Islands.UI.Xaml.Controls.dll",
+    "Islands.UI.Xaml.Controls.pri",
+    "Islands.UI.Xaml.Controls.winmd",
+    "Islands.UI.Xaml.Automation.winmd",
+];
+
 fn main() {
     let mut args = env::args().skip(1);
     match args.next().as_deref() {
@@ -308,13 +331,17 @@ fn main() {
 
 fn generate_bindings() -> Result<(), String> {
     let root = workspace_root()?;
-    let package = winui2_package_dir()?;
-    let winmd = extract_muxc_metadata_winmd(&root, &package)?;
+    let muxc_package = winui2_package_dir()?;
+    let muxc_winmd = extract_muxc_metadata_winmd(&root, &muxc_package)?;
+    let iuxc_package = islands_ui_xaml_package_dir(&root)?;
+    let iuxc_winmd = iuxc_native_asset(&iuxc_package, "x64", "Islands.UI.Xaml.Controls.winmd")?;
 
     generate_xaml_bindings(&root)?;
-    generate_muxc_module(&root, &winmd)?;
-    generate_reactor_code(&root, &winmd)?;
-    vendor_muxc_runtime(&root, &package)?;
+    generate_muxc_module(&root, &muxc_winmd)?;
+    generate_iuxc_module(&root, &iuxc_winmd, &muxc_winmd)?;
+    generate_reactor_code(&root, &muxc_winmd, &iuxc_winmd)?;
+    vendor_muxc_runtime(&root, &muxc_package)?;
+    vendor_iuxc_runtime(&root, &iuxc_package)?;
     Ok(())
 }
 
@@ -409,8 +436,58 @@ fn generate_muxc_module(root: &Path, winmd: &Path) -> Result<(), String> {
     copy_if_changed(&temp, &out)
 }
 
-fn generate_reactor_code(root: &Path, muxc_winmd: &Path) -> Result<(), String> {
-    let metadata_dir = stage_reactor_metadata(root, muxc_winmd)?;
+fn generate_iuxc_module(root: &Path, iuxc_winmd: &Path, muxc_winmd: &Path) -> Result<(), String> {
+    let out = root.join("crates/islands-reactor/src/bindings_iuxc.rs");
+    let temp = root
+        .join("target")
+        .join("islands-reactor-codegen")
+        .join("bindings_iuxc.rs");
+    let temp_arg = path_arg(&temp);
+    let iuxc_winmd = path_arg(iuxc_winmd);
+    let muxc_winmd = path_arg(muxc_winmd);
+    let mut args = vec![
+        "--in",
+        "default",
+        &muxc_winmd,
+        &iuxc_winmd,
+        "--out",
+        &temp_arg,
+        "--minimal",
+        "--flat",
+        "--filter",
+    ];
+    args.extend(IUXC_MINIMAL_FILTERS);
+    args.extend([
+        "--reference",
+        "crate::bindings,flat,Windows.UI",
+        "--reference",
+        "crate::bindings,flat,Windows.UI.Xaml",
+        "--reference",
+        "crate::bindings,flat,Windows.UI.Xaml.Controls",
+        "--reference",
+        "crate::bindings,flat,Windows.UI.Input",
+        "--reference",
+        "crate::bindings,flat,Windows.UI.Text",
+        "--reference",
+        "crate::bindings_muxc,flat,Microsoft.UI.Xaml.Controls",
+        "--reference",
+        "windows,skip-root,Windows.Foundation",
+        "--reference",
+        "windows_collections,flat,Windows.Foundation.Collections",
+        "--reference",
+        "windows,skip-root,Windows.Win32.Foundation",
+        "--reference",
+        "windows,skip-root,Windows.Foundation.Numerics.Quaternion",
+        "--reference",
+        "windows_numerics,flat,Windows.Foundation.Numerics",
+    ]);
+    run_bindgen(args)?;
+    patch_muxc_module(&temp)?;
+    copy_if_changed(&temp, &out)
+}
+
+fn generate_reactor_code(root: &Path, muxc_winmd: &Path, iuxc_winmd: &Path) -> Result<(), String> {
+    let metadata_dir = stage_reactor_metadata(root, muxc_winmd, iuxc_winmd)?;
     let resolver = metadata::MetadataResolver::load(&metadata_dir);
     let mut controls = toml_parser::parse(REACTOR_WIDGETS_TOML, &resolver);
 
@@ -439,7 +516,11 @@ fn generate_reactor_code(root: &Path, muxc_winmd: &Path) -> Result<(), String> {
     )
 }
 
-fn stage_reactor_metadata(root: &Path, muxc_winmd: &Path) -> Result<PathBuf, String> {
+fn stage_reactor_metadata(
+    root: &Path,
+    muxc_winmd: &Path,
+    iuxc_winmd: &Path,
+) -> Result<PathBuf, String> {
     let work = root
         .join("target")
         .join("islands-reactor-codegen")
@@ -449,6 +530,7 @@ fn stage_reactor_metadata(root: &Path, muxc_winmd: &Path) -> Result<PathBuf, Str
     let windows_winmd = locate_windows_bindgen_default_winmd(root)?;
     copy_file(&windows_winmd, &work.join("Windows.winmd"))?;
     copy_file(muxc_winmd, &work.join("Microsoft.UI.Xaml.winmd"))?;
+    copy_file(iuxc_winmd, &work.join("Islands.UI.Xaml.Controls.winmd"))?;
     Ok(work)
 }
 
@@ -519,6 +601,25 @@ fn vendor_muxc_runtime(root: &Path, package: &Path) -> Result<(), String> {
     write_runtime_rs(&root.join("crates/islands-reactor-setup/src/muxc_runtime.rs"))
 }
 
+fn vendor_iuxc_runtime(root: &Path, package: &Path) -> Result<(), String> {
+    for arch in ["x64", "arm64"] {
+        let runtime = root.join("crates/islands-reactor-setup/runtime").join(arch);
+        fs::create_dir_all(&runtime).map_err(|err| {
+            format!(
+                "failed to create runtime asset dir {}: {err}",
+                runtime.display()
+            )
+        })?;
+
+        for name in IUXC_RUNTIME_FILES {
+            let src = iuxc_native_asset(package, arch, name)?;
+            copy_file(&src, &runtime.join(name))?;
+        }
+    }
+
+    write_iuxc_runtime_rs(&root.join("crates/islands-reactor-setup/src/iuxc_runtime.rs"))
+}
+
 fn trim_mux_pri(input: &Path, output: &Path) -> Result<(), String> {
     require_file(input, "WinUI 2 resources.pri")?;
     let makepri = find_makepri().ok_or_else(|| {
@@ -548,11 +649,15 @@ fn trim_mux_pri(input: &Path, output: &Path) -> Result<(), String> {
 
     let dump = work.join("resources.pri.xml");
     require_file(&dump, "makepri dump XML")?;
-    trim_xbf_nodes(&dump)?;
+    let trimmed_dump = work.join("resources.trimmed.pri.xml");
+    trim_xbf_nodes(&dump, &trimmed_dump)?;
 
     let config = work.join("mux_priconfig.xml");
-    fs::write(&config, MUX_PRI_CONFIG)
-        .map_err(|err| format!("failed to write {}: {err}", config.display()))?;
+    fs::write(
+        &config,
+        MUX_PRI_CONFIG.replace("resources.pri.xml", "resources.trimmed.pri.xml"),
+    )
+    .map_err(|err| format!("failed to write {}: {err}", config.display()))?;
 
     let out_name = output
         .file_name()
@@ -578,23 +683,23 @@ fn trim_mux_pri(input: &Path, output: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn trim_xbf_nodes(path: &Path) -> Result<(), String> {
+fn trim_xbf_nodes(input: &Path, output: &Path) -> Result<(), String> {
     let mut xml = {
-        let file = fs::File::open(path)
-            .map_err(|err| format!("failed to open {}: {err}", path.display()))?;
+        let file = fs::File::open(input)
+            .map_err(|err| format!("failed to open {}: {err}", input.display()))?;
         Element::parse(BufReader::new(file))
-            .map_err(|err| format!("failed to parse {}: {err}", path.display()))?
+            .map_err(|err| format!("failed to parse {}: {err}", input.display()))?
     };
     trim_xbf_element(&mut xml);
-    let file = fs::File::create(path)
-        .map_err(|err| format!("failed to rewrite {}: {err}", path.display()))?;
+    let file = fs::File::create(output)
+        .map_err(|err| format!("failed to write {}: {err}", output.display()))?;
     xml.write_with_config(
         BufWriter::new(file),
         EmitterConfig::new()
             .perform_indent(true)
             .write_document_declaration(true),
     )
-    .map_err(|err| format!("failed to save {}: {err}", path.display()))
+    .map_err(|err| format!("failed to save {}: {err}", output.display()))
 }
 
 fn trim_xbf_element(element: &mut Element) {
@@ -648,6 +753,32 @@ fn write_runtime_rs(path: &Path) -> Result<(), String> {
     ));
     code.push_str("pub const RUNTIME_DLL: &str = \"Microsoft.UI.Xaml.dll\";\n");
     code.push_str("pub const RUNTIME_PRI: &str = \"Microsoft.UI.Xaml.pri\";\n\n");
+    code.push_str("pub fn runtime_asset_dir(arch: &str) -> Option<PathBuf> {\n");
+    code.push_str("    match arch {\n");
+    code.push_str(
+        "        \"x64\" | \"arm64\" => Some(Path::new(env!(\"CARGO_MANIFEST_DIR\")).join(\"runtime\").join(arch)),\n",
+    );
+    code.push_str("        _ => None,\n");
+    code.push_str("    }\n");
+    code.push_str("}\n");
+
+    write_if_changed(path, &rustfmt(&code))
+}
+
+fn write_iuxc_runtime_rs(path: &Path) -> Result<(), String> {
+    let mut code = String::new();
+    code.push_str("use std::path::{Path, PathBuf};\n\n");
+    code.push_str(&format!(
+        "pub const ISLANDS_UI_XAML_VERSION: &str = {:?};\n",
+        ISLANDS_UI_XAML_VERSION
+    ));
+    code.push_str("pub const CONTROLS_DLL: &str = \"Islands.UI.Xaml.Controls.dll\";\n");
+    code.push_str("pub const CONTROLS_PRI: &str = \"Islands.UI.Xaml.Controls.pri\";\n");
+    code.push_str("pub const CONTROLS_WINMD: &str = \"Islands.UI.Xaml.Controls.winmd\";\n");
+    code.push_str("pub const AUTOMATION_WINMD: &str = \"Islands.UI.Xaml.Automation.winmd\";\n");
+    code.push_str(
+        "pub const RUNTIME_FILES: &[&str] = &[CONTROLS_DLL, CONTROLS_PRI, CONTROLS_WINMD, AUTOMATION_WINMD];\n\n",
+    );
     code.push_str("pub fn runtime_asset_dir(arch: &str) -> Option<PathBuf> {\n");
     code.push_str("    match arch {\n");
     code.push_str(
@@ -732,6 +863,83 @@ fn winui2_package_dir() -> Result<PathBuf, String> {
     }
 }
 
+fn islands_ui_xaml_package_dir(root: &Path) -> Result<PathBuf, String> {
+    if let Ok(dir) = env::var("ISLANDS_UI_XAML_PACKAGE_DIR") {
+        let dir = PathBuf::from(dir);
+        if dir.exists() {
+            return Ok(dir);
+        }
+        return Err(format!(
+            "ISLANDS_UI_XAML_PACKAGE_DIR points to a missing directory: {}",
+            dir.display()
+        ));
+    }
+
+    if let Ok(package) = env::var("ISLANDS_UI_XAML_NUPKG") {
+        let package = PathBuf::from(package);
+        require_file(&package, "Islands.UI.Xaml NuGet package")?;
+        return extract_iuxc_nupkg(root, &package);
+    }
+
+    if let Some(parent) = root.parent() {
+        let package = parent
+            .join("ixx-trans")
+            .join("artifacts")
+            .join("packages")
+            .join(format!("Islands.UI.Xaml.{ISLANDS_UI_XAML_VERSION}.nupkg"));
+        if package.exists() {
+            return extract_iuxc_nupkg(root, &package);
+        }
+    }
+
+    let nuget_root = if let Ok(root) = env::var("NUGET_PACKAGES") {
+        PathBuf::from(root)
+    } else {
+        let profile = env::var("USERPROFILE").map_err(|_| "USERPROFILE is not set".to_string())?;
+        PathBuf::from(profile).join(".nuget").join("packages")
+    };
+    let package_dir = nuget_root
+        .join("islands.ui.xaml")
+        .join(ISLANDS_UI_XAML_VERSION);
+    if package_dir.exists() {
+        Ok(package_dir)
+    } else {
+        Err(format!(
+            "missing NuGet package Islands.UI.Xaml/{ISLANDS_UI_XAML_VERSION}; \
+             set ISLANDS_UI_XAML_NUPKG or ISLANDS_UI_XAML_PACKAGE_DIR"
+        ))
+    }
+}
+
+fn extract_iuxc_nupkg(root: &Path, package: &Path) -> Result<PathBuf, String> {
+    let work = root
+        .join("target")
+        .join("islands-reactor-codegen")
+        .join("islands-ui-xaml-package");
+    recreate_dir(&work)?;
+    expand_nupkg(package, &work)?;
+    Ok(work)
+}
+
+fn iuxc_native_asset(package: &Path, arch: &str, file: &str) -> Result<PathBuf, String> {
+    let path = package
+        .join("runtimes")
+        .join(iuxc_rid(arch)?)
+        .join("native")
+        .join(file);
+    require_file(&path, &format!("Islands.UI.Xaml {arch} native asset"))?;
+    Ok(path)
+}
+
+fn iuxc_rid(arch: &str) -> Result<&'static str, String> {
+    match arch {
+        "x64" => Ok("win-x64"),
+        "arm64" => Ok("win-arm64"),
+        "x86" => Ok("win-x86"),
+        _ => Err(format!("unsupported Islands.UI.Xaml architecture: {arch}")),
+    }
+}
+
 fn extract_muxc_metadata_winmd(root: &Path, package: &Path) -> Result<PathBuf, String> {
     let appx = muxc_appx(package, "x64");
     require_file(&appx, "WinUI 2 x64 AppX")?;
@@ -767,6 +975,22 @@ fn expand_appx(appx: &Path, stage: &Path) -> Result<(), String> {
             .arg(format!(
                 "Expand-Archive -LiteralPath '{}' -DestinationPath '{}' -Force",
                 ps_escape(appx),
+                ps_escape(stage)
+            )),
+        "Expand-Archive",
+    )
+}
+
+fn expand_nupkg(nupkg: &Path, stage: &Path) -> Result<(), String> {
+    run_command(
+        Command::new("powershell")
+            .arg("-NoProfile")
+            .arg("-ExecutionPolicy")
+            .arg("Bypass")
+            .arg("-Command")
+            .arg(format!(
+                "Expand-Archive -LiteralPath '{}' -DestinationPath '{}' -Force",
+                ps_escape(nupkg),
                 ps_escape(stage)
             )),
         "Expand-Archive",

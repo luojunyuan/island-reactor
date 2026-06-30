@@ -210,6 +210,10 @@ TextChanged = { manual = true, type = "Str" }
 HorizontalScrollBarVisibility = {}
 VerticalScrollBarVisibility = {}
 
+["Islands.UI.Xaml.Controls.ScrollView"]
+HorizontalScrollBarVisibility = {}
+VerticalScrollBarVisibility = {}
+
 ["Island.SelectorBar"]
 SelectionChanged = { manual = true, type = "Str" }
 
@@ -274,7 +278,7 @@ MinuteIncrement = {}
 IsEnabled = {}
 SelectedTimeChanged = { manual = true, type = "TimeSpan" }
 
-["Island.TitleBar"]
+["Islands.UI.Xaml.Controls.TitleBar"]
 Title = { custom = true, type = "Str" }
 Subtitle = { custom = true, type = "Str" }
 IsBackButtonVisible = { custom = true, type = "Bool" }

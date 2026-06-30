@@ -635,6 +635,22 @@ pub struct IExpanderFactory_Vtbl {
     ) -> windows_core::HRESULT,
 }
 windows_core::imp::define_interface!(
+    IIconSource,
+    IIconSource_Vtbl,
+    0x6e3501ed_dd31_51e9_8f14_2561f99c8a8f
+);
+impl windows_core::RuntimeType for IIconSource {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_interface::<Self>();
+}
+#[repr(C)]
+pub struct IIconSource_Vtbl {
+    pub base__: windows_core::IInspectable_Vtbl,
+    CreateIconElement: usize,
+    get_Foreground: usize,
+    put_Foreground: usize,
+}
+windows_core::imp::define_interface!(
     IInfoBadge,
     IInfoBadge_Vtbl,
     0x82104d7f_03d4_5ea4_872e_f9ecab758601
@@ -2414,6 +2430,33 @@ impl windows_core::RuntimeType for IXamlControlsResources {
 pub struct IXamlControlsResources_Vtbl {
     pub base__: windows_core::IInspectable_Vtbl,
 }
+#[repr(transparent)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IconSource(windows_core::IUnknown);
+windows_core::imp::interface_hierarchy!(
+    IconSource,
+    windows_core::IUnknown,
+    windows_core::IInspectable
+);
+impl windows_core::RuntimeType for IconSource {
+    const SIGNATURE: windows_core::imp::ConstBuffer =
+        windows_core::imp::ConstBuffer::for_class::<Self, IIconSource>();
+}
+unsafe impl windows_core::Interface for IconSource {
+    type Vtable = <IIconSource as windows_core::Interface>::Vtable;
+    const IID: windows_core::GUID = <IIconSource as windows_core::Interface>::IID;
+}
+impl core::ops::Deref for IconSource {
+    type Target = IIconSource;
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::mem::transmute(self) }
+    }
+}
+impl windows_core::RuntimeName for IconSource {
+    const NAME: &'static str = "Microsoft.UI.Xaml.Controls.IconSource";
+}
+unsafe impl Send for IconSource {}
+unsafe impl Sync for IconSource {}
 #[repr(transparent)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InfoBadge(windows_core::IUnknown);

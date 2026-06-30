@@ -97,6 +97,7 @@ impl MetadataResolver {
         for (namespace, name, typedef) in index.iter() {
             if namespace.starts_with("Microsoft.UI.Xaml")
                 || namespace.starts_with("Windows.UI.Xaml")
+                || namespace.starts_with("Islands.UI.Xaml")
             {
                 Self::collect_methods_for_class(&index, name, &typedef, &mut lookup);
             }
@@ -220,7 +221,9 @@ impl MetadataResolver {
                         param_types: sig.types,
                         return_type: sig.return_type,
                     };
-                    if iface_ns.starts_with("Microsoft.UI.Xaml") {
+                    if iface_ns.starts_with("Islands.UI.Xaml") {
+                        lookup.insert(key, method_ref);
+                    } else if iface_ns.starts_with("Microsoft.UI.Xaml") {
                         lookup.insert(key, method_ref);
                     } else {
                         lookup.entry(key).or_insert(method_ref);
@@ -256,6 +259,12 @@ impl MetadataResolver {
             for (method_name, method_ref) in base_methods {
                 let key = (class_name.to_string(), method_name);
                 if method_ref
+                    .interface
+                    .namespace
+                    .starts_with("Islands.UI.Xaml")
+                {
+                    lookup.insert(key, method_ref);
+                } else if method_ref
                     .interface
                     .namespace
                     .starts_with("Microsoft.UI.Xaml")

@@ -26,18 +26,18 @@ use windows::{
             HiDpi::{GetDpiForWindow, GetSystemMetricsForDpi},
             WindowsAndMessaging::{
                 CREATESTRUCTW, CW_USEDEFAULT, CreateWindowExW, DefWindowProcW, DispatchMessageW,
-                GWLP_USERDATA, GetClientRect, GetMessageW, HMENU, HTCAPTION, HTCLIENT, HTCLOSE,
-                HTMAXBUTTON, HTMINBUTTON, HTTOP, HTTOPLEFT, HTTOPRIGHT, HWND_TOP, IDC_ARROW,
-                IsZoomed, LWA_ALPHA, LoadCursorW, MSG, NCCALCSIZE_PARAMS, PostMessageW,
-                PostQuitMessage, RegisterClassW, SC_CLOSE, SC_MAXIMIZE, SC_MINIMIZE, SC_RESTORE,
-                SM_CXPADDEDBORDER, SM_CYSIZEFRAME, SW_HIDE, SW_SHOW, SWP_FRAMECHANGED,
-                SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW, SendMessageW,
-                SetLayeredWindowAttributes, SetWindowLongPtrW, SetWindowPos, ShowWindow,
-                TranslateMessage, WINDOW_EX_STYLE, WM_APP, WM_DESTROY, WM_NCCALCSIZE, WM_NCCREATE,
-                WM_NCHITTEST, WM_NCLBUTTONDBLCLK, WM_NCLBUTTONDOWN, WM_NCLBUTTONUP,
-                WM_NCRBUTTONDBLCLK, WM_NCRBUTTONDOWN, WM_NCRBUTTONUP, WM_SIZE, WM_SYSCOMMAND,
-                WNDCLASSW, WS_CHILD, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_NOPARENTNOTIFY,
-                WS_EX_NOREDIRECTIONBITMAP, WS_OVERLAPPEDWINDOW,
+                GWLP_USERDATA, GetClientRect, GetMessageW, HMENU, HTCAPTION, HTCLIENT, HTTOP,
+                HTTOPLEFT, HTTOPRIGHT, HTTRANSPARENT, HWND_TOP, IDC_ARROW, IsZoomed, LWA_ALPHA,
+                LoadCursorW, MSG, NCCALCSIZE_PARAMS, PostMessageW, PostQuitMessage, RegisterClassW,
+                SC_CLOSE, SC_MAXIMIZE, SC_MINIMIZE, SC_RESTORE, SM_CXPADDEDBORDER, SM_CYSIZEFRAME,
+                SW_HIDE, SW_SHOW, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+                SWP_NOZORDER, SWP_SHOWWINDOW, SendMessageW, SetLayeredWindowAttributes,
+                SetWindowLongPtrW, SetWindowPos, ShowWindow, TranslateMessage, WINDOW_EX_STYLE,
+                WM_ACTIVATE, WM_APP, WM_DESTROY, WM_NCCALCSIZE, WM_NCCREATE, WM_NCHITTEST,
+                WM_NCLBUTTONDBLCLK, WM_NCLBUTTONDOWN, WM_NCLBUTTONUP, WM_NCRBUTTONDBLCLK,
+                WM_NCRBUTTONDOWN, WM_NCRBUTTONUP, WM_SIZE, WM_SYSCOMMAND, WNDCLASSW, WS_CHILD,
+                WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_NOPARENTNOTIFY, WS_EX_NOREDIRECTIONBITMAP,
+                WS_OVERLAPPEDWINDOW,
             },
         },
     },
@@ -46,11 +46,12 @@ use windows::{
 use windows_core::Interface;
 
 use crate::bindings::*;
+use crate::bindings_iuxc as Iuxc;
 use crate::bindings_muxc as Muxc;
 use crate::core::*;
 
 use super::app_shim::create_island_application;
-use super::{WinUIBackend, WinUIDispatcher, backend::TitleBarMetrics};
+use super::{WinUIBackend, WinUIDispatcher, backend::TitleBarState};
 
 static XAML_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 static CORE_HWND: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
@@ -62,7 +63,6 @@ static TITLEBAR_DRAG_LEFT_DIPS: AtomicU32 = AtomicU32::new(0);
 static TITLEBAR_DRAG_WIDTH_DIPS: AtomicU32 = AtomicU32::new(1);
 const WM_ISLANDS_REACTOR_SYSTEM_THEME_CHANGED: u32 = WM_APP + 0x491;
 const CAPTION_BUTTON_WIDTH_DIPS: f64 = 46.0;
-const CAPTION_BUTTON_HEIGHT_DIPS: f64 = 32.0;
 
 thread_local! {
     static ROOT_FRAMEWORK_ELEMENT: RefCell<Option<FrameworkElement>> = const { RefCell::new(None) };
@@ -73,6 +73,8 @@ thread_local! {
     static UNHANDLED_EXCEPTION_HANDLER: RefCell<Option<windows_core::EventRevoker>> =
         const { RefCell::new(None) };
     static THEME_CHANGED_CALLBACK: RefCell<Option<Rc<dyn Fn()>>> = const { RefCell::new(None) };
+    static TITLEBAR_ADAPTER: RefCell<Option<Iuxc::TitleBarWindowAdapter>> =
+        const { RefCell::new(None) };
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -146,10 +148,8 @@ pub fn install_winui2_resources() -> windows_core::Result<()> {
     }
 
     if !current_exe_sibling("resources.pri")?.exists() {
-        if let Err(err) = load_winui2_pri() {
-            crate::diagnostics::emit(&format!(
-                "islands_reactor: WinUI 2 PRI load failed: {err:?}\n"
-            ));
+        if let Err(err) = load_runtime_pris() {
+            crate::diagnostics::emit(&format!("islands_reactor: XAML PRI load failed: {err:?}\n"));
             return Err(err);
         }
     }
@@ -203,35 +203,40 @@ fn create_xaml_controls_resources() -> windows_core::Result<ResourceDictionary> 
     Muxc::XamlControlsResources::new()?.cast()
 }
 
-fn load_winui2_pri() -> windows_core::Result<()> {
-    let pri_path = current_exe_sibling("Microsoft.UI.Xaml.pri")?;
-    if !pri_path.exists() {
-        crate::diagnostics::emit(&format!(
-            "islands_reactor: WinUI 2 PRI not found at {}\n",
-            pri_path.display()
-        ));
+fn load_runtime_pris() -> windows_core::Result<()> {
+    let mut pri_files = Vec::new();
+    for name in ["Microsoft.UI.Xaml.pri", "Islands.UI.Xaml.Controls.pri"] {
+        let pri_path = current_exe_sibling(name)?;
+        if !pri_path.exists() {
+            continue;
+        }
+
+        let path = pri_path.display().to_string();
+        let pri_file = StorageFile::GetFileFromPathAsync(&path)
+            .map_err(|err| {
+                crate::diagnostics::emit(&format!(
+                    "islands_reactor: StorageFile::GetFileFromPathAsync failed for {}: {err:?}\n",
+                    pri_path.display()
+                ));
+                err
+            })?
+            .join()
+            .map_err(|err| {
+                crate::diagnostics::emit(&format!(
+                    "islands_reactor: StorageFile::GetFileFromPathAsync join failed for {}: {err:?}\n",
+                    pri_path.display()
+                ));
+                err
+            })?;
+        pri_files.push(Some(pri_file.cast::<IStorageFile>()?));
+    }
+
+    if pri_files.is_empty() {
+        crate::diagnostics::emit("islands_reactor: no XAML PRI files found beside executable\n");
         return Ok(());
     }
 
-    let path = pri_path.display().to_string();
-    let pri_file = StorageFile::GetFileFromPathAsync(&path)
-        .map_err(|err| {
-            crate::diagnostics::emit(&format!(
-                "islands_reactor: StorageFile::GetFileFromPathAsync failed for {}: {err:?}\n",
-                pri_path.display()
-            ));
-            err
-        })?
-        .join()
-        .map_err(|err| {
-            crate::diagnostics::emit(&format!(
-                "islands_reactor: StorageFile::GetFileFromPathAsync join failed for {}: {err:?}\n",
-                pri_path.display()
-            ));
-            err
-        })?;
-    let pri_file: IStorageFile = pri_file.cast()?;
-    let files = windows_collections::IVector::<IStorageFile>::from(vec![Some(pri_file)]);
+    let files = windows_collections::IVector::<IStorageFile>::from(pri_files);
     let resource_manager = ResourceManager::get_Current().map_err(|err| {
         crate::diagnostics::emit(&format!(
             "islands_reactor: ResourceManager::Current failed: {err:?}\n"
@@ -240,8 +245,7 @@ fn load_winui2_pri() -> windows_core::Result<()> {
     })?;
     resource_manager.LoadPriFiles(&files).map_err(|err| {
         crate::diagnostics::emit(&format!(
-            "islands_reactor: ResourceManager::LoadPriFiles failed for {}: {err:?}\n",
-            pri_path.display()
+            "islands_reactor: ResourceManager::LoadPriFiles failed: {err:?}\n"
         ));
         err
     })?;
@@ -385,7 +389,7 @@ impl ReactorHost {
         render_host.set_post_render(move |new_id| {
             sync_custom_titlebar(
                 hwnd,
-                render_for_post_render.with_backend(|b| b.root_titlebar_metrics(new_id)),
+                render_for_post_render.with_backend(|b| b.root_titlebar_state(new_id)),
             );
             if last_for_hook.get() == new_id {
                 return;
@@ -485,6 +489,9 @@ impl Drop for ReactorHost {
         TITLEBAR_HWND.store(std::ptr::null_mut(), Ordering::Relaxed);
         TITLEBAR_ENABLED.store(false, Ordering::Relaxed);
         TITLEBAR_HEIGHT_DIPS.store(40, Ordering::Relaxed);
+        TITLEBAR_ADAPTER.with(|slot| {
+            *slot.borrow_mut() = None;
+        });
     }
 }
 
@@ -587,6 +594,10 @@ unsafe extern "system" fn wnd_proc(
             }
             unsafe { DefWindowProcW(hwnd, message, wparam, lparam) }
         }
+        WM_ACTIVATE if custom_titlebar_enabled() => {
+            notify_titlebar_window_activated((wparam.0 & 0xffff) != 0);
+            unsafe { DefWindowProcW(hwnd, message, wparam, lparam) }
+        }
         WM_SIZE => {
             resize_xaml_island(hwnd);
             resize_titlebar_overlay(hwnd);
@@ -611,18 +622,22 @@ unsafe extern "system" fn wnd_proc(
             TITLEBAR_HEIGHT_DIPS.store(40, Ordering::Relaxed);
             TITLEBAR_DRAG_LEFT_DIPS.store(0, Ordering::Relaxed);
             TITLEBAR_DRAG_WIDTH_DIPS.store(1, Ordering::Relaxed);
+            TITLEBAR_ADAPTER.with(|slot| {
+                *slot.borrow_mut() = None;
+            });
             LRESULT(0)
         }
         _ => unsafe { DefWindowProcW(hwnd, message, wparam, lparam) },
     }
 }
 
-fn sync_custom_titlebar(hwnd: HWND, titlebar_metrics: Option<TitleBarMetrics>) {
-    let enabled = titlebar_metrics.is_some();
+fn sync_custom_titlebar(hwnd: HWND, titlebar_state: Option<TitleBarState>) {
+    let enabled = titlebar_state.is_some();
     let previous = TITLEBAR_ENABLED.swap(enabled, Ordering::Relaxed);
 
     if enabled {
-        if let Some(metrics) = titlebar_metrics {
+        if let Some(state) = titlebar_state {
+            let metrics = state.metrics;
             TITLEBAR_HEIGHT_DIPS.store(
                 metrics.height_dips.max(1.0).ceil() as u32,
                 Ordering::Relaxed,
@@ -635,14 +650,16 @@ fn sync_custom_titlebar(hwnd: HWND, titlebar_metrics: Option<TitleBarMetrics>) {
                 metrics.drag_width_dips.max(1.0).ceil() as u32,
                 Ordering::Relaxed,
             );
-        }
-        if let Some(titlebar_hwnd) = ensure_titlebar_overlay(hwnd) {
-            unsafe {
-                let _ = ShowWindow(titlebar_hwnd, SW_SHOW);
+            if let Some(titlebar_hwnd) = ensure_titlebar_overlay(hwnd) {
+                configure_titlebar_adapter(hwnd, titlebar_hwnd, Some(state.adapter));
+                unsafe {
+                    let _ = ShowWindow(titlebar_hwnd, SW_SHOW);
+                }
+                resize_titlebar_overlay(hwnd);
             }
-            resize_titlebar_overlay(hwnd);
         }
     } else {
+        configure_titlebar_adapter(hwnd, HWND(std::ptr::null_mut()), None);
         let raw_titlebar = TITLEBAR_HWND.load(Ordering::Relaxed);
         if !raw_titlebar.is_null() {
             unsafe {
@@ -673,6 +690,31 @@ fn sync_custom_titlebar(hwnd: HWND, titlebar_metrics: Option<TitleBarMetrics>) {
 
 fn custom_titlebar_enabled() -> bool {
     TITLEBAR_ENABLED.load(Ordering::Relaxed)
+}
+
+fn configure_titlebar_adapter(
+    parent: HWND,
+    titlebar_hwnd: HWND,
+    adapter: Option<Iuxc::TitleBarWindowAdapter>,
+) {
+    TITLEBAR_ADAPTER.with(|slot| {
+        *slot.borrow_mut() = adapter.clone();
+    });
+
+    let Some(adapter) = adapter else {
+        return;
+    };
+
+    let _ = adapter.put_WindowHandle(parent.0 as isize as i64);
+    let right_inset = CAPTION_BUTTON_WIDTH_DIPS * 3.0;
+    let _ = adapter.SetCaptionInsets(0.0, right_inset);
+    if let Ok(window_titlebar) = adapter.get_WindowTitleBar() {
+        let _ = window_titlebar.put_ExtendsContentIntoTitleBar(true);
+        let _ = window_titlebar.put_LeftInset(0.0);
+        let _ = window_titlebar.put_RightInset(right_inset);
+    }
+
+    apply_titlebar_window_region(parent, titlebar_hwnd);
 }
 
 fn ensure_titlebar_overlay(parent: HWND) -> Option<HWND> {
@@ -732,6 +774,7 @@ fn resize_titlebar_overlay(parent: HWND) {
                 bounds.height,
                 SWP_NOACTIVATE | SWP_SHOWWINDOW,
             );
+            apply_titlebar_window_region(parent, HWND(raw_titlebar));
         }
     }
 }
@@ -742,6 +785,23 @@ fn titlebar_overlay_height_px(parent: HWND) -> i32 {
 }
 
 fn titlebar_overlay_bounds_px(parent: HWND) -> Option<PixelRect> {
+    let mut rect = RECT::default();
+    let client_width = unsafe {
+        if GetClientRect(parent, &mut rect).is_ok() {
+            rect.right - rect.left
+        } else {
+            return None;
+        }
+    };
+    Some(PixelRect {
+        x: 0,
+        y: 0,
+        width: client_width.max(1),
+        height: titlebar_overlay_height_px(parent) + 1,
+    })
+}
+
+fn manual_titlebar_drag_bounds_px(parent: HWND) -> Option<PixelRect> {
     let mut rect = RECT::default();
     let client_width = unsafe {
         if GetClientRect(parent, &mut rect).is_ok() {
@@ -770,9 +830,14 @@ unsafe extern "system" fn titlebar_overlay_wnd_proc(
     lparam: LPARAM,
 ) -> LRESULT {
     match message {
-        WM_NCHITTEST => LRESULT(
-            try_hit_test_titlebar(parent_hwnd(), lparam).unwrap_or(HTCLIENT as i32) as isize,
-        ),
+        WM_NCHITTEST => {
+            let hit = try_hit_test_titlebar(parent_hwnd(), lparam).unwrap_or(HTCLIENT as i32);
+            if hit == HTCLIENT as i32 {
+                LRESULT(HTTRANSPARENT as isize)
+            } else {
+                LRESULT(hit as isize)
+            }
+        }
         WM_NCLBUTTONDOWN | WM_NCLBUTTONDBLCLK | WM_NCLBUTTONUP | WM_NCRBUTTONDOWN
         | WM_NCRBUTTONDBLCLK | WM_NCRBUTTONUP => {
             forward_titlebar_nc_message(message, wparam, lparam)
@@ -805,12 +870,12 @@ fn try_hit_test_titlebar(hwnd: HWND, lparam: LPARAM) -> Option<i32> {
         }
     }
 
-    if let Some(hit) = caption_button_hit_test(hwnd, client_rect, screen_point) {
+    if let Some(hit) = titlebar_adapter_hit_test(client_rect, screen_point) {
         return Some(hit);
     }
 
     let titlebar_rect = offset_pixel_rect(
-        titlebar_overlay_bounds_px(hwnd)?,
+        manual_titlebar_drag_bounds_px(hwnd)?,
         client_rect.left,
         client_rect.top,
     );
@@ -821,27 +886,39 @@ fn try_hit_test_titlebar(hwnd: HWND, lparam: LPARAM) -> Option<i32> {
     }
 }
 
-fn caption_button_hit_test(hwnd: HWND, client_rect: RECT, screen_point: POINT) -> Option<i32> {
-    let scale = current_dpi(hwnd) as f64 / 96.0;
-    let button_width = (CAPTION_BUTTON_WIDTH_DIPS * scale).ceil() as i32;
-    let button_height = (CAPTION_BUTTON_HEIGHT_DIPS * scale).ceil() as i32;
-    let caption_left = client_rect.right - button_width * 3;
+fn titlebar_adapter_hit_test(client_rect: RECT, screen_point: POINT) -> Option<i32> {
+    TITLEBAR_ADAPTER.with(|slot| {
+        let adapter = slot.borrow().as_ref()?.clone();
+        adapter
+            .HitTest(
+                screen_point.x,
+                screen_point.y,
+                client_rect.left,
+                client_rect.top,
+            )
+            .ok()
+            .map(|hit| if hit == 0 { HTCLIENT as i32 } else { hit })
+    })
+}
 
-    if screen_point.y < client_rect.top
-        || screen_point.y >= client_rect.top + button_height
-        || screen_point.x < caption_left
-        || screen_point.x >= client_rect.right
-    {
-        return None;
+fn apply_titlebar_window_region(parent: HWND, titlebar_hwnd: HWND) {
+    if titlebar_hwnd.0.is_null() {
+        return;
     }
 
-    if screen_point.x < caption_left + button_width {
-        Some(HTMINBUTTON as i32)
-    } else if screen_point.x < caption_left + button_width * 2 {
-        Some(HTMAXBUTTON as i32)
-    } else {
-        Some(HTCLOSE as i32)
-    }
+    let Some(client_rect) = client_rect_in_screen(parent) else {
+        return;
+    };
+
+    TITLEBAR_ADAPTER.with(|slot| {
+        if let Some(adapter) = slot.borrow().as_ref() {
+            let _ = adapter.ApplyTitleBarWindowRegion(
+                titlebar_hwnd.0 as isize as i64,
+                client_rect.left,
+                client_rect.top,
+            );
+        }
+    });
 }
 
 fn client_rect_in_screen(hwnd: HWND) -> Option<RECT> {
@@ -881,15 +958,15 @@ fn resize_handle_height_px(hwnd: HWND) -> i32 {
 }
 
 pub(crate) fn minimize_active_window() {
-    send_titlebar_syscommand(SC_MINIMIZE, LPARAM(0));
+    send_titlebar_syscommand(SC_MINIMIZE);
 }
 
 pub(crate) fn toggle_active_window_maximize() {
-    send_titlebar_syscommand(toggle_maximize_command(parent_hwnd()), LPARAM(0));
+    send_titlebar_syscommand(toggle_maximize_command(parent_hwnd()));
 }
 
 pub(crate) fn close_active_window() {
-    send_titlebar_syscommand(SC_CLOSE, LPARAM(0));
+    send_titlebar_syscommand(SC_CLOSE);
 }
 
 fn toggle_maximize_command(parent: HWND) -> u32 {
@@ -900,7 +977,7 @@ fn toggle_maximize_command(parent: HWND) -> u32 {
     }
 }
 
-fn send_titlebar_syscommand(command: u32, _lparam: LPARAM) {
+fn send_titlebar_syscommand(command: u32) {
     let parent = parent_hwnd();
     if parent.0.is_null() {
         return;
@@ -913,6 +990,14 @@ fn send_titlebar_syscommand(command: u32, _lparam: LPARAM) {
             LPARAM(0),
         );
     }
+}
+
+fn notify_titlebar_window_activated(active: bool) {
+    TITLEBAR_ADAPTER.with(|slot| {
+        if let Some(adapter) = slot.borrow().as_ref() {
+            let _ = adapter.NotifyWindowActivated(active);
+        }
+    });
 }
 
 fn forward_titlebar_nc_message(message: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {

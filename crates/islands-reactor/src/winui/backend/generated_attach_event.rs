@@ -2,6 +2,8 @@
 
 use super::*;
 use crate::bindings as Xaml;
+#[allow(unused_imports)]
+use crate::bindings_iuxc as Iuxc;
 use crate::bindings_muxc as Muxc;
 #[doc = r" Try to handle an `attach_event` call via generated dispatch."]
 #[doc = r" Returns `Some(revokers)` if handled, `None` to fall through."]

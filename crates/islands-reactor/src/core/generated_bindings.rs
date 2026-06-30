@@ -9,6 +9,18 @@ pub(crate) fn selector_bar_bindings(w: &SelectorBar) -> PropBindings {
             .map(|cb| EventHandler::Str(cb.clone())),
     )]
 }
+pub(crate) fn scroll_view_bindings(w: &ScrollView) -> PropBindings {
+    vec![
+        Binding::Prop(
+            Prop::HorizontalScrollBarVisibility,
+            PropValue::I32(w.horizontal_scroll_bar_visibility.0),
+        ),
+        Binding::Prop(
+            Prop::VerticalScrollBarVisibility,
+            PropValue::I32(w.vertical_scroll_bar_visibility.0),
+        ),
+    ]
+}
 pub(crate) fn title_bar_bindings(w: &TitleBar) -> PropBindings {
     vec![
         Binding::Event(
